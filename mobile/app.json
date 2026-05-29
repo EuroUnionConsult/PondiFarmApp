@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "PondiFarm",
+    "slug": "pondifarm",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#050D1A"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "pt.eurounionconsult.pondifarm",
+      "infoPlist": {
+        "NSCameraUsageDescription": "A câmera é usada para escanear o animal e estimar seu peso.",
+        "NSPhotoLibraryUsageDescription": "Acesso à galeria para selecionar fotos de animais."
+      }
+    },
+    "android": {
+      "package": "pt.eurounionconsult.pondifarm",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#050D1A"
+      },
+      "edgeToEdgeEnabled": true,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "A câmera é usada para escanear o animal e estimar seu peso."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Acesso à galeria para selecionar fotos de animais."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "3e0cf932-1fa4-47bc-8dae-860f364c05bb"
+      }
+    },
+    "owner": "tcord",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/3e0cf932-1fa4-47bc-8dae-860f364c05bb"
+    }
+  }
+}
