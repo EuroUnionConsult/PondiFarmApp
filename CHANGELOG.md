@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.1.0...v0.1.1) (2026-05-29)
+
+
+### Code Refactoring
+
+* **backend:** apply ruff format to Phase 0 sources ([f510719](https://github.com/EuroUnionConsult/PondiFarmApp/commit/f510719916a1e5065f8ea1b10040af72ed1e1e57))
+
+
+### Miscellaneous Chores
+
+* **release:** remove release-as override after v0.1.0 ([b6a3f16](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b6a3f164bdaa76036644c9ee6e52c42f7a9b7e4e))
+
 ## 0.1.0 (2026-05-29)
 
 
