@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Run release-please
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
           # Use a dedicated token when available so downstream workflows can run
           # for release PRs; otherwise fall back to the default GitHub token.
