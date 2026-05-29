@@ -1,0 +1,66 @@
+# ───────────────────────────────────────────────────────────────
+# PondiFarmApp — backend (Python / FastAPI)
+# Inherits the root .gitignore. Adds Python-specific patterns.
+# ───────────────────────────────────────────────────────────────
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+*.egg-info/
+*.egg
+.eggs/
+build/
+dist/
+sdist/
+wheels/
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+nosetests.xml
+coverage.xml
+
+# Lint / type-check caches
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# Local environment / secrets
+.env
+.env.*
+*.local
+local_settings.py
+
+# Model artefacts (handled via Git LFS — see root .gitattributes)
+# *.pt, *.pkl, *.onnx, *.mlpackage are LFS-tracked
+
+# Logs / temp
+*.log
+tmp/
+temp/
+
+# macOS noise (redundant with root, kept for safety)
+.DS_Store
