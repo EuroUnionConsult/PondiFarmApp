@@ -1,0 +1,34 @@
+# CODEOWNERS — PondiFarmApp
+#
+# Each pull request that touches a path matched below automatically
+# requests review from the listed owners. The first matching rule wins,
+# so order matters — most specific patterns at the bottom.
+#
+# Syntax reference:
+# https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+#
+# TODO: replace the @PLACEHOLDER handles below with the actual GitHub
+# usernames of Filipa Barros and Nicole once they have been added to the
+# EuroUnionConsult organisation.
+
+# Default owner for everything not matched by a more specific rule.
+*                       @Tcordeir0
+
+# Mobile sub-project
+/mobile/                @Tcordeir0 @FILIPA-PLACEHOLDER
+
+# Backend sub-project
+/backend/               @Tcordeir0 @NICOLE-PLACEHOLDER
+
+# CI / release / governance — coordinator + lead engineer
+/.github/               @Tcordeir0
+/release-please-config.json   @Tcordeir0
+/.release-please-manifest.json @Tcordeir0
+/LICENSE                @Tcordeir0
+/SECURITY.md            @Tcordeir0
+/CODE_OF_CONDUCT.md     @Tcordeir0
+
+# Documentation
+/README.md              @Tcordeir0
+/CONTRIBUTING.md        @Tcordeir0
+/AGENTS.md              @Tcordeir0

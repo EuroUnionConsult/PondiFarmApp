@@ -1,0 +1,84 @@
+version: 2
+
+updates:
+  # Backend — Python (pip)
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Lisbon
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - backend
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      python-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Mobile — npm
+  - package-ecosystem: npm
+    directory: /mobile
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Lisbon
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - mobile
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+    groups:
+      expo-and-rn:
+        patterns:
+          - "expo*"
+          - "react-native*"
+          - "@react-navigation/*"
+        update-types:
+          - minor
+          - patch
+      js-minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  # Root — npm (commitlint / husky toolchain)
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Lisbon
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - tooling
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
+
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Lisbon
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(deps)"
+      include: scope
