@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.2.0...v0.2.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **mobile:** remove unused width destructuring in AnalyticsScreen ([#21](https://github.com/EuroUnionConsult/PondiFarmApp/issues/21)) ([cb1c247](https://github.com/EuroUnionConsult/PondiFarmApp/commit/cb1c2478dcb2973f2578e7527d3d4379de9db2ff))
+
+
+### Continuous Integration
+
+* fix Jira sync workflow authentication ([151ad35](https://github.com/EuroUnionConsult/PondiFarmApp/commit/151ad3540c84f8a9036acf6a65efe23730730d9a))
+* sync bot branches and release PRs to Jira ([4825f81](https://github.com/EuroUnionConsult/PondiFarmApp/commit/4825f81ef8caf3044487f36d20d1ff2ed6558dbe))
+* sync bot branches and release PRs to Jira ([028540d](https://github.com/EuroUnionConsult/PondiFarmApp/commit/028540d9438878a2d3aec5c2f5a4d2ce3ea0b5c0))
+
 ## [0.2.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.1.1...v0.2.0) (2026-05-29)
 
 
