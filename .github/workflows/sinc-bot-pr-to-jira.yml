@@ -3,70 +3,174 @@ name: Sync Bot PRs to Jira
 on:
   pull_request:
     types: [opened]
+  create:
   workflow_dispatch:
     inputs:
       bot_actor:
-        description: 'Bot actor para simular (ex: dependabot[bot])'
+        description: "Bot actor para simular (ex: dependabot[bot])"
         required: false
-        default: 'dependabot[bot]'
+        default: "dependabot[bot]"
         type: string
       pr_title:
-        description: 'Título do PR para o teste'
+        description: "Titulo do PR para o teste"
         required: false
-        default: 'test: Update dependencies'
+        default: "test: Update dependencies"
         type: string
       pr_url:
-        description: 'URL do PR (opcional)'
+        description: "URL do PR (opcional)"
         required: false
-        default: 'https://github.com/eurounionconsult/PondiFarmApp/pull/test'
+        default: "https://github.com/eurounionconsult/PondiFarmApp/pull/test"
         type: string
 
 jobs:
   sync-to-jira:
     runs-on: ubuntu-latest
-    # Só corre se for bot (ou manual via workflow_dispatch)
-    if: |
-      github.event_name == 'workflow_dispatch' ||
-      github.actor == 'dependabot[bot]' ||
-      github.actor == 'release-please[bot]' ||
-      github.actor == 'dependabot' ||
-      startsWith(github.actor, 'renovate')
 
     steps:
-      - name: Prepare Jira issue payload
+      - name: Prepare sync context
         id: prepare
         run: |
-          # Determina o tipo de bot
+          EVENT_NAME="${{ github.event_name }}"
           ACTOR="${{ github.event.inputs.bot_actor || github.actor }}"
+          BRANCH_NAME=""
+          TITLE=""
+          PR_URL=""
+          SHOULD_SYNC="false"
+          BOT_TYPE="Bot"
+          BOT_LABEL="bot"
 
-          if [[ "$ACTOR" == *"dependabot"* ]]; then
-            BOT_TYPE="Dependabot"
-          elif [[ "$ACTOR" == *"release-please"* ]]; then
-            BOT_TYPE="Release Please"
-          elif [[ "$ACTOR" == *"renovate"* ]]; then
-            BOT_TYPE="Renovate"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            ACTOR="${{ github.event.pull_request.user.login }}"
+            BRANCH_NAME="${{ github.event.pull_request.head.ref }}"
+            TITLE="${{ github.event.pull_request.title }}"
+            PR_URL="${{ github.event.pull_request.html_url }}"
+            PR_LABELS='${{ toJson(github.event.pull_request.labels.*.name) }}'
+
+            if [[ "$ACTOR" == *"dependabot"* ]]; then
+              SHOULD_SYNC="true"
+              BOT_TYPE="Dependabot"
+              BOT_LABEL="dependabot"
+            elif [[ "$ACTOR" == renovate* ]]; then
+              SHOULD_SYNC="true"
+              BOT_TYPE="Renovate"
+              BOT_LABEL="renovate"
+            elif [[ "$TITLE" == chore\(main\):\ release* ]] || [[ "$BRANCH_NAME" == release-please--* ]] || [[ "$PR_LABELS" == *"autorelease: pending"* ]]; then
+              SHOULD_SYNC="true"
+              BOT_TYPE="Release Please"
+              BOT_LABEL="release-please"
+            fi
+          elif [[ "$EVENT_NAME" == "create" ]]; then
+            if [[ "${{ github.event.ref_type }}" == "branch" ]]; then
+              BRANCH_NAME="${{ github.event.ref }}"
+              TITLE="Branch created: $BRANCH_NAME"
+
+              if [[ "$ACTOR" == *"dependabot"* ]]; then
+                SHOULD_SYNC="true"
+                BOT_TYPE="Dependabot"
+                BOT_LABEL="dependabot"
+              elif [[ "$ACTOR" == renovate* ]]; then
+                SHOULD_SYNC="true"
+                BOT_TYPE="Renovate"
+                BOT_LABEL="renovate"
+              fi
+            fi
           else
-            BOT_TYPE="Bot"
+            TITLE="${{ github.event.inputs.pr_title || 'Bot automation event' }}"
+            PR_URL="${{ github.event.inputs.pr_url || '' }}"
+            BRANCH_NAME="${{ github.head_ref || 'test-branch' }}"
+
+            if [[ "$ACTOR" == *"dependabot"* ]]; then
+              SHOULD_SYNC="true"
+              BOT_TYPE="Dependabot"
+              BOT_LABEL="dependabot"
+            elif [[ "$ACTOR" == *"release-please"* ]]; then
+              SHOULD_SYNC="true"
+              BOT_TYPE="Release Please"
+              BOT_LABEL="release-please"
+            elif [[ "$ACTOR" == renovate* ]]; then
+              SHOULD_SYNC="true"
+              BOT_TYPE="Renovate"
+              BOT_LABEL="renovate"
+            fi
           fi
 
-          echo "bot_type=$BOT_TYPE" >> $GITHUB_OUTPUT
+          if [[ -z "$BRANCH_NAME" ]]; then
+            BRANCH_NAME="no-branch"
+          fi
 
-          # Extrai o nome do branch/feature
-          FEATURE="${{ github.head_ref || 'test-branch' }}"
-          echo "feature=$FEATURE" >> $GITHUB_OUTPUT
+          if [[ -z "$TITLE" ]]; then
+            TITLE="Bot automation event"
+          fi
 
-      - name: Create Jira issue
+          SYNC_SOURCE="$BRANCH_NAME"
+          if [[ -z "$SYNC_SOURCE" || "$SYNC_SOURCE" == "no-branch" ]]; then
+            SYNC_SOURCE="$PR_URL"
+          fi
+
+          if [[ -z "$SYNC_SOURCE" ]]; then
+            SYNC_SOURCE="$ACTOR-$EVENT_NAME"
+          fi
+
+          SYNC_HASH=$(printf '%s' "$SYNC_SOURCE" | sha256sum | cut -c1-12)
+          SYNC_LABEL="gh-sync-$SYNC_HASH"
+
+          echo "actor=$ACTOR" >> "$GITHUB_OUTPUT"
+          echo "branch_name=$BRANCH_NAME" >> "$GITHUB_OUTPUT"
+          echo "title=$TITLE" >> "$GITHUB_OUTPUT"
+          echo "pr_url=$PR_URL" >> "$GITHUB_OUTPUT"
+          echo "should_sync=$SHOULD_SYNC" >> "$GITHUB_OUTPUT"
+          echo "bot_type=$BOT_TYPE" >> "$GITHUB_OUTPUT"
+          echo "bot_label=$BOT_LABEL" >> "$GITHUB_OUTPUT"
+          echo "sync_label=$SYNC_LABEL" >> "$GITHUB_OUTPUT"
+
+      - name: Skip non-bot events
+        if: steps.prepare.outputs.should_sync != 'true'
+        run: echo "No Jira sync needed for this event."
+
+      - name: Check for existing Jira issue
+        id: existing
+        if: steps.prepare.outputs.should_sync == 'true'
         run: |
-          # Dados do Jira
           JIRA_DOMAIN="eurounionconsult.atlassian.net"
           PROJECT_KEY="EURODEV"
+          SYNC_LABEL="${{ steps.prepare.outputs.sync_label }}"
 
+          SEARCH_PAYLOAD=$(cat <<EOF
+          {
+            "jql": "project = $PROJECT_KEY AND labels = $SYNC_LABEL ORDER BY created DESC",
+            "maxResults": 1,
+            "fields": ["key"]
+          }
+          EOF
+          )
+
+          RESPONSE=$(curl --fail-with-body -sS -X POST \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "$SEARCH_PAYLOAD" \
+            "https://$JIRA_DOMAIN/rest/api/3/search")
+
+          ISSUE_KEY=$(echo "$RESPONSE" | jq -r '.issues[0].key // empty')
+
+          if [[ -n "$ISSUE_KEY" ]]; then
+            echo "existing_issue=$ISSUE_KEY" >> "$GITHUB_OUTPUT"
+            echo "Found existing Jira issue: $ISSUE_KEY"
+          else
+            echo "existing_issue=" >> "$GITHUB_OUTPUT"
+            echo "No existing Jira issue found for $SYNC_LABEL"
+          fi
+
+      - name: Create Jira issue
+        if: steps.prepare.outputs.should_sync == 'true' && steps.existing.outputs.existing_issue == ''
+        run: |
+          JIRA_DOMAIN="eurounionconsult.atlassian.net"
+          PROJECT_KEY="EURODEV"
           DUEDATE=$(date -u -d '+7 days' +%Y-%m-%d)
-
-          # Usa inputs do workflow_dispatch se disponível, senão dados do PR real
-          TITLE="${{ github.event.inputs.pr_title || github.event.pull_request.title }}"
-          PR_URL="${{ github.event.inputs.pr_url || github.event.pull_request.html_url }}"
-          ACTOR="${{ github.event.inputs.bot_actor || github.actor }}"
+          TITLE="${{ steps.prepare.outputs.title }}"
+          PR_URL="${{ steps.prepare.outputs.pr_url }}"
+          ACTOR="${{ steps.prepare.outputs.actor }}"
+          BRANCH_NAME="${{ steps.prepare.outputs.branch_name }}"
+          SYNC_LABEL="${{ steps.prepare.outputs.sync_label }}"
 
           ISSUE_PAYLOAD=$(cat <<EOF
           {
@@ -84,7 +188,7 @@ jobs:
                     "content": [
                       {
                         "type": "text",
-                        "text": "GitHub PR: $PR_URL\n\nAutor: $ACTOR\n\nBranch: ${{ github.head_ref || 'test-branch' }}\n\nTrigger: ${{ github.event_name }}"
+                        "text": "GitHub PR: ${PR_URL:-N/A}\n\nAutor: $ACTOR\n\nBranch: $BRANCH_NAME\n\nTrigger: ${{ github.event_name }}"
                       }
                     ]
                   }
@@ -93,7 +197,7 @@ jobs:
               "issuetype": {
                 "name": "Task"
               },
-              "labels": ["BOT", "automation", "${{ steps.prepare.outputs.bot_type }}"],
+              "labels": ["BOT", "automation", "${{ steps.prepare.outputs.bot_label }}", "$SYNC_LABEL"],
               "priority": {
                 "name": "Low"
               },
@@ -103,12 +207,16 @@ jobs:
           EOF
           )
 
-          echo "📋 Payload que será enviado:"
+          echo "Payload que sera enviado:"
           echo "$ISSUE_PAYLOAD" | jq .
 
-          # Faz POST para Jira
           curl --fail-with-body -sS -X POST \
             -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "$ISSUE_PAYLOAD" \
             "https://$JIRA_DOMAIN/rest/api/3/issue"
+
+      - name: Report existing Jira issue
+        if: steps.prepare.outputs.should_sync == 'true' && steps.existing.outputs.existing_issue != ''
+        run: |
+          echo "Jira issue already exists: ${{ steps.existing.outputs.existing_issue }}"
