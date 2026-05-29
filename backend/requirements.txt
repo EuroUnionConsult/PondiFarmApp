@@ -1,8 +1,8 @@
-fastapi==0.111.0
-uvicorn[standard]==0.29.0
-python-multipart==0.0.9
-ultralytics==8.2.18
-opencv-python==4.9.0.80
-scikit-learn==1.4.2
+fastapi==0.136.3
+uvicorn[standard]==0.48.0
+python-multipart==0.0.29
+ultralytics==8.4.56
+opencv-python==4.13.0.92
+scikit-learn==1.8.0
 numpy==1.26.4
 Pillow==12.2.0
