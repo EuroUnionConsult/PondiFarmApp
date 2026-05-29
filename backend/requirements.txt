@@ -4,5 +4,5 @@ python-multipart==0.0.9
 ultralytics==8.2.18
 opencv-python==4.9.0.80
 scikit-learn==1.4.2
-numpy==1.26.4
+numpy==2.4.6
 Pillow==10.3.0
