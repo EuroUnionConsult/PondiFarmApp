@@ -31,14 +31,14 @@ jobs:
       github.actor == 'release-please[bot]' ||
       github.actor == 'dependabot' ||
       startsWith(github.actor, 'renovate')
-    
+
     steps:
       - name: Prepare Jira issue payload
         id: prepare
         run: |
           # Determina o tipo de bot
           ACTOR="${{ github.event.inputs.bot_actor || github.actor }}"
-          
+
           if [[ "$ACTOR" == *"dependabot"* ]]; then
             BOT_TYPE="Dependabot"
           elif [[ "$ACTOR" == *"release-please"* ]]; then
@@ -48,9 +48,9 @@ jobs:
           else
             BOT_TYPE="Bot"
           fi
-          
+
           echo "bot_type=$BOT_TYPE" >> $GITHUB_OUTPUT
-          
+
           # Extrai o nome do branch/feature
           FEATURE="${{ github.head_ref || 'test-branch' }}"
           echo "feature=$FEATURE" >> $GITHUB_OUTPUT
@@ -62,12 +62,12 @@ jobs:
           PROJECT_KEY="EURODEV"
 
           DUEDATE=$(date -u -d '+7 days' +%Y-%m-%d)
-          
+
           # Usa inputs do workflow_dispatch se disponível, senão dados do PR real
           TITLE="${{ github.event.inputs.pr_title || github.event.pull_request.title }}"
           PR_URL="${{ github.event.inputs.pr_url || github.event.pull_request.html_url }}"
           ACTOR="${{ github.event.inputs.bot_actor || github.actor }}"
-          
+
           ISSUE_PAYLOAD=$(cat <<EOF
           {
             "fields": {
@@ -102,13 +102,13 @@ jobs:
           }
           EOF
           )
-          
+
           echo "📋 Payload que será enviado:"
           echo "$ISSUE_PAYLOAD" | jq .
-          
+
           # Faz POST para Jira
-          curl -X POST \
-            -H "Authorization: Basic $(echo -n '${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}' | base64)" \
+          curl --fail-with-body -sS -X POST \
+            -u "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "$ISSUE_PAYLOAD" \
             "https://$JIRA_DOMAIN/rest/api/3/issue"
