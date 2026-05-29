@@ -1,13 +1,11 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Dimensions
+  View, Text, ScrollView, StyleSheet
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, spacing, radius, font, shadow } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
-
-const { width } = Dimensions.get('window');
 
 function StatRow({ label, value, accent = colors.text }: { label: string; value: string; accent?: string }) {
   return (
