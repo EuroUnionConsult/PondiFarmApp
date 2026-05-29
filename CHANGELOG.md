@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.1.1...v0.2.0) (2026-05-29)
+
+
+### Features
+
+* **workflow:** add workflow_dispatch trigger to sync-bot-pr-to-jira for testing ([47f9f0a](https://github.com/EuroUnionConsult/PondiFarmApp/commit/47f9f0a8fdfbcf460d6b551ce8f7057cd22bd543))
+
 ## [0.1.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.1.0...v0.1.1) (2026-05-29)
 
 
