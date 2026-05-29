@@ -1,0 +1,67 @@
+# ───────────────────────────────────────────────────────────────
+# PondiFarmApp — Git attributes
+#
+# This file controls:
+#   1. Which large binary assets are stored via Git LFS.
+#   2. How line endings and diffs are handled across platforms.
+#
+# Git LFS reference: https://git-lfs.com/
+# ───────────────────────────────────────────────────────────────
+# ── Line endings ───────────────────────────────────────────────
+* text=auto eol=lf
+# Shell scripts must keep LF endings even on Windows checkouts.
+*.sh   text eol=lf
+*.bash text eol=lf
+# Markdown and JSON: keep LF for predictable diffs.
+*.md   text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf
+*.py   text eol=lf
+*.ts   text eol=lf
+*.tsx  text eol=lf
+*.js   text eol=lf
+*.jsx  text eol=lf
+# Windows-only files keep CRLF.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+# ── Binary assets (no diff, no merge) ──────────────────────────
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.icns binary
+*.pdf  binary
+*.zip  binary
+*.tar  binary
+*.tgz  binary
+# ── Git LFS — model artefacts ──────────────────────────────────
+# Trained model weights and large pickles.
+*.pt        filter=lfs diff=lfs merge=lfs -text
+*.pth       filter=lfs diff=lfs merge=lfs -text
+*.pkl       filter=lfs diff=lfs merge=lfs -text
+*.onnx      filter=lfs diff=lfs merge=lfs -text
+*.tflite    filter=lfs diff=lfs merge=lfs -text
+*.mlpackage filter=lfs diff=lfs merge=lfs -text
+*.mlmodel   filter=lfs diff=lfs merge=lfs -text
+*.bin       filter=lfs diff=lfs merge=lfs -text
+*.safetensors filter=lfs diff=lfs merge=lfs -text
+# ── Git LFS — datasets and large media (when used) ─────────────
+*.parquet   filter=lfs diff=lfs merge=lfs -text
+*.arrow     filter=lfs diff=lfs merge=lfs -text
+*.h5        filter=lfs diff=lfs merge=lfs -text
+*.npz       filter=lfs diff=lfs merge=lfs -text
+*.npy       filter=lfs diff=lfs merge=lfs -text
+*.glb       filter=lfs diff=lfs merge=lfs -text
+*.gltf      filter=lfs diff=lfs merge=lfs -text
+*.usdz      filter=lfs diff=lfs merge=lfs -text
+*.obj       filter=lfs diff=lfs merge=lfs -text
+*.ply       filter=lfs diff=lfs merge=lfs -text
+*.fbx       filter=lfs diff=lfs merge=lfs -text
+*.stl       filter=lfs diff=lfs merge=lfs -text
+# ── Exclude from language-stats / vendored markers ─────────────
+mobile/dist/**     linguist-generated=true
+backend/**/*.pkl   linguist-detectable=false
+backend/**/*.pt    linguist-detectable=false

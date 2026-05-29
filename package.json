@@ -1,0 +1,25 @@
+{
+  "name": "pondifarmapp",
+  "private": true,
+  "version": "0.0.0",
+  "description": "PondiFarmApp monorepo — tooling root. See backend/ and mobile/ for the sub-projects.",
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "Euro Union Consult, Lda.",
+  "homepage": "https://github.com/EuroUnionConsult/PondiFarmApp",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EuroUnionConsult/PondiFarmApp.git"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "commitlint": "commitlint --edit"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.5.0",
+    "@commitlint/config-conventional": "^19.5.0",
+    "husky": "^9.1.6"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

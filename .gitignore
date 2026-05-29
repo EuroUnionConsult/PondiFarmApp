@@ -1,0 +1,132 @@
+# ───────────────────────────────────────────────────────────────
+# PondiFarmApp — root .gitignore
+# Covers the whole monorepo (backend + mobile + tooling)
+# ───────────────────────────────────────────────────────────────
+
+# macOS
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.VolumeIcon.icns
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+.Trash-*
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*~
+.project
+.classpath
+.settings/
+*.sublime-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Env files (never commit secrets)
+.env
+.env.*
+!.env.example
+!.env.sample
+*.local
+
+# Node / JavaScript
+node_modules/
+**/node_modules/
+.npm/
+.yarn/
+.pnp.*
+*.tsbuildinfo
+
+# Python
+**/venv/
+**/.venv/
+**/env/
+**/.env/
+**/__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Expo / React Native
+**/.expo/
+**/web-build/
+**/expo-env.d.ts
+**/.metro-health-check*
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Native build artifacts (Expo generates these)
+**/ios/
+**/android/
+!**/ios/.gitkeep
+!**/android/.gitkeep
+
+# Husky output (keep config, ignore cache)
+.husky/_/
+
+# Coverage / test artifacts
+coverage/
+*.lcov
+.nyc_output/
+
+# Tooling caches
+.cache/
+.turbo/
+.parcel-cache/
+.next/
+
+# OS / archives
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Local secrets / scratch
+secrets/
+scratch/
+.local/
