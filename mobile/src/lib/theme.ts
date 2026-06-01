@@ -33,6 +33,37 @@ export const colors = {
   overlay:      'rgba(15,23,42,0.45)',
 };
 
+// iOS HIG token set — used by Home redesign (Liquid Health direction).
+// Scoped namespace so legacy screens keep the original `colors` palette
+// until each screen is migrated.
+export const ios = {
+  // System backgrounds
+  systemBackground:                '#FFFFFF',
+  systemGroupedBackground:         '#F2F2F7',
+  secondarySystemGroupedBackground:'#FFFFFF',
+  tertiarySystemGroupedBackground: '#F2F2F7',
+
+  // Labels
+  label:           '#000000',
+  secondaryLabel:  '#3C3C43',
+  tertiaryLabel:   'rgba(60,60,67,0.6)',
+  quaternaryLabel: 'rgba(60,60,67,0.3)',
+
+  // Separators
+  separator:       'rgba(60,60,67,0.29)',
+  opaqueSeparator: '#C6C6C8',
+
+  // PondiFarm accent — sage (NOT Tailwind emerald)
+  accent:      '#5F8068',
+  accentLight: 'rgba(95,128,104,0.12)',
+  accentDark:  '#4A6452',
+
+  // System colors (iOS HIG)
+  systemRed:    '#FF3B30',
+  systemGreen:  '#34C759',
+  systemBlue:   '#007AFF',
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,
