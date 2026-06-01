@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.2.1...v0.3.0) (2026-06-01)
+
+
+### Features
+
+* **mobile:** migrate Analytics screen to iOS HIG ios tokens ([d87cd86](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d87cd861013f1b4c5a49d9468b6c39c95c479956))
+* **mobile:** migrate Herd screen to iOS HIG ios tokens ([3acfb30](https://github.com/EuroUnionConsult/PondiFarmApp/commit/3acfb302ff3d2d89d5abe8221a60615c81bfa8ef))
+* **mobile:** migrate Result screen to iOS HIG ios tokens ([abb7ef8](https://github.com/EuroUnionConsult/PondiFarmApp/commit/abb7ef8797c4ead9860962b4f65a5c8ae268d8f0))
+* **mobile:** migrate Result, Herd, Analytics and Scan to iOS HIG ios tokens ([#34](https://github.com/EuroUnionConsult/PondiFarmApp/issues/34)) ([d3830ca](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d3830caab5ddbd5b41ee539f2396b00be516b0c8))
+* **mobile:** migrate Scan screen to iOS HIG ios tokens ([fe98b99](https://github.com/EuroUnionConsult/PondiFarmApp/commit/fe98b996c40734c11c2295f66e8739155db10119))
+* **mobile:** migrate Settings screen to iOS HIG ios tokens ([#25](https://github.com/EuroUnionConsult/PondiFarmApp/issues/25)) ([c7c8f05](https://github.com/EuroUnionConsult/PondiFarmApp/commit/c7c8f05149048d25bb2e5a7ec111595e463d1ed5))
+* **mobile:** redesign Home with iOS HIG (Liquid Health direction) ([#22](https://github.com/EuroUnionConsult/PondiFarmApp/issues/22)) ([fe5e890](https://github.com/EuroUnionConsult/PondiFarmApp/commit/fe5e89016434acb9fba79be372d25daad3b46f29))
+
+
+### Bug Fixes
+
+* **mobile:** align package versions to Expo SDK 54 ([#23](https://github.com/EuroUnionConsult/PondiFarmApp/issues/23)) ([4aadd64](https://github.com/EuroUnionConsult/PondiFarmApp/commit/4aadd640e451a4e920023561fc797a241d60cdc2))
+
 ## [0.2.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.2.0...v0.2.1) (2026-05-29)
 
 
