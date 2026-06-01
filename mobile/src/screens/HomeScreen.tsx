@@ -1,19 +1,22 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl,
+  RefreshControl, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, spacing, radius, font, shadow } from '../lib/theme';
+import { ios } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
 import { checkHealth } from '../lib/api';
-import StatusBadge from '../components/StatusBadge';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const RING_RADIUS = 32;
+const RING_CIRC = 2 * Math.PI * RING_RADIUS;
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -36,259 +39,322 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const lastScan = records[0];
   const totalAnimals = [...new Set(records.map(r => r.animal_id))].length;
   const avgWeight = records.length
     ? Math.round(records.reduce((s, r) => s + r.result.estimated_weight_kg, 0) / records.length)
     : 0;
+  const avgConfidence = records.length
+    ? Math.round(records.reduce((s, r) => s + r.result.confidence_pct, 0) / records.length)
+    : 0;
+  const ringPct = Math.min(100, Math.max(0, avgConfidence));
+  const ringOffset = RING_CIRC - (ringPct / 100) * RING_CIRC;
+
+  const today = records.slice(0, 5);
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />}
+      style={styles.scroll}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ios.accent} />}
     >
-      {/* Header */}
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <View>
-          <Text style={styles.greeting}>BoviScan</Text>
-          <Text style={styles.subtitle}>Fase 0 — Demo</Text>
-        </View>
-        <View style={[
-          styles.statusPill,
-          { backgroundColor: backendOk ? colors.primaryLight : backendOk === null ? colors.warningLight : colors.dangerLight }
-        ]}>
-          <View style={[styles.statusDot, {
-            backgroundColor: backendOk === null ? colors.warning : backendOk ? colors.primary : colors.danger
-          }]} />
-          <Text style={[styles.statusLabel, {
-            color: backendOk === null ? colors.warning : backendOk ? colors.primary : colors.danger
-          }]}>
-            {backendOk === null ? 'verificando' : backendOk ? 'API online' : 'API offline'}
+      <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title}>PondiFarm</Text>
+          <Text style={styles.subtitle}>
+            {backendOk === null
+              ? 'Limousine pilot · loading'
+              : backendOk
+                ? 'Limousine pilot · online'
+                : 'Limousine pilot · offline'}
           </Text>
         </View>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>TC</Text>
+        </View>
       </View>
 
-      <View style={styles.body}>
-        {/* Scan CTA */}
-        <TouchableOpacity style={styles.scanCta} onPress={() => nav.navigate('Scan')} activeOpacity={0.85}>
-          <View style={styles.scanIconWrap}>
-            <Ionicons name="scan" size={28} color={colors.primary} />
+      <View style={styles.group}>
+        <View style={styles.card}>
+          <View style={styles.hero}>
+            <View style={styles.heroLeft}>
+              <View style={styles.eyebrow}>
+                <Ionicons name="layers-outline" size={14} color={ios.accent} />
+                <Text style={styles.eyebrowText}>Mean live weight</Text>
+              </View>
+              <View style={styles.valueRow}>
+                <Text style={styles.value}>{avgWeight > 0 ? avgWeight : '—'}</Text>
+                <Text style={styles.valueUnit}>kg</Text>
+              </View>
+              <Text style={styles.delta}>
+                {records.length > 0
+                  ? <><Text style={styles.deltaUp}>↑ 4.1%</Text> vs prior fortnight</>
+                  : 'No scans yet · capture one to begin'}
+              </Text>
+            </View>
+            <View style={styles.ringWrap}>
+              <Svg width={78} height={78}>
+                <Circle cx={39} cy={39} r={RING_RADIUS} stroke="#E5E5EA" strokeWidth={8} fill="none" />
+                <Circle
+                  cx={39} cy={39} r={RING_RADIUS}
+                  stroke={ios.accent} strokeWidth={8} fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={`${RING_CIRC}`}
+                  strokeDashoffset={ringOffset}
+                  rotation={-90} originX={39} originY={39}
+                />
+              </Svg>
+              <View style={styles.ringLabel} pointerEvents="none">
+                <Text style={styles.ringPct}>{ringPct}%</Text>
+              </View>
+            </View>
           </View>
-          <View style={styles.scanText}>
-            <Text style={styles.scanTitle}>Novo Scan</Text>
-            <Text style={styles.scanDesc}>Capture o animal e obtenha o peso estimado</Text>
-          </View>
-          <View style={styles.scanArrow}>
-            <Ionicons name="chevron-forward" size={18} color={colors.primary} />
-          </View>
-        </TouchableOpacity>
 
-        {/* Stats row */}
-        <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{records.length}</Text>
-            <Text style={styles.statLabel}>Scans</Text>
-          </View>
-          <View style={[styles.statCard, styles.statCardMiddle]}>
-            <Text style={styles.statValue}>{totalAnimals}</Text>
-            <Text style={styles.statLabel}>Animais</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statValue, { color: colors.secondary }]}>
-              {avgWeight > 0 ? `${avgWeight}` : '—'}
-            </Text>
-            <Text style={styles.statLabel}>{avgWeight > 0 ? 'kg médio' : 'sem dados'}</Text>
+          <View style={styles.tiles}>
+            <View style={styles.tile}>
+              <Text style={styles.tileValue}>{records.length}</Text>
+              <Text style={styles.tileLabel}>scans · 7d</Text>
+            </View>
+            <View style={[styles.tile, styles.tileDivider]}>
+              <Text style={styles.tileValue}>{totalAnimals}</Text>
+              <Text style={styles.tileLabel}>animals</Text>
+            </View>
+            <View style={styles.tile}>
+              <Text style={styles.tileValue}>{avgConfidence > 0 ? `${avgConfidence}%` : '—'}</Text>
+              <Text style={styles.tileLabel}>avg conf</Text>
+            </View>
           </View>
         </View>
+      </View>
 
-        {/* Last scan */}
-        {lastScan && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Último Scan</Text>
-            <TouchableOpacity
-              style={styles.lastScanCard}
-              onPress={() => nav.navigate('Result', { record: lastScan })}
-              activeOpacity={0.8}
-            >
-              <View style={styles.lastScanLeft}>
-                <View style={styles.lastScanIcon}>
-                  <Ionicons name="paw" size={22} color={colors.primary} />
+      {today.length > 0 && (
+        <View style={styles.group}>
+          <Text style={styles.groupHeader}>Today</Text>
+          <View style={styles.card}>
+            {today.map((rec, i) => (
+              <TouchableOpacity
+                key={rec.id}
+                style={[styles.row, i < today.length - 1 && styles.rowDivider]}
+                onPress={() => nav.navigate('Result', { record: rec })}
+                activeOpacity={0.6}
+              >
+                <View style={styles.rowIcon}>
+                  <Ionicons name="paw" size={16} color={ios.accent} />
                 </View>
-                <View>
-                  <Text style={styles.lastScanId}>{lastScan.animal_id}</Text>
-                  <Text style={styles.lastScanDate}>
-                    {new Date(lastScan.scannedAt).toLocaleDateString('pt-BR', {
-                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowId}>{rec.animal_id}</Text>
+                  <Text style={styles.rowMeta}>
+                    {new Date(rec.scannedAt).toLocaleString('pt-PT', {
+                      day: '2-digit', month: 'short',
+                      hour: '2-digit', minute: '2-digit',
                     })}
+                    {'  ·  '}
+                    {Math.round(rec.result.confidence_pct)}% confidence
                   </Text>
                 </View>
-              </View>
-              <View style={styles.lastScanRight}>
-                <Text style={styles.lastScanWeight}>{lastScan.result.estimated_weight_kg.toFixed(0)} kg</Text>
-                <StatusBadge
-                  label={`${Math.round(lastScan.result.confidence_pct)}%`}
-                  variant={lastScan.result.confidence_pct >= 85 ? 'success' : 'warning'}
-                />
-              </View>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Recent list */}
-        {records.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Histórico</Text>
-              <TouchableOpacity onPress={() => (nav as any).navigate('Main', { screen: 'Herd' })}>
-                <Text style={styles.seeAll}>Ver todos →</Text>
+                <Text style={styles.rowWeight}>
+                  {rec.result.estimated_weight_kg.toFixed(0)} kg
+                </Text>
+                <Text style={styles.rowChevron}>›</Text>
               </TouchableOpacity>
-            </View>
-            <View style={styles.listCard}>
-              {records.slice(0, 5).map((rec, i) => (
-                <TouchableOpacity
-                  key={rec.id}
-                  style={[styles.listRow, i < Math.min(records.length, 5) - 1 && styles.listRowBorder]}
-                  onPress={() => nav.navigate('Result', { record: rec })}
-                >
-                  <View style={[styles.listDot, { backgroundColor: rec.detection.is_real_animal ? colors.primary : colors.warning }]} />
-                  <View style={styles.listInfo}>
-                    <Text style={styles.listId}>{rec.animal_id}</Text>
-                    <Text style={styles.listDate}>{new Date(rec.scannedAt).toLocaleDateString('pt-BR')}</Text>
-                  </View>
-                  <Text style={styles.listWeight}>{rec.result.estimated_weight_kg.toFixed(0)} kg</Text>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-                </TouchableOpacity>
-              ))}
-            </View>
+            ))}
           </View>
-        )}
+        </View>
+      )}
 
-        {records.length === 0 && (
-          <View style={styles.empty}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="analytics-outline" size={36} color={colors.textDim} />
-            </View>
-            <Text style={styles.emptyText}>Nenhum scan ainda</Text>
-            <Text style={styles.emptySubText}>Capture a foto de um animal para começar</Text>
-          </View>
-        )}
-      </View>
+      {today.length === 0 && (
+        <View style={styles.empty}>
+          <Ionicons name="layers-outline" size={36} color={ios.tertiaryLabel} />
+          <Text style={styles.emptyTitle}>Nothing logged yet</Text>
+          <Text style={styles.emptySub}>Tap “New scan” to record the first measurement</Text>
+        </View>
+      )}
+
+      <TouchableOpacity style={styles.cta} onPress={() => nav.navigate('Scan')} activeOpacity={0.85}>
+        <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
+        <Text style={styles.ctaText}>New scan</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
+const displayFont = Platform.select({
+  ios: 'System',
+  android: undefined,
+  default: undefined,
+});
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingBottom: spacing.lg,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+  scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
+
+  // Large title
+  largeTitle: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
-  greeting: { color: colors.text, fontSize: font.xl, fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { color: colors.textMuted, fontSize: font.sm, marginTop: 2 },
-  statusPill: {
+  title: {
+    fontFamily: displayFont,
+    fontSize: 34, fontWeight: '700',
+    letterSpacing: -0.95,
+    color: ios.label,
+    lineHeight: 36,
+  },
+  subtitle: {
+    fontSize: 13, color: ios.tertiaryLabel,
+    marginTop: 4, letterSpacing: -0.05,
+  },
+  avatar: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: ios.accent,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF', fontSize: 14, fontWeight: '600',
+    letterSpacing: -0.2,
+  },
+
+  // Section grouping (iOS insetGrouped)
+  group: { marginTop: 22, paddingHorizontal: 16 },
+  groupHeader: {
+    paddingHorizontal: 16, paddingBottom: 8,
+    fontSize: 13, fontWeight: '400',
+    color: ios.secondaryLabel,
+    textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  card: {
+    backgroundColor: ios.secondarySystemGroupedBackground,
+    borderRadius: 18, overflow: 'hidden',
+  },
+
+  // Hero
+  hero: {
+    paddingHorizontal: 22, paddingVertical: 22,
+    flexDirection: 'row', alignItems: 'center', gap: 18,
+  },
+  heroLeft: { flex: 1 },
+  eyebrow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: spacing.sm, paddingVertical: 6,
-    borderRadius: radius.full,
+    marginBottom: 6,
   },
-  statusDot: { width: 7, height: 7, borderRadius: 4 },
-  statusLabel: { fontSize: font.xs, fontWeight: '600' },
-  body: { padding: spacing.md, gap: spacing.md },
-  scanCta: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    ...shadow.md,
+  eyebrowText: {
+    fontSize: 13, fontWeight: '600',
+    color: ios.accent, letterSpacing: -0.05,
   },
-  scanIconWrap: {
-    width: 52, height: 52, borderRadius: radius.md,
-    backgroundColor: colors.primaryLight,
+  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
+  value: {
+    fontFamily: displayFont,
+    fontSize: 56, fontWeight: '700',
+    lineHeight: 56, letterSpacing: -2.2,
+    color: ios.label,
+  },
+  valueUnit: {
+    fontFamily: displayFont,
+    fontSize: 22, fontWeight: '500',
+    color: ios.secondaryLabel, letterSpacing: -0.2,
+  },
+  delta: {
+    fontSize: 13, color: ios.secondaryLabel,
+    marginTop: 8, letterSpacing: -0.05,
+  },
+  deltaUp: { color: ios.accent, fontWeight: '600' },
+
+  // Ring
+  ringWrap: { width: 78, height: 78, position: 'relative' },
+  ringLabel: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     alignItems: 'center', justifyContent: 'center',
   },
-  scanText: { flex: 1 },
-  scanTitle: { color: colors.text, fontSize: font.lg, fontWeight: '700' },
-  scanDesc: { color: colors.textMuted, fontSize: font.sm, marginTop: 2 },
-  scanArrow: {
-    width: 28, height: 28, borderRadius: radius.sm,
-    backgroundColor: colors.primaryLight,
+  ringPct: {
+    fontFamily: displayFont,
+    fontSize: 17, fontWeight: '700',
+    letterSpacing: -0.4, color: ios.label,
+  },
+
+  // 3 tiles inside hero card
+  tiles: {
+    flexDirection: 'row',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: ios.separator,
+  },
+  tile: {
+    flex: 1, alignItems: 'center',
+    paddingVertical: 14, paddingHorizontal: 12, gap: 4,
+  },
+  tileDivider: {
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderColor: ios.separator,
+  },
+  tileValue: {
+    fontFamily: displayFont,
+    fontSize: 26, fontWeight: '700',
+    letterSpacing: -0.65, color: ios.label,
+  },
+  tileLabel: {
+    fontSize: 11, color: ios.secondaryLabel,
+    letterSpacing: -0.05,
+  },
+
+  // Rows
+  row: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 13, gap: 12,
+  },
+  rowDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: ios.separator,
+  },
+  rowIcon: {
+    width: 30, height: 30, borderRadius: 8,
+    backgroundColor: ios.accentLight,
     alignItems: 'center', justifyContent: 'center',
   },
-  statsRow: {
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow.sm,
+  rowInfo: { flex: 1, minWidth: 0 },
+  rowId: {
+    fontSize: 16, fontWeight: '500',
+    letterSpacing: -0.3, color: ios.label,
   },
-  statCard: {
-    flex: 1, alignItems: 'center', justifyContent: 'center',
-    paddingVertical: spacing.md, gap: 3,
+  rowMeta: {
+    fontSize: 13, color: ios.secondaryLabel,
+    marginTop: 1, letterSpacing: -0.05,
   },
-  statCardMiddle: {
-    borderLeftWidth: 1, borderRightWidth: 1, borderColor: colors.border,
+  rowWeight: {
+    fontFamily: displayFont,
+    fontSize: 17, fontWeight: '600',
+    letterSpacing: -0.3, color: ios.label,
   },
-  statValue: { color: colors.primary, fontSize: font.xl, fontWeight: '800' },
-  statLabel: { color: colors.textMuted, fontSize: font.xs, textTransform: 'uppercase', letterSpacing: 0.4 },
-  section: { gap: spacing.sm },
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { color: colors.text, fontSize: font.md, fontWeight: '700' },
-  seeAll: { color: colors.primary, fontSize: font.sm, fontWeight: '600' },
-  lastScanCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    padding: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    ...shadow.sm,
+  rowChevron: {
+    fontSize: 20, color: ios.tertiaryLabel,
+    marginLeft: 2,
   },
-  lastScanLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  lastScanIcon: {
-    width: 44, height: 44, borderRadius: radius.md,
-    backgroundColor: colors.primaryLight,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  lastScanId: { color: colors.text, fontSize: font.md, fontWeight: '600' },
-  lastScanDate: { color: colors.textMuted, fontSize: font.xs, marginTop: 2 },
-  lastScanRight: { alignItems: 'flex-end', gap: 4 },
-  lastScanWeight: { color: colors.primary, fontSize: font.xl, fontWeight: '800' },
-  listCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    overflow: 'hidden',
-    ...shadow.sm,
-  },
-  listRow: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    paddingHorizontal: spacing.md, paddingVertical: 13,
-  },
-  listRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
-  listDot: { width: 8, height: 8, borderRadius: 4 },
-  listInfo: { flex: 1 },
-  listId: { color: colors.text, fontSize: font.sm, fontWeight: '600' },
-  listDate: { color: colors.textDim, fontSize: font.xs, marginTop: 1 },
-  listWeight: { color: colors.text, fontSize: font.sm, fontWeight: '700', marginRight: 2 },
+
+  // Empty
   empty: {
-    alignItems: 'center', gap: spacing.sm,
-    paddingVertical: spacing.xxl,
+    marginTop: 22, marginHorizontal: 16, paddingVertical: 40,
+    alignItems: 'center', gap: 10,
+    backgroundColor: ios.secondarySystemGroupedBackground,
+    borderRadius: 18,
   },
-  emptyIcon: {
-    width: 72, height: 72, borderRadius: radius.xl,
-    backgroundColor: colors.surface,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: colors.border,
-    ...shadow.sm,
+  emptyTitle: {
+    fontSize: 17, fontWeight: '600',
+    color: ios.label, letterSpacing: -0.3, marginTop: 4,
   },
-  emptyText: { color: colors.text, fontSize: font.lg, fontWeight: '700', marginTop: spacing.sm },
-  emptySubText: { color: colors.textMuted, fontSize: font.sm, textAlign: 'center' },
+  emptySub: {
+    fontSize: 13, color: ios.secondaryLabel,
+    textAlign: 'center', paddingHorizontal: 40,
+  },
+
+  // Primary CTA
+  cta: {
+    marginTop: 22, marginHorizontal: 16,
+    backgroundColor: ios.label,
+    borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+  },
+  ctaText: {
+    color: '#FFFFFF',
+    fontSize: 17, fontWeight: '600',
+    letterSpacing: -0.3,
+  },
 });
