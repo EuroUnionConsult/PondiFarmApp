@@ -1,20 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet,
+  View, Text, ScrollView, StyleSheet, Platform,
   TextInput, TouchableOpacity, Alert, Switch,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { colors, spacing, radius, font, shadow } from '../lib/theme';
+import { ios } from '../lib/theme';
 import { clearAll } from '../lib/storage';
 import { checkHealth } from '../lib/api';
 
-const CFG_KEY = '@boviscan:config';
+const CFG_KEY = '@pondifarm:config';
+const LEGACY_CFG_KEY = '@boviscan:config';
 
 interface Config {
   backendUrl: string;
-  defaultBreed: string;
+  defaultBreed: 'default' | 'minhota' | 'alentejana';
   vibration: boolean;
 }
 
@@ -24,6 +25,12 @@ const DEFAULT: Config = {
   vibration: true,
 };
 
+const BREEDS: { key: Config['defaultBreed']; label: string }[] = [
+  { key: 'default',    label: 'Padrão' },
+  { key: 'minhota',    label: 'Minhota' },
+  { key: 'alentejana', label: 'Alentejana' },
+];
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [cfg, setCfg] = useState<Config>(DEFAULT);
@@ -31,9 +38,11 @@ export default function SettingsScreen() {
   const [testing, setTesting] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(CFG_KEY).then(raw => {
+    (async () => {
+      const raw = await AsyncStorage.getItem(CFG_KEY)
+        ?? await AsyncStorage.getItem(LEGACY_CFG_KEY);
       if (raw) setCfg({ ...DEFAULT, ...JSON.parse(raw) });
-    });
+    })();
   }, []);
 
   const save = async (next: Partial<Config>) => {
@@ -49,182 +58,255 @@ export default function SettingsScreen() {
     setPing(ok);
     setTesting(false);
     Alert.alert(
-      ok ? '✅ Conectado' : '❌ Sem conexão',
-      ok ? 'API backend respondeu com sucesso.' : 'Verifique se o servidor está em execução e o IP/URL está correto.',
+      ok ? 'Connected' : 'No connection',
+      ok ? 'Backend API responded successfully.'
+         : 'Make sure the server is running and the URL is correct.',
     );
   };
 
   const handleClearData = () => {
-    Alert.alert('Limpar dados', 'Isso apagará todos os scans salvos. Confirma?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Limpar', style: 'destructive', onPress: async () => { await clearAll(); Alert.alert('Feito', 'Dados removidos.'); } },
-    ]);
+    Alert.alert(
+      'Clear all scans',
+      'This will permanently delete all locally saved scans. Confirm?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Clear', style: 'destructive', onPress: async () => {
+          await clearAll();
+          Alert.alert('Done', 'Local scans removed.');
+        } },
+      ]
+    );
   };
+
+  const pingColor =
+    ping === null ? ios.secondaryLabel :
+    ping ? ios.accent : ios.systemRed;
+  const pingIcon: keyof typeof Ionicons.glyphMap =
+    ping === null ? 'pulse-outline' :
+    ping ? 'checkmark-circle' : 'close-circle';
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}
+      style={styles.scroll}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
     >
-      <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
-        <Text style={styles.title}>Configurações</Text>
+      <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
+        <Text style={styles.title}>Settings</Text>
       </View>
 
-      <View style={styles.body}>
-        {/* Servidor */}
-        <View style={styles.group}>
-          <Text style={styles.groupTitle}>Servidor</Text>
-          <View style={styles.card}>
-            <Text style={styles.fieldLabel}>URL da API</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={styles.input}
-                value={cfg.backendUrl}
-                onChangeText={v => save({ backendUrl: v })}
-                placeholder="https://xxxx.loca.lt ou http://IP:8000"
-                placeholderTextColor={colors.textDim}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+      {/* API ============================================================== */}
+      <Text style={styles.sectionHeader}>API</Text>
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>URL</Text>
+          <TextInput
+            style={styles.rowInput}
+            value={cfg.backendUrl}
+            onChangeText={v => save({ backendUrl: v })}
+            placeholder="http://192.168.x.x:8000"
+            placeholderTextColor={ios.tertiaryLabel}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+        </View>
+        <View style={styles.rowDivider} />
+        <TouchableOpacity
+          style={styles.row}
+          onPress={testConnection}
+          disabled={testing}
+          activeOpacity={0.6}
+        >
+          <Text style={[styles.rowLabel, { color: ios.accent }]}>
+            {testing ? 'Testing…' : 'Test connection'}
+          </Text>
+          <View style={styles.rowAccessoryGroup}>
+            <Ionicons name={pingIcon} size={17} color={pingColor} />
+          </View>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.sectionFooter}>
+        Use the local network IP or a tunnel URL. The API runs on port 8000 by default.
+      </Text>
+
+      {/* SCAN ============================================================= */}
+      <Text style={styles.sectionHeader}>Scan</Text>
+      <View style={styles.card}>
+        <View style={[styles.row, { paddingBottom: 4 }]}>
+          <Text style={styles.rowLabel}>Default breed</Text>
+        </View>
+        <View style={styles.segmented}>
+          {BREEDS.map(b => {
+            const active = cfg.defaultBreed === b.key;
+            return (
               <TouchableOpacity
-                style={[styles.testBtn, testing && { opacity: 0.5 }]}
-                onPress={testConnection}
-                disabled={testing}
+                key={b.key}
+                style={[styles.segment, active && styles.segmentActive]}
+                onPress={() => save({ defaultBreed: b.key })}
+                activeOpacity={0.7}
               >
-                {ping === null
-                  ? <Ionicons name="pulse" size={15} color={colors.secondary} />
-                  : <Ionicons name={ping ? 'checkmark-circle' : 'close-circle'} size={15} color={ping ? colors.primary : colors.danger} />
-                }
-                <Text style={[styles.testBtnText, { color: ping === false ? colors.danger : ping === true ? colors.primary : colors.secondary }]}>
-                  {testing ? '...' : 'Testar'}
+                <Text style={[styles.segmentLabel, active && styles.segmentLabelActive]}>
+                  {b.label}
                 </Text>
               </TouchableOpacity>
-            </View>
-            <Text style={styles.hint}>Use o IP local da rede ou o link do localtunnel.</Text>
-          </View>
+            );
+          })}
         </View>
-
-        {/* Scan */}
-        <View style={styles.group}>
-          <Text style={styles.groupTitle}>Scan</Text>
-          <View style={styles.card}>
-            <Text style={styles.fieldLabel}>Raça padrão</Text>
-            <View style={styles.breedRow}>
-              {['default', 'minhota', 'alentejana'].map(b => (
-                <TouchableOpacity
-                  key={b}
-                  style={[styles.breedBtn, cfg.defaultBreed === b && styles.breedBtnActive]}
-                  onPress={() => save({ defaultBreed: b })}
-                >
-                  <Text style={[styles.breedLabel, cfg.defaultBreed === b && styles.breedLabelActive]}>
-                    {b.charAt(0).toUpperCase() + b.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={[styles.switchRow, { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Vibração</Text>
-                <Text style={styles.hint}>Feedback háptico ao capturar foto</Text>
-              </View>
-              <Switch
-                value={cfg.vibration}
-                onValueChange={v => save({ vibration: v })}
-                trackColor={{ true: colors.primary, false: colors.border }}
-                thumbColor="#fff"
-              />
-            </View>
+        <View style={styles.rowDivider} />
+        <View style={styles.row}>
+          <View style={styles.rowMain}>
+            <Text style={styles.rowLabel}>Haptic feedback</Text>
+            <Text style={styles.rowSubLabel}>Vibrate the device when a scan is captured</Text>
           </View>
-        </View>
-
-        {/* Sobre */}
-        <View style={styles.group}>
-          <Text style={styles.groupTitle}>Sobre</Text>
-          <View style={styles.card}>
-            {[
-              { k: 'Aplicação', v: 'BoviScan Mobile' },
-              { k: 'Versão', v: '0.1.0 (Fase 0)' },
-              { k: 'Motor IA', v: 'YOLOv8 + Random Forest' },
-              { k: 'Protocolo', v: '2D sem LiDAR' },
-            ].map(({ k, v }, i, arr) => (
-              <View key={k} style={[styles.infoRow, i < arr.length - 1 && { borderBottomWidth: 1, borderBottomColor: colors.border }]}>
-                <Text style={styles.infoKey}>{k}</Text>
-                <Text style={styles.infoVal}>{v}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Dados */}
-        <View style={styles.group}>
-          <Text style={[styles.groupTitle, { color: colors.danger }]}>Zona de perigo</Text>
-          <TouchableOpacity style={styles.dangerBtn} onPress={handleClearData}>
-            <Ionicons name="trash-outline" size={18} color={colors.danger} />
-            <Text style={styles.dangerText}>Limpar todos os scans</Text>
-          </TouchableOpacity>
+          <Switch
+            value={cfg.vibration}
+            onValueChange={v => save({ vibration: v })}
+            trackColor={{ true: ios.accent, false: '#E5E5EA' }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#E5E5EA"
+          />
         </View>
       </View>
+
+      {/* ABOUT ============================================================ */}
+      <Text style={styles.sectionHeader}>About</Text>
+      <View style={styles.card}>
+        {[
+          { k: 'Application', v: 'PondiFarm Mobile' },
+          { k: 'Version',     v: '0.2.1 (Phase 0)' },
+          { k: 'AI engine',   v: 'YOLOv8 + Random Forest' },
+          { k: 'Protocol',    v: '2D, no LiDAR' },
+        ].map(({ k, v }, i, arr) => (
+          <View key={k}>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>{k}</Text>
+              <Text style={styles.rowValue}>{v}</Text>
+            </View>
+            {i < arr.length - 1 && <View style={styles.rowDivider} />}
+          </View>
+        ))}
+      </View>
+      <Text style={styles.sectionFooter}>
+        PondiFarm — Euro Union Consult, Lda. Phase 0 demo build.
+      </Text>
+
+      {/* DESTRUCTIVE ====================================================== */}
+      <View style={styles.destructiveSpacer} />
+      <View style={styles.card}>
+        <TouchableOpacity style={styles.row} onPress={handleClearData} activeOpacity={0.6}>
+          <Text style={[styles.rowLabel, { color: ios.systemRed }]}>Clear all scans</Text>
+        </TouchableOpacity>
+      </View>
+      <Text style={styles.sectionFooter}>
+        This deletes locally saved scans. It does not affect data on the backend.
+      </Text>
     </ScrollView>
   );
 }
 
+const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  header: {
-    paddingHorizontal: spacing.md, paddingBottom: spacing.md,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1, borderBottomColor: colors.border,
+  scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
+
+  largeTitle: { paddingHorizontal: 20, paddingBottom: 8 },
+  title: {
+    fontFamily: displayFont,
+    fontSize: 34, fontWeight: '700',
+    letterSpacing: -0.95, color: ios.label, lineHeight: 36,
   },
-  title: { color: colors.text, fontSize: font.lg, fontWeight: '800' },
-  body: { padding: spacing.md, gap: 0 },
-  group: { marginBottom: spacing.lg },
-  groupTitle: {
-    color: colors.textMuted, fontSize: font.xs, fontWeight: '700',
-    textTransform: 'uppercase', letterSpacing: 1,
-    marginBottom: spacing.sm, paddingLeft: 2,
+
+  // Section chrome
+  sectionHeader: {
+    marginTop: 32, marginBottom: 8,
+    paddingHorizontal: 32,
+    fontSize: 13, fontWeight: '400',
+    color: ios.secondaryLabel,
+    textTransform: 'uppercase', letterSpacing: 0.5,
   },
+  sectionFooter: {
+    marginTop: 8,
+    paddingHorizontal: 32,
+    fontSize: 13, lineHeight: 18,
+    color: ios.secondaryLabel,
+    letterSpacing: -0.05,
+  },
+
+  // Card (insetGrouped)
   card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    borderWidth: 1, borderColor: colors.border,
-    padding: spacing.md, gap: spacing.sm,
-    ...shadow.sm,
+    marginHorizontal: 16,
+    backgroundColor: ios.secondarySystemGroupedBackground,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  fieldLabel: { color: colors.text, fontSize: font.sm, fontWeight: '600' },
-  hint: { color: colors.textDim, fontSize: font.xs, lineHeight: 16 },
-  inputRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  input: {
-    flex: 1, backgroundColor: colors.background,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border,
-    color: colors.text, fontSize: font.sm,
-    paddingHorizontal: spacing.sm, paddingVertical: 9,
+
+  // Row
+  row: {
+    minHeight: 44,
+    paddingHorizontal: 16, paddingVertical: 11,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
   },
-  testBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.secondaryLight,
-    borderRadius: radius.sm, borderWidth: 1, borderColor: colors.secondary,
-    paddingHorizontal: spacing.sm, paddingVertical: 9,
+  rowDivider: {
+    marginLeft: 16,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: ios.separator,
   },
-  testBtnText: { fontSize: font.xs, fontWeight: '700' },
-  breedRow: { flexDirection: 'row', gap: spacing.sm },
-  breedBtn: {
-    paddingHorizontal: spacing.md, paddingVertical: 7,
-    borderRadius: radius.full, borderWidth: 1, borderColor: colors.border,
-    backgroundColor: colors.background,
+  rowMain: { flex: 1 },
+  rowLabel: {
+    flex: 1,
+    fontSize: 17, color: ios.label,
+    letterSpacing: -0.3,
   },
-  breedBtnActive: { borderColor: colors.primary, backgroundColor: colors.primaryLight },
-  breedLabel: { color: colors.textMuted, fontSize: font.sm },
-  breedLabelActive: { color: colors.primary, fontWeight: '700' },
-  switchRow: { flexDirection: 'row', alignItems: 'center' },
-  infoRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
-  infoKey: { color: colors.textMuted, fontSize: font.sm },
-  infoVal: { color: colors.text, fontSize: font.sm, fontWeight: '600' },
-  dangerBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.dangerLight,
-    borderRadius: radius.lg, borderWidth: 1, borderColor: colors.danger,
-    padding: spacing.md,
+  rowSubLabel: {
+    fontSize: 13, color: ios.secondaryLabel,
+    marginTop: 2, letterSpacing: -0.05,
   },
-  dangerText: { color: colors.danger, fontSize: font.md, fontWeight: '600' },
+  rowValue: {
+    fontSize: 17, color: ios.secondaryLabel,
+    letterSpacing: -0.3,
+  },
+  rowChevron: {
+    fontSize: 20, color: ios.tertiaryLabel,
+  },
+  rowAccessoryGroup: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+  },
+  rowInput: {
+    flex: 1,
+    fontSize: 17, color: ios.secondaryLabel,
+    letterSpacing: -0.3,
+    textAlign: 'right',
+    padding: 0,
+  },
+
+  // Segmented (breed picker)
+  segmented: {
+    flexDirection: 'row',
+    marginHorizontal: 16, marginBottom: 12,
+    backgroundColor: '#EFEFF4',
+    borderRadius: 9,
+    padding: 2, gap: 2,
+  },
+  segment: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 7,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  segmentActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  segmentLabel: {
+    fontSize: 13, color: ios.label, letterSpacing: -0.05,
+  },
+  segmentLabelActive: {
+    fontWeight: '600',
+  },
+
+  destructiveSpacer: { height: 24 },
 });
