@@ -1,0 +1,64 @@
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Response, status
+from sqlalchemy.orm import Session
+
+from core.database import get_db
+
+from schemas.organization_schemas import (
+    OrganizationCreate,
+    OrganizationResponse,
+    OrganizationUpdate,
+)
+from services import organization_service
+
+organizations_router = APIRouter(
+    prefix="/api/v1/organizations",
+    tags=["organizations"],
+)
+
+
+@organizations_router.post(
+    "",
+    response_model=OrganizationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_organization(
+    payload: OrganizationCreate,
+    db: Session = Depends(get_db),
+):
+    return organization_service.create_organization(db, payload)
+
+
+@organizations_router.get("", response_model=list[OrganizationResponse])
+def list_organizations(db: Session = Depends(get_db)):
+    return organization_service.list_organizations(db)
+
+
+@organizations_router.get(
+    "/{organization_id}",
+    response_model=OrganizationResponse,
+)
+def get_organization(organization_id: UUID, db: Session = Depends(get_db)):
+    return organization_service.get_organization(db, organization_id)
+
+
+@organizations_router.patch(
+    "/{organization_id}",
+    response_model=OrganizationResponse,
+)
+def update_organization(
+    organization_id: UUID,
+    payload: OrganizationUpdate,
+    db: Session = Depends(get_db),
+):
+    return organization_service.update_organization(db, organization_id, payload)
+
+
+@organizations_router.delete(
+    "/{organization_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_organization(organization_id: UUID, db: Session = Depends(get_db)):
+    organization_service.delete_organization(db, organization_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
