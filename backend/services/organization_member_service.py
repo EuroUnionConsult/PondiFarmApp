@@ -21,6 +21,10 @@ from services.user_service import get_user_entity
 logger = logging.getLogger(__name__)
 
 
+def _sanitize_for_log(value: object) -> str:
+    return str(value).replace("\r", "").replace("\n", "")
+
+
 def _to_response(member: OrganizationMember) -> OrganizationMemberResponse:
     return OrganizationMemberResponse.model_validate(
         {
@@ -97,10 +101,12 @@ def create_member(
     except IntegrityError as exc:
         db.rollback()
         error_message = str(exc.orig) if exc.orig else str(exc)
+        safe_organization_id = _sanitize_for_log(organization_id)
+        safe_user_id = _sanitize_for_log(payload.user_id)
         logger.exception(
             "Failed to create organization member for organization_id=%s user_id=%s",
-            organization_id,
-            payload.user_id,
+            safe_organization_id,
+            safe_user_id,
         )
         if (
             "uq_organization_members_organization_user" in error_message
