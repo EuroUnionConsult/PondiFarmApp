@@ -38,6 +38,14 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "A câmera é usada para escanear o animal e estimar seu peso."
