@@ -1,15 +1,15 @@
 Pod::Spec.new do |s|
   s.name           = 'LidarScanner'
   s.version        = '1.0.0'
-  s.summary        = 'A sample project summary'
-  s.description    = 'A sample project description'
-  s.author         = ''
+  s.summary        = 'LiDAR scanner module for PondiFarm cattle measurement'
+  s.description    = 'On-device ARKit LiDAR capture and morphometric measurement for PondiFarm.'
+  s.author         = 'Talys Cordeiro'
   s.homepage       = 'https://docs.expo.dev/modules/'
   s.platforms      = {
-    :ios => '16.4',
+    :ios => '15.1',
     :tvos => '16.4'
   }
-  s.source         = { git: '' }
+  s.source         = { git: 'https://github.com/EuroUnionConsult/PondiFarmApp.git', tag: s.version.to_s }
   s.static_framework = true
 
   s.dependency 'ExpoModulesCore'

@@ -18,7 +18,12 @@ class LidarScannerView: ExpoView {
     arView.frame = bounds
   }
 
+  deinit {
+    arView.session.pause()
+  }
+
   private func startSession() {
+    guard ARWorldTrackingConfiguration.isSupported else { return }
     let config = ARWorldTrackingConfiguration()
     if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) {
       config.sceneReconstruction = .mesh
