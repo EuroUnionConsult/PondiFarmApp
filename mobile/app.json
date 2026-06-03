@@ -57,7 +57,8 @@
         {
           "photosPermission": "Acesso à galeria para selecionar fotos de animais."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
