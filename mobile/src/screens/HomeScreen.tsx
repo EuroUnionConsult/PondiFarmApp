@@ -173,6 +173,16 @@ export default function HomeScreen() {
         <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
         <Text style={styles.ctaText}>New scan</Text>
       </TouchableOpacity>
+
+      {/* TEMP EURODEV-74 — remove in Phase 4 */}
+      {__DEV__ && (
+        <TouchableOpacity
+          onPress={() => nav.navigate('LidarTest')}
+          style={{ paddingVertical: 16, alignItems: 'center' }}
+        >
+          <Text style={{ color: ios.accent, fontSize: 14 }}>▶ Testar scanner LiDAR (dev)</Text>
+        </TouchableOpacity>
+      )}
     </ScrollView>
   );
 }

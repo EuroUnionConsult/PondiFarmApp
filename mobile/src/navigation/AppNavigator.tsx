@@ -13,6 +13,7 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ScanScreen from '../screens/ScanScreen';
 import ResultScreen from '../screens/ResultScreen';
+import LidarTestScreen from '../screens/LidarTestScreen'; // TEMP EURODEV-74 — remove in Phase 4
 
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -73,6 +74,12 @@ export default function AppNavigator() {
           name="Result"
           component={ResultScreen}
           options={{ animation: 'slide_from_right' }}
+        />
+        {/* TEMP EURODEV-74 — remove in Phase 4 */}
+        <Stack.Screen
+          name="LidarTest"
+          component={LidarTestScreen}
+          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
         />
       </Stack.Navigator>
     </NavigationContainer>
