@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["LidarScannerModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.lidarscanner.LidarScannerModule"]
+  }
+}
