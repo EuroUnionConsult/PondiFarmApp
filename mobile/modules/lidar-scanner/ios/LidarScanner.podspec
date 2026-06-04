@@ -20,4 +20,6 @@ Pod::Spec.new do |s|
   }
 
   s.source_files = "**/*.{h,m,mm,swift,hpp,cpp}"
+  # Testes standalone têm código top-level (asserts) ilegal num módulo multi-arquivo — excluir do build do pod.
+  s.exclude_files = "**/*Tests.swift"
 end
