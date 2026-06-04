@@ -6,26 +6,78 @@ FastAPI service for the PondiFarmApp pipeline. Receives an image, runs object de
 
 - Python 3.9+
 - FastAPI 0.111
+- SQLAlchemy 2.0
+- Pydantic
+- passlib with PBKDF2-SHA256 for password hashing
 - Ultralytics YOLOv8 (object detection)
 - scikit-learn Random Forest (weight estimator)
 - OpenCV, NumPy, Pillow
 
 ## Project structure
 
-```
+```txt
 backend/
-├── main.py                 FastAPI entry point and HTTP routes
-├── models/
-│   ├── detector.py         YOLOv8 wrapper used by /api/v1/scan
-│   ├── weight_estimator.py Random Forest inference
-│   └── rf_model.pkl        Trained Random Forest (Git LFS)
-├── utils/
-│   └── geometry.py         Bounding-box → morphometric features
-├── requirements.txt        Pinned dependencies
-└── ruff.toml               Linter configuration
+|-- api/
+|   `-- v1/
+|       |-- auth/
+|       |   `-- auth_routes.py
+|       |-- organizations/
+|       |   `-- organizations_routes.py
+|       `-- users/
+|           `-- users_routes.py
+|-- core/
+|   |-- config.py
+|   |-- database.py
+|   |-- errors.py
+|   `-- security.py
+|-- models/
+|   |-- detector.py
+|   |-- models.py
+|   |-- rf_model.pkl
+|   `-- weight_estimator.py
+|-- repositories/
+|   |-- organization_member_repository.py
+|   |-- organization_repository.py
+|   `-- user_repository.py
+|-- schemas/
+|   |-- base.py
+|   |-- organization_member_schemas.py
+|   |-- organization_schemas.py
+|   `-- user_schemas.py
+|-- services/
+|   |-- organization_member_service.py
+|   |-- organization_service.py
+|   `-- user_service.py
+|-- tests/
+|   `-- test_api.py
+|-- utils/
+|   `-- geometry.py
+|-- main.py
+|-- requirements.txt
+`-- ruff.toml
 ```
 
-The trained Random Forest (`rf_model.pkl`) and the YOLOv8 weights (`yolov8n.pt`) are tracked via **Git LFS**. Make sure Git LFS is installed and `git lfs pull` has been run before starting the server.
+## Database configuration
+
+The application is configured to use your Azure SQL / SQL Server database. Do not hardcode production credentials in the repository.
+
+Examples:
+
+```bash
+# Full SQLAlchemy URL
+export DATABASE_URL="mssql+pyodbc://USER:PASSWORD@HOST:1433/DATABASE?driver=ODBC+Driver+17+for+SQL+Server&Encrypt=yes&TrustServerCertificate=no"
+
+# Or compose the Azure SQL connection from environment variables
+export AZURE_SQL_SERVER="your-server.database.windows.net"
+export AZURE_SQL_DATABASE="pondifarm"
+export AZURE_SQL_USERNAME="your-user"
+export AZURE_SQL_PASSWORD="your-password"
+export AZURE_SQL_DRIVER="ODBC Driver 17 for SQL Server"
+export AZURE_SQL_ENCRYPT="yes"
+export AZURE_SQL_TRUST_SERVER_CERTIFICATE="no"
+```
+
+The backend no longer falls back to SQLite at runtime. It expects `DATABASE_URL` or the Azure SQL variables above to be present. The service does not auto-create schema objects in Azure SQL; it maps to the existing tables.
 
 ## Local development
 
@@ -50,41 +102,118 @@ pip install -r requirements.txt
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-The API is then available at `http://localhost:8000`.
-
-### 4. Check the service
-
-```bash
-curl http://localhost:8000/health
-# → {"status":"ok"}
-
-curl http://localhost:8000/
-# → {"status":"ok","service":"PondiFarm API v0.1 — Phase 0"}
-```
-
 ## API surface
 
-### `GET /health`
+### Health
 
-Lightweight liveness probe. Returns `{"status": "ok"}`.
+- `GET /health`
+- `GET /`
 
-### `GET /`
+### Scan
 
-Service banner — name and phase.
+- `POST /api/v1/scan`
 
-### `POST /api/v1/scan`
+Multipart form upload:
 
-Multipart form upload with the following fields:
+| Field | Type | Required | Default |
+|-------|------|----------|---------|
+| `file` | file | yes | - |
+| `animal_id` | string | no | `DEMO-001` |
+| `breed` | string | no | `default` |
 
-| Field        | Type      | Required | Default     |
-|--------------|-----------|----------|-------------|
-| `file`       | file      | yes      | —           |
-| `animal_id`  | string    | no       | `DEMO-001`  |
-| `breed`      | string    | no       | `default`   |
+### Organizations
 
-Returns a JSON object containing the detection, the five morphometric measurements (`body_length_cm`, `withers_height_cm`, `thoracic_depth_cm`, `rump_width_cm`, `chest_girth_cm`), and the weight estimate with a confidence score.
+- `POST /api/v1/organizations`
+- `GET /api/v1/organizations`
+- `GET /api/v1/organizations/{organizationId}`
+- `PATCH /api/v1/organizations/{organizationId}`
+- `DELETE /api/v1/organizations/{organizationId}`
 
-A `422` is returned when no subject is detected in the image.
+Create example:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/organizations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "PondiFarm",
+    "documentNumber": "123456789",
+    "phone": "+351900000000",
+    "email": "contact@pondifarm.com",
+    "address": "Porto, Portugal"
+  }'
+```
+
+### Users
+
+- `POST /api/v1/users`
+- `GET /api/v1/users`
+- `GET /api/v1/users/{userId}`
+- `PATCH /api/v1/users/{userId}`
+- `DELETE /api/v1/users/{userId}`
+
+Create example:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/users \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Bruno Silva",
+    "email": "bruno@example.com",
+    "password": "password-value"
+  }'
+```
+
+### Organization members
+
+- `GET /api/v1/organizations/{organizationId}/members`
+- `POST /api/v1/organizations/{organizationId}/members`
+- `PATCH /api/v1/organizations/{organizationId}/members/{memberId}`
+- `DELETE /api/v1/organizations/{organizationId}/members/{memberId}`
+
+Add member example:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/organizations/{organizationId}/members \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "00000000-0000-0000-0000-000000000001",
+    "role": "manager"
+  }'
+```
+
+List members example:
+
+```bash
+curl http://localhost:8000/api/v1/organizations/{organizationId}/members
+```
+
+## Soft delete behavior
+
+The `organizations`, `users`, and `organization_members` resources now use soft delete only.
+
+- `DELETE` sets `deleted_at` and `updated_at` instead of removing the row.
+- Normal `GET` endpoints return only active rows where `deleted_at IS NULL`.
+- `PATCH` on a soft-deleted record returns `404`.
+- User responses still never expose `password_hash`.
+
+If you need to prepare Azure SQL for this behavior, run [backend/sql/add_deleted_at_soft_delete.sql](/C:/EUCInovacao/PondiFarmApp/backend/sql/add_deleted_at_soft_delete.sql) against the existing database.
+
+## Registration rules
+
+Current user and organization registration rules:
+
+- User emails are normalized to lowercase and must be unique across the whole system.
+- Organization document numbers are normalized by removing formatting characters and must be unique across the whole system.
+- All organization memberships currently use the role `viewer`.
+- No RBAC or differentiated organization roles are implemented yet.
+
+If you need to prepare Azure SQL for these rules, run [backend/sql/add_registration_business_rules.sql](/C:/EUCInovacao/PondiFarmApp/backend/sql/add_registration_business_rules.sql).
+
+## Tests
+
+```bash
+python -m unittest discover tests
+```
 
 ## Linting and formatting
 
