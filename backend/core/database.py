@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine, event
-from sqlalchemy.engine import Engine
+from sqlalchemy import create_engine, event, inspect, text
+from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
 from core.config import settings
@@ -34,6 +34,52 @@ def _enable_sqlite_foreign_keys(dbapi_connection, connection_record):
     cursor.close()
 
 
+def _normalized_name_expression(column_name: str, dialect_name: str) -> str:
+    if dialect_name == "mssql":
+        return f"LOWER(LTRIM(RTRIM({column_name})))"
+    return f"LOWER(TRIM({column_name}))"
+
+
+def _ensure_normalized_name_column(
+    connection: Connection,
+    table_name: str,
+    source_column: str = "name",
+) -> None:
+    inspector = inspect(connection)
+    existing_columns = {column["name"] for column in inspector.get_columns(table_name)}
+    if "normalized_name" not in existing_columns:
+        connection.execute(
+            text(f"ALTER TABLE {table_name} ADD normalized_name VARCHAR(255)"),
+        )
+
+    normalized_name_expression = _normalized_name_expression(
+        source_column,
+        connection.dialect.name,
+    )
+    connection.execute(
+        text(
+            f"""
+            UPDATE {table_name}
+            SET normalized_name = {normalized_name_expression}
+            WHERE normalized_name IS NULL OR normalized_name = ''
+            """,
+        ),
+    )
+
+
+def ensure_schema_compatibility(bind: Engine) -> None:
+    inspector = inspect(bind)
+    table_names = set(inspector.get_table_names())
+    if "species" not in table_names and "breeds" not in table_names:
+        return
+
+    with bind.begin() as connection:
+        if "species" in table_names:
+            _ensure_normalized_name_column(connection, "species")
+        if "breeds" in table_names:
+            _ensure_normalized_name_column(connection, "breeds")
+
+
 engine = _create_engine()
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
@@ -48,3 +94,9 @@ def get_db() -> Generator[Session, None, None]:
 
 def initialize_database() -> None:
     import models.models  # noqa: F401
+    Base.metadata.create_all(bind=engine)
+    ensure_schema_compatibility(engine)
+
+    from core.seeds import seed_database
+
+    seed_database()

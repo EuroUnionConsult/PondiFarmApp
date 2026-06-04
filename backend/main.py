@@ -4,8 +4,12 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1.organizations.organizations_routes import organizations_router
-from api.v1.users.users_routes import users_router
 from api.v1.organizations_members.organizations_members_routes import organizations_member_router
+from api.v1.users.users_routes import users_router
+from api.v1.species.species_routes import species_router
+from api.v1.breeds.breeds_routes import breeds_router
+from api.v1.animals.animals_routes import animals_router
+from api.v1.scans.scans_routes import scans_router
 from core.database import initialize_database
 from core.errors import register_exception_handlers
 
@@ -99,6 +103,10 @@ def create_app() -> FastAPI:
     app.include_router(organizations_router)
     app.include_router(users_router)
     app.include_router(organizations_member_router)
+    app.include_router(species_router)
+    app.include_router(breeds_router)
+    app.include_router(animals_router)
+    app.include_router(scans_router)
     return app
 
 
