@@ -47,22 +47,30 @@ class LidarScannerView: ExpoView {
   }
 
   func stopScan() {
-    let meshAnchors = (arView.session.currentFrame?.anchors ?? [])
-      .compactMap { $0 as? ARMeshAnchor }
-    let (vertices, faces) = Self.consolidate(meshAnchors)
-
-    let obj = ObjExporter.objString(vertices: vertices, faces: faces)
-    let url = FileManager.default.temporaryDirectory
-      .appendingPathComponent("scan-\(Int(Date().timeIntervalSince1970)).obj")
-    do {
-      try obj.write(to: url, atomically: true, encoding: .utf8)
-      onScanComplete([
-        "meshUri": url.absoluteString,
-        "vertexCount": vertices.count,
-        "faceCount": faces.count / 3
-      ])
-    } catch {
+    // Snapshot dos anchors na main thread; trabalho pesado vai pro background.
+    guard let frame = arView.session.currentFrame else {
       onScanComplete(["meshUri": "", "vertexCount": 0, "faceCount": 0])
+      return
+    }
+    let meshAnchors = frame.anchors.compactMap { $0 as? ARMeshAnchor }
+
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let (vertices, faces) = LidarScannerView.consolidate(meshAnchors)
+      let obj = ObjExporter.objString(vertices: vertices, faces: faces)
+      let url = FileManager.default.temporaryDirectory
+        .appendingPathComponent("scan-\(Int(Date().timeIntervalSince1970)).obj")
+      var payload: [String: Any]
+      do {
+        try obj.write(to: url, atomically: true, encoding: .utf8)
+        payload = [
+          "meshUri": url.absoluteString,
+          "vertexCount": vertices.count,
+          "faceCount": faces.count / 3
+        ]
+      } catch {
+        payload = ["meshUri": "", "vertexCount": 0, "faceCount": 0]
+      }
+      DispatchQueue.main.async { self?.onScanComplete(payload) }
     }
   }
 
