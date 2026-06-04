@@ -7,7 +7,9 @@ export type Measurements = {
 };
 
 export type ScanCompleteEvent = {
-  measurements: Measurements;
   meshUri: string;
+  vertexCount: number;
+  faceCount: number;
+  measurements?: Measurements; // adicionado na Fase 3 (EURODEV-76)
   thumbUri?: string;
 };

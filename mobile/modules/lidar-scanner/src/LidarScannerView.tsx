@@ -8,9 +8,17 @@ export type LidarScannerViewProps = ViewProps & {
   onScanComplete?: (event: { nativeEvent: ScanCompleteEvent }) => void;
 };
 
-const NativeView: React.ComponentType<LidarScannerViewProps> =
-  requireNativeView('LidarScanner');
+export type LidarScannerViewRef = {
+  startScan: () => Promise<void>;
+  stopScan: () => Promise<void>;
+};
 
-export default function LidarScannerView(props: LidarScannerViewProps) {
-  return <NativeView {...props} />;
-}
+const NativeView: React.ComponentType<
+  LidarScannerViewProps & { ref?: React.Ref<LidarScannerViewRef> }
+> = requireNativeView('LidarScanner');
+
+const LidarScannerView = React.forwardRef<LidarScannerViewRef, LidarScannerViewProps>(
+  (props, ref) => <NativeView {...props} ref={ref} />,
+);
+
+export default LidarScannerView;
