@@ -11,6 +11,8 @@ export type LidarScannerViewProps = ViewProps & {
 export type LidarScannerViewRef = {
   startScan: () => Promise<void>;
   stopScan: () => Promise<void>;
+  setBoxScale: (scale: number) => Promise<void>;
+  recenterBox: () => Promise<void>;
 };
 
 const NativeView: React.ComponentType<

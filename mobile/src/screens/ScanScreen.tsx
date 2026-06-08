@@ -168,6 +168,7 @@ export default function ScanScreen() {
   const [category, setCategory] = useState<ScanCategory>('cow');
   const [animalId, setAnimalId] = useState('');
   const [breed, setBreed] = useState('default');
+  const [boxScale, setBoxScale] = useState(1.0);
   const scannerRef = useRef<LidarScannerViewRef>(null);
 
   const handlePreScanConfirm = (cat: ScanCategory, id: string, b: string) => {
@@ -187,6 +188,19 @@ export default function ScanScreen() {
     setScanning(false);
     setProcessing(true);
     await scannerRef.current?.stopScan?.();
+  };
+
+  const adjustBoxScale = async (delta: number) => {
+    const next = Math.min(2.0, Math.max(0.5, Math.round((boxScale + delta) * 10) / 10));
+    if (next === boxScale) return;
+    await Haptics.selectionAsync();
+    setBoxScale(next);
+    await scannerRef.current?.setBoxScale?.(next);
+  };
+
+  const recenterBox = async () => {
+    await Haptics.selectionAsync();
+    await scannerRef.current?.recenterBox?.();
   };
 
   const handleScanComplete = async (e: { nativeEvent: ScanCompleteEvent }) => {
@@ -298,6 +312,58 @@ export default function ScanScreen() {
             <Text style={styles.frameHint}>
               Move slowly around the {isCow ? 'animal' : 'subject'} to capture all sides
             </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Box framing controls — only while scanning */}
+      {scanning && (
+        <View
+          style={[styles.boxControls, { bottom: insets.bottom + 104 }]}
+          pointerEvents="box-none"
+        >
+          <View style={styles.boxHintPill}>
+            <Text style={styles.boxHint}>Enquadre o animal na caixa verde</Text>
+          </View>
+          <View style={styles.boxRow}>
+            <View style={styles.stepper}>
+              <TouchableOpacity
+                style={styles.stepperBtn}
+                onPress={() => adjustBoxScale(-0.1)}
+                disabled={boxScale <= 0.5}
+                hitSlop={8}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="remove"
+                  size={18}
+                  color={boxScale <= 0.5 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
+                />
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>{boxScale.toFixed(1)}×</Text>
+              <TouchableOpacity
+                style={styles.stepperBtn}
+                onPress={() => adjustBoxScale(0.1)}
+                disabled={boxScale >= 2.0}
+                hitSlop={8}
+                activeOpacity={0.7}
+              >
+                <Ionicons
+                  name="add"
+                  size={18}
+                  color={boxScale >= 2.0 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
+                />
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.recenterBtn}
+              onPress={recenterBox}
+              hitSlop={8}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="locate-outline" size={16} color={ios.accent} />
+              <Text style={styles.recenterText}>Reposicionar</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -422,6 +488,46 @@ const styles = StyleSheet.create({
   frameHint: {
     color: 'rgba(255,255,255,0.92)',
     fontSize: 13, letterSpacing: -0.05,
+  },
+
+  // Box framing controls
+  boxControls: {
+    position: 'absolute', left: 0, right: 0,
+    alignItems: 'center', gap: 10,
+  },
+  boxHintPill: {
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    paddingHorizontal: 14, paddingVertical: 7,
+    borderRadius: 999,
+  },
+  boxHint: {
+    color: 'rgba(255,255,255,0.92)',
+    fontSize: 13, letterSpacing: -0.05,
+  },
+  boxRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  stepper: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    borderRadius: 999, paddingHorizontal: 4,
+  },
+  stepperBtn: {
+    width: 36, height: 36, borderRadius: 18,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepperValue: {
+    color: '#FFFFFF', fontSize: 15, fontWeight: '600',
+    letterSpacing: -0.2, minWidth: 44, textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  recenterBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.48)',
+    paddingHorizontal: 14, height: 36, borderRadius: 999,
+  },
+  recenterText: {
+    color: ios.accent, fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
   },
 
   // Bottom controls
