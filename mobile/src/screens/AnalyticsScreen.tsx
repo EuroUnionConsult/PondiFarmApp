@@ -81,7 +81,7 @@ export default function AnalyticsScreen() {
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No data to show</Text>
           <Text style={styles.emptySub}>
-            Record a few scans to see weight trends, breed distribution and activity here.
+            Record a few scans to see chest girth trends, breed distribution and activity here.
           </Text>
         </View>
       ) : (
@@ -127,7 +127,7 @@ export default function AnalyticsScreen() {
             <ActivityChart values={last7} max={last7Max} now={now} />
           </View>
 
-          {/* Weight by breed */}
+          {/* Mean chest girth by breed */}
           {breedStats.length > 0 && (
             <>
               <Text style={styles.sectionHeader}>Mean chest girth by breed</Text>

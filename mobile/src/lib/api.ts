@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const CFG_KEY = '@boviscan:config';
+const CFG_KEY_NEW = '@pondifarm:config';
+const CFG_KEY_LEGACY = '@boviscan:config';
 
 export async function getBackendUrl(): Promise<string> {
   try {
-    const raw = await AsyncStorage.getItem(CFG_KEY);
+    const raw = (await AsyncStorage.getItem(CFG_KEY_NEW)) ?? (await AsyncStorage.getItem(CFG_KEY_LEGACY));
     if (raw) {
       const cfg = JSON.parse(raw);
       if (cfg.backendUrl) return cfg.backendUrl.replace(/\/$/, '');
