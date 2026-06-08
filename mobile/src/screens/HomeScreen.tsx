@@ -39,14 +39,14 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
-  const totalAnimals = [...new Set(records.map(r => r.animal_id))].length;
-  const avgWeight = records.length
-    ? Math.round(records.reduce((s, r) => s + r.result.estimated_weight_kg, 0) / records.length)
+  const cows = records.filter(r => r.category === 'cow');
+  const totalAnimals = [...new Set(cows.map(r => r.animalId).filter(Boolean))].length;
+  const avgGirth = records.length
+    ? Math.round(records.reduce((s, r) => s + r.measurements.chest_girth_cm, 0) / records.length)
     : 0;
-  const avgConfidence = records.length
-    ? Math.round(records.reduce((s, r) => s + r.result.confidence_pct, 0) / records.length)
-    : 0;
-  const ringPct = Math.min(100, Math.max(0, avgConfidence));
+  // Ring shows share of scans that are cows (vs extras) — a real proportion.
+  const cowPct = records.length ? Math.round((cows.length / records.length) * 100) : 0;
+  const ringPct = Math.min(100, Math.max(0, cowPct));
   const ringOffset = RING_CIRC - (ringPct / 100) * RING_CIRC;
 
   const today = records.slice(0, 5);
@@ -79,15 +79,15 @@ export default function HomeScreen() {
             <View style={styles.heroLeft}>
               <View style={styles.eyebrow}>
                 <Ionicons name="layers-outline" size={14} color={ios.accent} />
-                <Text style={styles.eyebrowText}>Mean live weight</Text>
+                <Text style={styles.eyebrowText}>Mean chest girth</Text>
               </View>
               <View style={styles.valueRow}>
-                <Text style={styles.value}>{avgWeight > 0 ? avgWeight : '—'}</Text>
-                <Text style={styles.valueUnit}>kg</Text>
+                <Text style={styles.value}>{avgGirth > 0 ? avgGirth : '—'}</Text>
+                <Text style={styles.valueUnit}>cm</Text>
               </View>
               <Text style={styles.delta}>
                 {records.length > 0
-                  ? <><Text style={styles.deltaUp}>↑ 4.1%</Text> vs prior fortnight</>
+                  ? `${records.length} scan${records.length !== 1 ? 's' : ''} stored locally`
                   : 'No scans yet · capture one to begin'}
               </Text>
             </View>
@@ -112,15 +112,15 @@ export default function HomeScreen() {
           <View style={styles.tiles}>
             <View style={styles.tile}>
               <Text style={styles.tileValue}>{records.length}</Text>
-              <Text style={styles.tileLabel}>scans · 7d</Text>
+              <Text style={styles.tileLabel}>scans</Text>
             </View>
             <View style={[styles.tile, styles.tileDivider]}>
               <Text style={styles.tileValue}>{totalAnimals}</Text>
               <Text style={styles.tileLabel}>animals</Text>
             </View>
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{avgConfidence > 0 ? `${avgConfidence}%` : '—'}</Text>
-              <Text style={styles.tileLabel}>avg conf</Text>
+              <Text style={styles.tileValue}>{ringPct > 0 ? `${ringPct}%` : '—'}</Text>
+              <Text style={styles.tileLabel}>cows</Text>
             </View>
           </View>
         </View>
@@ -130,7 +130,9 @@ export default function HomeScreen() {
         <View style={styles.group}>
           <Text style={styles.groupHeader}>Today</Text>
           <View style={styles.card}>
-            {today.map((rec, i) => (
+            {today.map((rec, i) => {
+              const isCow = rec.category === 'cow';
+              return (
               <TouchableOpacity
                 key={rec.id}
                 style={[styles.row, i < today.length - 1 && styles.rowDivider]}
@@ -138,25 +140,29 @@ export default function HomeScreen() {
                 activeOpacity={0.6}
               >
                 <View style={styles.rowIcon}>
-                  <Ionicons name="paw" size={16} color={ios.accent} />
+                  <Ionicons name={isCow ? 'paw' : 'cube-outline'} size={16} color={ios.accent} />
                 </View>
                 <View style={styles.rowInfo}>
-                  <Text style={styles.rowId}>{rec.animal_id}</Text>
+                  <Text style={styles.rowId}>
+                    {isCow ? (rec.animalId ?? 'Bovino') : 'Extra'}
+                  </Text>
                   <Text style={styles.rowMeta}>
                     {new Date(rec.scannedAt).toLocaleString('pt-PT', {
                       day: '2-digit', month: 'short',
                       hour: '2-digit', minute: '2-digit',
                     })}
-                    {'  ·  '}
-                    {Math.round(rec.result.confidence_pct)}% confidence
                   </Text>
                 </View>
-                <Text style={styles.rowWeight}>
-                  {rec.result.estimated_weight_kg.toFixed(0)} kg
-                </Text>
+                <View style={styles.rowMetric}>
+                  <Text style={styles.rowMetricValue}>
+                    {rec.measurements.chest_girth_cm.toFixed(0)}
+                  </Text>
+                  <Text style={styles.rowMetricUnit}>cm girth</Text>
+                </View>
                 <Text style={styles.rowChevron}>›</Text>
               </TouchableOpacity>
-            ))}
+            );
+            })}
           </View>
         </View>
       )}
@@ -173,16 +179,6 @@ export default function HomeScreen() {
         <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
         <Text style={styles.ctaText}>New scan</Text>
       </TouchableOpacity>
-
-      {/* TEMP EURODEV-74 — remove in Phase 4 */}
-      {__DEV__ && (
-        <TouchableOpacity
-          onPress={() => nav.navigate('LidarTest')}
-          style={{ paddingVertical: 16, alignItems: 'center' }}
-        >
-          <Text style={{ color: ios.accent, fontSize: 14 }}>▶ Testar scanner LiDAR (dev)</Text>
-        </TouchableOpacity>
-      )}
     </ScrollView>
   );
 }
@@ -329,10 +325,17 @@ const styles = StyleSheet.create({
     fontSize: 13, color: ios.secondaryLabel,
     marginTop: 1, letterSpacing: -0.05,
   },
-  rowWeight: {
+  rowMetric: {
+    alignItems: 'flex-end',
+  },
+  rowMetricValue: {
     fontFamily: displayFont,
     fontSize: 17, fontWeight: '600',
     letterSpacing: -0.3, color: ios.label,
+  },
+  rowMetricUnit: {
+    fontSize: 11, color: ios.tertiaryLabel,
+    letterSpacing: -0.05,
   },
   rowChevron: {
     fontSize: 20, color: ios.tertiaryLabel,

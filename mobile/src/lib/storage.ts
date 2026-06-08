@@ -1,10 +1,26 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { ScanResult } from './api';
 
-export interface ScanRecord extends ScanResult {
+export type ScanCategory = 'cow' | 'extra';
+
+export interface Measurements {
+  body_length_cm: number;
+  withers_height_cm: number;
+  thoracic_depth_cm: number;
+  rump_width_cm: number;
+  chest_girth_cm: number;
+}
+
+export interface ScanRecord {
   id: string;
   scannedAt: number;
-  imageUri?: string;
+  category: ScanCategory;
+  source: 'lidar';
+  animalId?: string;            // só bovino
+  breed?: string;               // só bovino
+  measurements: Measurements;   // sempre reais (geometria)
+  vertexCount: number;          // peso fica de fora até ter modelo treinado (pós-22/06)
+  faceCount: number;
+  meshUri: string;
 }
 
 const KEY = '@boviscan:scans';
