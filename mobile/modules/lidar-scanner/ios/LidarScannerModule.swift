@@ -20,6 +20,14 @@ public class LidarScannerModule: Module {
       AsyncFunction("stopScan") { (view: LidarScannerView) in
         view.stopScan()
       }
+
+      AsyncFunction("setBoxScale") { (view: LidarScannerView, scale: Double) in
+        view.setBoxScale(Float(scale))
+      }
+
+      AsyncFunction("recenterBox") { (view: LidarScannerView) in
+        view.recenterBox()
+      }
     }
   }
 }

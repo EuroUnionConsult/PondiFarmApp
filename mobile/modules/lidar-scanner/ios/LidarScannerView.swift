@@ -6,6 +6,13 @@ class LidarScannerView: ExpoView {
   private let arView = ARView(frame: .zero)
   private let onScanComplete = EventDispatcher()
 
+  // --- Caixa de enquadramento AR (world-anchored) ---
+  private var boxAnchor: AnchorEntity?
+  private var boxModel: ModelEntity?
+  private var boxWorldTransform: simd_float4x4 = matrix_identity_float4x4
+  private let boxBaseSize = SIMD3<Float>(1.1, 1.7, 2.6)   // largura, altura, comprimento (m) — bovino
+  private var boxScale: Float = 1.0
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
@@ -44,6 +51,53 @@ class LidarScannerView: ExpoView {
     config.environmentTexturing = .none
     // .resetSceneReconstruction limpa a malha de scans anteriores.
     arView.session.run(config, options: [.resetTracking, .removeExistingAnchors, .resetSceneReconstruction])
+    placeBoxInFront()
+  }
+
+  /// Coloca a caixa de enquadramento ~1.8 m à frente da câmera, NIVELADA (só yaw —
+  /// ignora pitch/roll da câmera). World-anchored: guarda `boxWorldTransform`.
+  private func placeBoxInFront() {
+    guard let cam = arView.session.currentFrame?.camera else { return }
+    let camT = cam.transform
+    // posição da câmera
+    let camPos = SIMD3<Float>(camT.columns.3.x, camT.columns.3.y, camT.columns.3.z)
+    // direção "para frente" da câmera projetada no plano horizontal (yaw)
+    var fwd = -SIMD3<Float>(camT.columns.2.x, 0, camT.columns.2.z)
+    if simd_length(fwd) < 1e-4 { fwd = SIMD3<Float>(0, 0, -1) }
+    fwd = simd_normalize(fwd)
+    let center = camPos + fwd * 1.8
+    // yaw a partir de fwd
+    let yaw = atan2(fwd.x, fwd.z)
+    var t = simd_float4x4(simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0)))
+    t.columns.3 = SIMD4<Float>(center.x, center.y, center.z, 1)
+    boxWorldTransform = t
+
+    boxAnchor?.removeFromParent()
+    let anchor = AnchorEntity(world: t)
+    let size = boxBaseSize * boxScale
+    let mesh = MeshResource.generateBox(size: size)
+    let mat = SimpleMaterial(color: .init(red: 0.37, green: 0.50, blue: 0.41, alpha: 0.16), isMetallic: false)
+    let model = ModelEntity(mesh: mesh, materials: [mat])
+    anchor.addChild(model)
+    arView.scene.addAnchor(anchor)
+    boxAnchor = anchor
+    boxModel = model
+  }
+
+  /// Regenera a malha da caixa visual com o tamanho atual (boxBaseSize * boxScale).
+  private func updateBoxMesh() {
+    guard let model = boxModel else { return }
+    model.scale = SIMD3<Float>(repeating: 1)
+    model.model?.mesh = MeshResource.generateBox(size: boxBaseSize * boxScale)
+  }
+
+  func recenterBox() {
+    placeBoxInFront()
+  }
+
+  func setBoxScale(_ s: Float) {
+    boxScale = min(2.0, max(0.5, s))
+    updateBoxMesh()
   }
 
   func stopScan() {
@@ -53,8 +107,14 @@ class LidarScannerView: ExpoView {
     }
     let meshAnchors = frame.anchors.compactMap { $0 as? ARMeshAnchor }
 
+    // Lê o estado da caixa na thread principal e captura por valor (evita data race).
+    let boxInv = simd_inverse(boxWorldTransform)
+    let half = boxBaseSize * boxScale * 0.5
+
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-      let (vertices, faces) = LidarScannerView.consolidate(meshAnchors)
+      let (vertices0, faces0) = LidarScannerView.consolidate(meshAnchors)
+      // Recorta a malha à caixa de enquadramento ANTES de medir/exportar.
+      let (vertices, faces) = MeshCropper.crop(vertices: vertices0, faces: faces0, boxInverse: boxInv, halfExtents: half)
       let obj = ObjExporter.objString(vertices: vertices, faces: faces)
       let m = MeshMeasurer.measure(vertices)
 
