@@ -78,6 +78,7 @@ class LidarScannerView: ExpoView {
           ]
         ]
       } catch {
+        print("[LidarScanner] ❌ Falha ao gravar OBJ: \(error)")
         payload = ["meshUri": "", "vertexCount": 0, "faceCount": 0]
       }
       DispatchQueue.main.async { self?.onScanComplete(payload) }

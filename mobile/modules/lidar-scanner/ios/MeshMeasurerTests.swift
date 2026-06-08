@@ -29,7 +29,7 @@ check(abs(m.rumpWidth    - 2) < 0.05, "largura ≈ L")
 check(abs(m.thoracicDepth - 2) < 0.05, "profundidade torácica ≈ L")
 check(abs(m.chestGirth   - 8) < 0.2,  "perímetro torácico ≈ 4L")
 
-let z = MeshMeasurer.measure([SIMD3<Float>(0,0,0)])
-check(z.bodyLength == 0 && z.chestGirth == 0, "entrada degenerada → zeros")
+let degen = MeshMeasurer.measure([SIMD3<Float>(0,0,0)])
+check(degen.bodyLength == 0 && degen.withersHeight == 0 && degen.thoracicDepth == 0 && degen.rumpWidth == 0 && degen.chestGirth == 0, "entrada degenerada → zeros")
 
 print("Todos os testes passaram.")
