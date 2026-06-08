@@ -47,7 +47,6 @@ class LidarScannerView: ExpoView {
   }
 
   func stopScan() {
-    // Snapshot dos anchors na main thread; trabalho pesado vai pro background.
     guard let frame = arView.session.currentFrame else {
       onScanComplete(["meshUri": "", "vertexCount": 0, "faceCount": 0])
       return
@@ -57,15 +56,26 @@ class LidarScannerView: ExpoView {
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let (vertices, faces) = LidarScannerView.consolidate(meshAnchors)
       let obj = ObjExporter.objString(vertices: vertices, faces: faces)
-      let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("scan-\(Int(Date().timeIntervalSince1970)).obj")
+      let m = MeshMeasurer.measure(vertices)
+
+      // Grava em Documents/ (persistente, compartilhável) — não em tmp/.
+      let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+      let url = docs.appendingPathComponent("scan-\(Int(Date().timeIntervalSince1970)).obj")
+
       var payload: [String: Any]
       do {
         try obj.write(to: url, atomically: true, encoding: .utf8)
         payload = [
           "meshUri": url.absoluteString,
           "vertexCount": vertices.count,
-          "faceCount": faces.count / 3
+          "faceCount": faces.count / 3,
+          "measurements": [
+            "body_length_cm": m.bodyLength * 100,
+            "withers_height_cm": m.withersHeight * 100,
+            "thoracic_depth_cm": m.thoracicDepth * 100,
+            "rump_width_cm": m.rumpWidth * 100,
+            "chest_girth_cm": m.chestGirth * 100
+          ]
         ]
       } catch {
         payload = ["meshUri": "", "vertexCount": 0, "faceCount": 0]
