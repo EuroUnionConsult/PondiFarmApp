@@ -206,7 +206,7 @@ export default function ScanScreen() {
   const handleScanComplete = async (e: { nativeEvent: ScanCompleteEvent }) => {
     setScanning(false);
     setProcessing(false);
-    const { meshUri, vertexCount, faceCount, measurements } = e.nativeEvent;
+    const { meshUri, meshPlyUri, vertexCount, faceCount, measurements } = e.nativeEvent;
 
     if (!measurements || vertexCount < MIN_VERTICES) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -230,6 +230,7 @@ export default function ScanScreen() {
       vertexCount,
       faceCount,
       meshUri,
+      meshPlyUri,
     };
 
     await saveRecord(record);

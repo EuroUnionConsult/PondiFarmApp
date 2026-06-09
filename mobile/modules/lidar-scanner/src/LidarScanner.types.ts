@@ -8,6 +8,7 @@ export type Measurements = {
 
 export type ScanCompleteEvent = {
   meshUri: string;
+  meshPlyUri?: string; // PLY colorido (EURODEV-80) — preferido pelo viewer 3D
   vertexCount: number;
   faceCount: number;
   measurements?: Measurements; // adicionado na Fase 3 (EURODEV-76)

@@ -21,6 +21,7 @@ export interface ScanRecord {
   vertexCount: number;          // peso fica de fora até ter modelo treinado (pós-22/06)
   faceCount: number;
   meshUri: string;
+  meshPlyUri?: string;          // PLY colorido (EURODEV-80) — preferido pelo viewer 3D
 }
 
 const KEY = '@boviscan:scans';
