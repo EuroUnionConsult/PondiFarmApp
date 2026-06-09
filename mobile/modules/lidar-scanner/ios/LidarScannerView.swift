@@ -1,6 +1,7 @@
 import ExpoModulesCore
 import ARKit
 import RealityKit
+import CoreImage
 
 class LidarScannerView: ExpoView {
   private let arView = ARView(frame: .zero)
@@ -13,11 +14,29 @@ class LidarScannerView: ExpoView {
   private let boxBaseSize = SIMD3<Float>(1.1, 1.7, 2.6)   // largura, altura, comprimento (m) — bovino
   private var boxScale: Float = 1.0
 
+  // --- Cor por-vértice acumulada durante o scan (EURODEV-80, Tarefa 4) ---
+  // Mapa voxel (2 cm) → cor RGB 0–1. Amostrado da câmera ao longo do scan.
+  private var colorByVoxel: [SIMD3<Int32>: SIMD3<Float>] = [:]
+  private var isScanning = false
+  private var frameTick = 0
+  private var sceneUpdateSub: Cancellable?
+
+  // CIContext reutilizado (criar a cada frame é caro).
+  private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
+
+  // Tamanho do voxel (m) para a chave de cor.
+  private static let voxelSize: Float = 0.02
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
     addSubview(arView)
     startSession()
+    // RealityKit é dono do ARSession delegate; subscrevemos ao loop de render
+    // SEM substituir o delegate. A amostragem de cor roda na main (throttled).
+    sceneUpdateSub = arView.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
+      self?.sampleColors()
+    }
   }
 
   override func layoutSubviews() {
@@ -26,6 +45,7 @@ class LidarScannerView: ExpoView {
   }
 
   deinit {
+    sceneUpdateSub?.cancel()
     arView.session.pause()
   }
 
@@ -52,6 +72,10 @@ class LidarScannerView: ExpoView {
     // .resetSceneReconstruction limpa a malha de scans anteriores.
     arView.session.run(config, options: [.resetTracking, .removeExistingAnchors, .resetSceneReconstruction])
     placeBoxInFront()
+    // Começa a acumular cor a partir de agora.
+    colorByVoxel.removeAll()
+    frameTick = 0
+    isScanning = true
   }
 
   /// Coloca a caixa de enquadramento ~1.8 m à frente da câmera, NIVELADA (só yaw —
@@ -101,6 +125,7 @@ class LidarScannerView: ExpoView {
   }
 
   func stopScan() {
+    isScanning = false
     guard let frame = arView.session.currentFrame else {
       onScanComplete(["meshUri": "", "vertexCount": 0, "faceCount": 0])
       return
@@ -110,6 +135,8 @@ class LidarScannerView: ExpoView {
     // Lê o estado da caixa na thread principal e captura por valor (evita data race).
     let boxInv = simd_inverse(boxWorldTransform)
     let half = boxBaseSize * boxScale * 0.5
+    // Captura o mapa de cor por valor ANTES do dispatch (evita data race com a main).
+    let colorMap = colorByVoxel
 
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let (vertices0, faces0) = LidarScannerView.consolidate(meshAnchors)
@@ -118,15 +145,23 @@ class LidarScannerView: ExpoView {
       let obj = ObjExporter.objString(vertices: vertices, faces: faces)
       let m = MeshMeasurer.measure(vertices)
 
+      // Cor por-vértice: lê o voxel correspondente ou cinza padrão.
+      let colors = vertices.map { LidarScannerView.colorFor($0, in: colorMap) }
+      let ply = PlyExporter.plyString(vertices: vertices, faces: faces, colors: colors)
+
       // Grava em Documents/ (persistente, compartilhável) — não em tmp/.
       let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-      let url = docs.appendingPathComponent("scan-\(Int(Date().timeIntervalSince1970)).obj")
+      let stamp = Int(Date().timeIntervalSince1970)
+      let url = docs.appendingPathComponent("scan-\(stamp).obj")
+      let plyUrl = docs.appendingPathComponent("scan-\(stamp).ply")
 
       var payload: [String: Any]
       do {
         try obj.write(to: url, atomically: true, encoding: .utf8)
+        try ply.write(to: plyUrl, atomically: true, encoding: .utf8)
         payload = [
           "meshUri": url.absoluteString,
+          "meshPlyUri": plyUrl.absoluteString,
           "vertexCount": vertices.count,
           "faceCount": faces.count / 3,
           "measurements": [
@@ -138,10 +173,129 @@ class LidarScannerView: ExpoView {
           ]
         ]
       } catch {
-        print("[LidarScanner] ❌ Falha ao gravar OBJ: \(error)")
+        print("[LidarScanner] ❌ Falha ao gravar malha: \(error)")
         payload = ["meshUri": "", "vertexCount": 0, "faceCount": 0]
       }
       DispatchQueue.main.async { self?.onScanComplete(payload) }
+    }
+  }
+
+  // MARK: - Amostragem de cor (EURODEV-80, Tarefa 4)
+
+  /// Chave de voxel (2 cm) a partir de uma posição de mundo.
+  static func voxelKey(_ p: SIMD3<Float>) -> SIMD3<Int32> {
+    SIMD3<Int32>(
+      Int32(floor(p.x / voxelSize)),
+      Int32(floor(p.y / voxelSize)),
+      Int32(floor(p.z / voxelSize))
+    )
+  }
+
+  /// Cor do voxel correspondente, ou cinza padrão se a superfície nunca foi vista.
+  static func colorFor(_ p: SIMD3<Float>, in map: [SIMD3<Int32>: SIMD3<Float>]) -> SIMD3<Float> {
+    map[voxelKey(p)] ?? SIMD3<Float>(0.6, 0.6, 0.6)
+  }
+
+  /// Roda na main (loop de render do RealityKit). Throttle forte: 1 em cada 5 frames,
+  /// e no máximo ~250 vértices por tick. Correção > completude: superfícies não vistas
+  /// permanecem cinza. Projeta vértices da malha na imagem da câmera e lê o RGB.
+  private func sampleColors() {
+    guard isScanning else { return }
+    frameTick += 1
+    guard frameTick % 5 == 0 else { return }
+    guard let frame = arView.session.currentFrame else { return }
+
+    let pixelBuffer = frame.capturedImage
+    // Tamanho da imagem capturada em pixels (CVPixelBuffer é landscape).
+    let imgW = CVPixelBufferGetWidth(pixelBuffer)
+    let imgH = CVPixelBufferGetHeight(pixelBuffer)
+
+    // Converte YUV → CGImage uma vez por tick.
+    let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+    guard let cgImage = ciContext.createCGImage(ciImage, from: ciImage.extent) else { return }
+    let cgW = cgImage.width
+    let cgH = cgImage.height
+
+    // Lê todos os bytes para um buffer RGBA8 contíguo (acesso O(1) por pixel).
+    let bytesPerPixel = 4
+    let bytesPerRow = cgW * bytesPerPixel
+    var raw = [UInt8](repeating: 0, count: bytesPerRow * cgH)
+    let colorSpace = CGColorSpaceCreateDeviceRGB()
+    guard let ctx = CGContext(
+      data: &raw,
+      width: cgW, height: cgH,
+      bitsPerComponent: 8, bytesPerRow: bytesPerRow,
+      space: colorSpace,
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else { return }
+    ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgW, height: cgH))
+
+    let camera = frame.camera
+    // projectPoint espera o viewport em PONTOS na orientação dada. Usamos a imagem
+    // capturada em landscape (.landscapeRight é a orientação nativa do sensor) e
+    // mapeamos o ponto resultante para pixels do CGImage.
+    let viewport = CGSize(width: imgW, height: imgH)
+
+    let meshAnchors = frame.anchors.compactMap { $0 as? ARMeshAnchor }
+    guard !meshAnchors.isEmpty else { return }
+
+    let camPos = SIMD3<Float>(
+      camera.transform.columns.3.x,
+      camera.transform.columns.3.y,
+      camera.transform.columns.3.z
+    )
+    let camForward = -SIMD3<Float>(
+      camera.transform.columns.2.x,
+      camera.transform.columns.2.y,
+      camera.transform.columns.2.z
+    )
+
+    // Orçamento total de vértices este tick, distribuído pelos anchors com stride.
+    let budget = 250
+    let totalVerts = meshAnchors.reduce(0) { $0 + $1.geometry.vertices.count }
+    guard totalVerts > 0 else { return }
+    let stride = max(1, totalVerts / budget)
+    var counter = 0
+
+    for anchor in meshAnchors {
+      let geom = anchor.geometry
+      let vSrc = geom.vertices
+      let vBuf = vSrc.buffer.contents()
+      var i = 0
+      while i < vSrc.count {
+        defer { i += 1; counter += 1 }
+        guard counter % stride == 0 else { continue }
+
+        let ptr = vBuf.advanced(by: vSrc.offset + vSrc.stride * i)
+          .assumingMemoryBound(to: Float.self)
+        let local = SIMD4<Float>(ptr[0], ptr[1], ptr[2], 1)
+        let worldH = anchor.transform * local
+        let world = SIMD3<Float>(worldH.x, worldH.y, worldH.z)
+
+        // Descarta vértices atrás da câmera.
+        if simd_dot(world - camPos, camForward) <= 0 { continue }
+
+        // Projeta para o viewport (landscapeRight, em pontos = pixels da imagem capturada).
+        let projected = camera.projectPoint(
+          world,
+          orientation: .landscapeRight,
+          viewportSize: viewport
+        )
+        let px = projected.x
+        let py = projected.y
+        if px < 0 || py < 0 || px >= viewport.width || py >= viewport.height { continue }
+
+        // Mapeia coordenadas do viewport (imgW×imgH) para pixels do CGImage (cgW×cgH).
+        let sx = Int((px / viewport.width) * CGFloat(cgW))
+        let sy = Int((py / viewport.height) * CGFloat(cgH))
+        if sx < 0 || sy < 0 || sx >= cgW || sy >= cgH { continue }
+
+        let off = sy * bytesPerRow + sx * bytesPerPixel
+        let r = Float(raw[off]) / 255.0
+        let g = Float(raw[off + 1]) / 255.0
+        let b = Float(raw[off + 2]) / 255.0
+        colorByVoxel[LidarScannerView.voxelKey(world)] = SIMD3<Float>(r, g, b)
+      }
     }
   }
 
