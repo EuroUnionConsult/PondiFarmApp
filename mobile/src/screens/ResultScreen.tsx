@@ -8,6 +8,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
+import { MeshPreviewView } from '../../modules/lidar-scanner';
 import { ios } from '../lib/theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -51,6 +52,16 @@ export default function ResultScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
+        {/* 3D model — scanned mesh */}
+        {typeof record.meshUri === 'string' && record.meshUri.length > 0 && (
+          <View style={styles.meshSection}>
+            <View style={styles.meshCard}>
+              <MeshPreviewView source={record.meshUri} style={StyleSheet.absoluteFill} />
+            </View>
+            <Text style={styles.meshHint}>Arraste para girar · pinça para zoom</Text>
+          </View>
+        )}
+
         {/* Category badge */}
         <View style={styles.badgeRow}>
           <View style={[styles.badge, isCow ? styles.badgeCow : styles.badgeExtra]}>
@@ -154,6 +165,26 @@ const styles = StyleSheet.create({
   navTitle: {
     fontFamily: displayFont,
     fontSize: 17, fontWeight: '600', color: ios.label, letterSpacing: -0.3,
+  },
+
+  // 3D model card
+  meshSection: {
+    marginTop: 12,
+  },
+  meshCard: {
+    height: 260,
+    marginHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: '#000000',
+    overflow: 'hidden',
+  },
+  meshHint: {
+    marginTop: 8,
+    paddingHorizontal: 32,
+    textAlign: 'center',
+    fontSize: 13, lineHeight: 18,
+    color: ios.secondaryLabel,
+    letterSpacing: -0.05,
   },
 
   // Category badge
