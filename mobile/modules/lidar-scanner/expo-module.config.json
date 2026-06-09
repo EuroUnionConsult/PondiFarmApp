@@ -1,7 +1,7 @@
 {
   "platforms": ["apple", "android", "web"],
   "apple": {
-    "modules": ["LidarScannerModule"]
+    "modules": ["LidarScannerModule", "MeshPreviewModule"]
   },
   "android": {
     "modules": ["expo.modules.lidarscanner.LidarScannerModule"]
