@@ -23,7 +23,9 @@ def validate_portuguese_nif(value: str) -> str:
     if digits is None or len(digits) != 9 or digits[0] not in "1235689":
         raise ValueError("documentNumber must be a valid Portuguese NIF")
 
-    total = sum(int(digit) * weight for digit, weight in zip(digits[:8], range(9, 1, -1)))
+    total = sum(
+        int(digit) * weight for digit, weight in zip(digits[:8], range(9, 1, -1))
+    )
     remainder = total % 11
     check_digit = 0 if remainder < 2 else 11 - remainder
 

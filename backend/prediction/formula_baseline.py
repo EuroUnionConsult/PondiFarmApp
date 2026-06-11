@@ -17,9 +17,7 @@ class FormulaEstimation:
 
 
 def estimate_weight_from_formula(features: FormulaFeatures) -> FormulaEstimation:
-    estimated_weight_lb = (
-        (features.heart_girth_in ** 2) * features.body_length_in
-    ) / 300
+    estimated_weight_lb = ((features.heart_girth_in**2) * features.body_length_in) / 300
     estimated_weight_kg = estimated_weight_lb * POUNDS_TO_KILOGRAMS
 
     return FormulaEstimation(

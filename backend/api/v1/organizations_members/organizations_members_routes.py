@@ -17,6 +17,7 @@ organizations_member_router = APIRouter(
     tags=["members"],
 )
 
+
 @organizations_member_router.get(
     "/{organization_id}/members",
     response_model=list[OrganizationMemberResponse],

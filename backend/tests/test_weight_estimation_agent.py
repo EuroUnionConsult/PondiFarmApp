@@ -57,8 +57,7 @@ class WeightEstimationAgentTests(unittest.TestCase):
         self.assertEqual(response.diagnostics.input_quality, "valid_with_warnings")
         self.assertTrue(
             any(
-                "range boundary" in warning
-                for warning in response.diagnostics.warnings
+                "range boundary" in warning for warning in response.diagnostics.warnings
             ),
         )
 

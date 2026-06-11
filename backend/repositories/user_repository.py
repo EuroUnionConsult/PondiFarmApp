@@ -18,9 +18,7 @@ def create_user(db: Session, user: User) -> User:
 
 def list_active_users(db: Session) -> list[User]:
     statement = (
-        select(User)
-        .where(User.deleted_at.is_(None))
-        .order_by(User.created_at.asc())
+        select(User).where(User.deleted_at.is_(None)).order_by(User.created_at.asc())
     )
     return list(db.scalars(statement).all())
 
