@@ -50,6 +50,14 @@ npx tsc --noEmit
 npx expo lint
 ```
 
+### 4. Build the web export
+
+```bash
+npm run build:web
+```
+
+The web build is exported to the repository root `dist/` directory for GitHub Pages deployment.
+
 ## Connecting to the backend
 
 By default the app expects the backend at `http://localhost:8000`. For physical-device testing, use the LAN IP of the machine running the FastAPI service.
