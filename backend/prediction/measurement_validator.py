@@ -40,6 +40,12 @@ PLAUSIBLE_BOVINE_RANGES: dict[str, PlausibleRange] = {
     ),
 }
 
+OPTIONAL_CONTEXT_MEASUREMENTS = {
+    "withers_height_cm",
+    "thoracic_depth_cm",
+    "rump_width_cm",
+}
+
 
 def validate_measurements(
     measurements: AnimalMeasurements,
@@ -48,7 +54,16 @@ def validate_measurements(
     boundary_centrality: dict[str, float] = {}
 
     for field_name, plausible_range in PLAUSIBLE_BOVINE_RANGES.items():
-        value = float(getattr(measurements, field_name))
+        raw_value = getattr(measurements, field_name)
+        if raw_value is None:
+            if field_name in OPTIONAL_CONTEXT_MEASUREMENTS:
+                warnings.append(
+                    f"{field_name} is missing; confidence is more conservative.",
+                )
+                continue
+            raise ValueError(f"{field_name} is required.")
+
+        value = float(raw_value)
         _validate_positive_measurement(field_name=field_name, value=value)
         _validate_plausible_range(
             field_name=field_name,
@@ -126,21 +141,32 @@ def _build_consistency_warnings(measurements: AnimalMeasurements) -> list[str]:
             "is unusual for bovine body proportions.",
         )
 
-    height_to_depth_ratio = (
-        measurements.withers_height_cm / measurements.thoracic_depth_cm
-    )
-    if height_to_depth_ratio < 1.25 or height_to_depth_ratio > 3.20:
-        warnings.append(
-            "The withers height to thoracic depth ratio looks inconsistent.",
+    if (
+        measurements.withers_height_cm is not None
+        and measurements.thoracic_depth_cm is not None
+    ):
+        height_to_depth_ratio = (
+            measurements.withers_height_cm / measurements.thoracic_depth_cm
         )
+        if height_to_depth_ratio < 1.25 or height_to_depth_ratio > 3.20:
+            warnings.append(
+                "The withers height to thoracic depth ratio looks inconsistent.",
+            )
 
-    rump_width_to_girth_ratio = measurements.rump_width_cm / measurements.chest_girth_cm
-    if rump_width_to_girth_ratio < 0.15 or rump_width_to_girth_ratio > 0.45:
-        warnings.append(
-            "The rump width is not well aligned with the reported chest girth.",
+    if measurements.rump_width_cm is not None:
+        rump_width_to_girth_ratio = (
+            measurements.rump_width_cm / measurements.chest_girth_cm
         )
+        if rump_width_to_girth_ratio < 0.15 or rump_width_to_girth_ratio > 0.45:
+            warnings.append(
+                "The rump width is not well aligned with the reported chest girth.",
+            )
 
-    if measurements.thoracic_depth_cm >= measurements.withers_height_cm:
+    if (
+        measurements.thoracic_depth_cm is not None
+        and measurements.withers_height_cm is not None
+        and measurements.thoracic_depth_cm >= measurements.withers_height_cm
+    ):
         warnings.append(
             "Thoracic depth should normally remain below withers height.",
         )

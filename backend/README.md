@@ -112,6 +112,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### Scan
 
 - `POST /api/v1/scan`
+- `POST /api/v1/scans/{scanId}/estimate-weight`
 
 Multipart form upload:
 
@@ -146,6 +147,10 @@ curl -X POST http://localhost:8000/api/v1/predictions/weight-estimation \
 ```
 
 This endpoint does not persist any data. It validates morphometric measurements and returns a formula-based approximate weight estimate with conservative diagnostics.
+
+The persisted scan estimation endpoint looks up an existing active scan, validates its LiDAR measurements, runs the same formula-based baseline estimator, stores the estimate and diagnostics on the existing `animal_scans` table, and returns the updated scan response. The estimate is an approximation and is kept separate from optional future real-weight fields.
+
+For a practical explanation of the scan estimation integration and future ground-truth preparation, see [backend/docs/scan_weight_estimation_integration_notes.md](/C:/EUCInovacao/PondiFarmApp/backend/docs/scan_weight_estimation_integration_notes.md).
 
 ### Organizations
 
@@ -251,7 +256,7 @@ ruff format .
 ## Notes
 
 - CORS is currently fully permissive (`allow_origins=["*"]`). This is acceptable for the Phase 0 demo; production deployments must restrict the allowlist before being exposed beyond a development network.
-- The service does not persist any data. State is held in the client.
+- The legacy multipart `/api/v1/scan` demo endpoint does not persist data. Persisted scan workflows use `/api/v1/scans/...` endpoints.
 - A future iteration will add tests and a `pytest` configuration.
 
 ## Licence

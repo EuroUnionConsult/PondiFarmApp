@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 from datetime import datetime
+import json
 import uuid
 
 from sqlalchemy import (
     CHAR,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
+    JSON,
     String,
     UniqueConstraint,
     text,
@@ -143,3 +146,148 @@ class OrganizationMember(Base):
 
     organization: Mapped[Organization] = relationship(back_populates="members")
     user: Mapped[User] = relationship(back_populates="memberships")
+
+
+class AnimalScan(Base):
+    __tablename__ = "animal_scans"
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        nullable=False,
+        default=uuid.uuid4,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        nullable=False,
+        default=uuid.uuid4,
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(GUID(), nullable=True)
+
+    estimated_weight_kg: Mapped[float | None] = mapped_column(
+        "estimated_weight",
+        Float,
+        nullable=True,
+    )
+    confidence_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    scan_status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="pending",
+        server_default=text("'pending'"),
+    )
+    scan_source: Mapped[str] = mapped_column(
+        String(100),
+        nullable=False,
+        default="lidar",
+        server_default=text("'lidar'"),
+    )
+    scanned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    body_length_cm: Mapped[float | None] = mapped_column(
+        "body_length",
+        Float,
+        nullable=True,
+    )
+    withers_height_cm: Mapped[float | None] = mapped_column(
+        "withers_height",
+        Float,
+        nullable=True,
+    )
+    chest_girth_cm: Mapped[float | None] = mapped_column(
+        "chest_circumference",
+        Float,
+        nullable=True,
+    )
+    rump_width_cm: Mapped[float | None] = mapped_column(
+        "hip_width",
+        Float,
+        nullable=True,
+    )
+    raw_result_json: Mapped[dict[str, object] | None] = mapped_column(
+        JSON,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    @property
+    def thoracic_depth_cm(self) -> None:
+        return None
+
+    @property
+    def mesh_uri(self) -> None:
+        return None
+
+    @property
+    def estimation_model_version(self) -> str | None:
+        raw_result = self._raw_result_dict()
+        if raw_result is None:
+            return None
+        model_version = raw_result.get("model_version")
+        if isinstance(model_version, str):
+            return model_version
+        return None
+
+    @property
+    def estimation_method(self) -> str | None:
+        raw_result = self._raw_result_dict()
+        if raw_result is None:
+            return None
+        estimation_method = raw_result.get("estimation_method")
+        if isinstance(estimation_method, str):
+            return estimation_method
+        return None
+
+    @property
+    def estimation_diagnostics_json(self) -> dict[str, object] | None:
+        raw_result = self._raw_result_dict()
+        if raw_result is None:
+            return None
+        diagnostics = raw_result.get("diagnostics")
+        if isinstance(diagnostics, dict):
+            return diagnostics
+        return None
+
+    @property
+    def real_weight_kg(self) -> None:
+        return None
+
+    @property
+    def real_weight_measured_at(self) -> None:
+        return None
+
+    @property
+    def real_weight_source(self) -> None:
+        return None
+
+    @property
+    def real_weight_notes(self) -> None:
+        return None
+
+    @property
+    def is_ground_truth_verified(self) -> bool:
+        return False
+
+    def _raw_result_dict(self) -> dict[str, object] | None:
+        if isinstance(self.raw_result_json, dict):
+            return self.raw_result_json
+        if isinstance(self.raw_result_json, str):
+            try:
+                parsed_result = json.loads(self.raw_result_json)
+            except json.JSONDecodeError:
+                return None
+            if isinstance(parsed_result, dict):
+                return parsed_result
+        return None

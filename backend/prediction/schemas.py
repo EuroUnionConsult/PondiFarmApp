@@ -9,10 +9,10 @@ from schemas.base import APIModel
 
 class AnimalMeasurements(APIModel):
     body_length_cm: float = Field(gt=0)
-    withers_height_cm: float = Field(gt=0)
-    thoracic_depth_cm: float = Field(gt=0)
-    rump_width_cm: float = Field(gt=0)
     chest_girth_cm: float = Field(gt=0)
+    withers_height_cm: float | None = Field(default=None, gt=0)
+    thoracic_depth_cm: float | None = Field(default=None, gt=0)
+    rump_width_cm: float | None = Field(default=None, gt=0)
 
 
 class WeightEstimationRequest(APIModel):

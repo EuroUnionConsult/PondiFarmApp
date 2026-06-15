@@ -91,6 +91,23 @@ class WeightEstimationApiTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
 
+    def test_missing_optional_context_measurements_returns_http_200(self):
+        payload = self.build_payload()
+        payload["measurements"].pop("withers_height_cm")
+        payload["measurements"].pop("thoracic_depth_cm")
+        payload["measurements"].pop("rump_width_cm")
+
+        response = self.client.post(
+            "/api/v1/predictions/weight-estimation",
+            json=payload,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        response_json = response.json()
+        self.assertTrue(
+            response_json["diagnostics"]["requiresGroundTruthValidation"],
+        )
+
     def test_endpoint_is_present_in_openapi_schema(self):
         response = self.client.get("/openapi.json")
 

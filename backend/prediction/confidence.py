@@ -13,24 +13,32 @@ def calculate_confidence_score(
         validation_result.boundary_centrality.values(),
     ) / len(validation_result.boundary_centrality)
 
-    ratio_alignment = _average(
-        [
-            _ratio_alignment(
-                value=features.chest_girth_to_length_ratio,
-                target=1.28,
-                tolerance=0.35,
-            ),
+    ratio_alignment_values = [
+        _ratio_alignment(
+            value=features.chest_girth_to_length_ratio,
+            target=1.28,
+            tolerance=0.35,
+        ),
+    ]
+    if features.withers_height_to_depth_ratio is not None:
+        ratio_alignment_values.append(
             _ratio_alignment(
                 value=features.withers_height_to_depth_ratio,
                 target=1.95,
                 tolerance=0.55,
             ),
+        )
+    if features.rump_width_to_girth_ratio is not None:
+        ratio_alignment_values.append(
             _ratio_alignment(
                 value=features.rump_width_to_girth_ratio,
                 target=0.29,
                 tolerance=0.12,
             ),
-        ],
+        )
+
+    ratio_alignment = _average(
+        ratio_alignment_values,
     )
 
     warning_penalty = min(0.20, 0.04 * len(validation_result.warnings))

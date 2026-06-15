@@ -9,6 +9,7 @@ from api.v1.organizations_members.organizations_members_routes import (
     organizations_member_router,
 )
 from api.v1.predictions.prediction_routes import predictions_router
+from api.v1.scans.scans_routes import scans_router
 from core.database import initialize_database
 from core.errors import register_exception_handlers
 
@@ -101,6 +102,7 @@ def create_app() -> FastAPI:
     app.include_router(users_router)
     app.include_router(organizations_member_router)
     app.include_router(predictions_router)
+    app.include_router(scans_router)
     return app
 
 
