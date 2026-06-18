@@ -56,6 +56,12 @@ local_settings.py
 
 # Model artefacts (handled via Git LFS — see root .gitattributes)
 # *.pt, *.pkl, *.onnx, *.mlpackage are LFS-tracked
+ml/models/weight/*.joblib
+ml/models/weight/*.metadata.json
+ml/datasets/external/*
+!ml/datasets/external/.gitkeep
+ml/datasets/processed/*
+!ml/datasets/processed/.gitkeep
 
 # Logs / temp
 *.log

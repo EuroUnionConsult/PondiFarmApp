@@ -1,9 +1,13 @@
 import unittest
 import os
+import types
+from io import BytesIO
+from unittest.mock import patch
 
 os.environ["DATABASE_URL"] = "sqlite://"
 
 from fastapi.testclient import TestClient
+from PIL import Image
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -11,6 +15,8 @@ from sqlalchemy.pool import StaticPool
 from core.database import Base, get_db
 from main import app
 from models.models import Organization, OrganizationMember, User
+from prediction.model_registry import FORMULA_BASELINE_METHOD, FORMULA_BASELINE_VERSION
+from prediction.schemas import RegisteredWeightModel
 
 
 class ApiCrudTests(unittest.TestCase):
@@ -370,3 +376,65 @@ class ApiCrudTests(unittest.TestCase):
             f"/api/v1/organizations/{organization['id']}/members/00000000-0000-0000-0000-000000000999",
         )
         self.assertEqual(missing_member_response.status_code, 404)
+
+    def test_scan_endpoint_uses_formula_fallback_without_trained_model(self):
+        image_buffer = BytesIO()
+        Image.new("RGB", (32, 32), color="white").save(image_buffer, format="PNG")
+        image_buffer.seek(0)
+
+        fake_detector = types.ModuleType("models.detector")
+        fake_geometry = types.ModuleType("utils.geometry")
+
+        def detect_subject(image_array):
+            return {
+                "bbox": [4, 4, 28, 28],
+                "class_name": "cow",
+                "confidence": 95.0,
+                "is_real_animal": True,
+            }
+
+        def bbox_to_measurements(bbox, img_h, img_w, breed):
+            return {
+                "body_length_cm": 150.0,
+                "withers_height_cm": 130.0,
+                "thoracic_depth_cm": 68.0,
+                "rump_width_cm": 52.0,
+                "chest_girth_cm": 190.0,
+            }
+
+        fake_detector.detect_subject = detect_subject
+        fake_geometry.bbox_to_measurements = bbox_to_measurements
+        fallback_model = RegisteredWeightModel(
+            model_version=FORMULA_BASELINE_VERSION,
+            estimation_method=FORMULA_BASELINE_METHOD,
+            is_formula_based=True,
+            is_trained_model=False,
+            model=None,
+            metadata={},
+        )
+
+        with patch.dict(
+            "sys.modules",
+            {
+                "models.detector": fake_detector,
+                "utils.geometry": fake_geometry,
+            },
+        ), patch(
+            "prediction.model_registry.ModelRegistry.get_active_weight_model",
+            return_value=fallback_model,
+        ):
+            response = self.client.post(
+                "/api/v1/scan",
+                files={"file": ("cow.png", image_buffer.getvalue(), "image/png")},
+                data={"animal_id": "cow-1", "breed": "default"},
+            )
+
+        self.assertEqual(response.status_code, 200)
+        result = response.json()["result"]
+        self.assertEqual(result["model_version"], FORMULA_BASELINE_VERSION)
+        self.assertEqual(
+            result["estimation_method"],
+            FORMULA_BASELINE_METHOD,
+        )
+        self.assertTrue(result["diagnostics"]["is_formula_based"])
+        self.assertFalse(result["diagnostics"]["is_trained_model"])

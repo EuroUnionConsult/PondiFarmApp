@@ -10,7 +10,7 @@ FastAPI service for the PondiFarmApp pipeline. Receives an image, runs object de
 - Pydantic
 - passlib with PBKDF2-SHA256 for password hashing
 - Ultralytics YOLOv8 (object detection)
-- scikit-learn Random Forest (weight estimator)
+- scikit-learn (offline weight model training and optional inference)
 - OpenCV, NumPy, Pillow
 
 ## Project structure
@@ -33,8 +33,16 @@ backend/
 |-- models/
 |   |-- detector.py
 |   |-- models.py
-|   |-- rf_model.pkl
 |   `-- weight_estimator.py
+|-- ml/
+|   |-- datasets/
+|   |-- models/
+|   |-- preprocessing/
+|   `-- training/
+|-- prediction/
+|   |-- model_registry.py
+|   |-- predictor.py
+|   `-- schemas.py
 |-- repositories/
 |   |-- organization_member_repository.py
 |   |-- organization_repository.py
@@ -120,6 +128,39 @@ Multipart form upload:
 | `file` | file | yes | - |
 | `animal_id` | string | no | `DEMO-001` |
 | `breed` | string | no | `default` |
+
+The scan response includes `model_version`, `estimation_method`, and
+`diagnostics` inside `result`. If
+`backend/ml/models/weight/external-trained-v0.1.0.joblib` is not present, the
+backend uses the formula fallback `formula-baseline-v0.1.0`.
+
+## Offline external dataset training
+
+External cattle datasets must be reviewed and staged manually. The API never
+downloads datasets and never trains inside request handlers.
+
+The internal normalized CSV schema and manual staging rules are documented in
+`backend/ml/datasets/README.md`.
+
+Normalize a reviewed external CSV:
+
+```bash
+python -m ml.preprocessing.external_dataset_normalizer backend/ml/datasets/external/raw.csv backend/ml/datasets/processed/normalized.csv --dataset-source CowDatabase
+```
+
+Train a supervised model from a normalized CSV:
+
+```bash
+python -m ml.training.train_weight_model backend/ml/datasets/processed/normalized.csv
+```
+
+Generated model artifacts are written to:
+
+- `backend/ml/models/weight/external-trained-v0.1.0.joblib`
+- `backend/ml/models/weight/external-trained-v0.1.0.metadata.json`
+
+These generated files are ignored by default. Review metrics and repository
+artifact strategy before committing any model file.
 
 ### Organizations
 

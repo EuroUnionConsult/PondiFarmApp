@@ -5,7 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1.organizations.organizations_routes import organizations_router
 from api.v1.users.users_routes import users_router
-from api.v1.organizations_members.organizations_members_routes import organizations_member_router
+from api.v1.organizations_members.organizations_members_routes import (
+    organizations_member_router,
+)
 from core.database import initialize_database
 from core.errors import register_exception_handlers
 
@@ -47,7 +49,7 @@ def create_app() -> FastAPI:
         from PIL import Image
 
         from models.detector import detect_subject
-        from models.weight_estimator import estimate_weight
+        from prediction.predictor import estimate_weight
         from utils.geometry import bbox_to_measurements
 
         contents = await file.read()
@@ -71,7 +73,8 @@ def create_app() -> FastAPI:
             breed=breed.lower(),
         )
 
-        peso_kg, confianca = estimate_weight(measurements)
+        prediction = estimate_weight(measurements)
+        prediction_payload = prediction.to_dict()
 
         return {
             "animal_id": animal_id,
@@ -90,9 +93,13 @@ def create_app() -> FastAPI:
                 "chest_girth_cm": measurements["chest_girth_cm"],
             },
             "result": {
-                    "estimated_weight_kg": peso_kg,
-                    "confidence_pct": confianca,
-                    "accuracy_note": "Estimativa por visão computacional 2D · Precisão aumentada com LiDAR na versão final",
+                "estimated_weight_kg": prediction_payload["estimated_weight_kg"],
+                "confidence_pct": prediction_payload["confidence_pct"],
+                "confidence_score": prediction_payload["confidence_score"],
+                "model_version": prediction_payload["model_version"],
+                "estimation_method": prediction_payload["estimation_method"],
+                "diagnostics": prediction_payload["diagnostics"],
+                "accuracy_note": "Estimativa por visão computacional 2D · Precisão aumentada com LiDAR na versão final",
             },
         }
 
