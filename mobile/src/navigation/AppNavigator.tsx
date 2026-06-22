@@ -12,6 +12,7 @@ import HerdScreen from '../screens/HerdScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ScanScreen from '../screens/ScanScreen';
+import ObjectCaptureScreen from '../screens/ObjectCaptureScreen';
 import ResultScreen from '../screens/ResultScreen';
 
 import type { RootStackParamList, TabParamList } from './types';
@@ -67,6 +68,11 @@ export default function AppNavigator() {
         <Stack.Screen
           name="Scan"
           component={ScanScreen}
+          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
+        />
+        <Stack.Screen
+          name="ObjectCapture"
+          component={ObjectCaptureScreen}
           options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
         />
         <Stack.Screen
