@@ -135,6 +135,10 @@ final class ObjectCaptureCoordinator: ObservableObject {
   // MARK: Observação de estado
 
   private func observeState(_ session: ObjectCaptureSession) {
+    // Semeia o estado atual: stateUpdates só emite MUDANÇAS, e a transição
+    // initializing→ready pode ocorrer antes do for-await assinar (race) — sem
+    // semear, a UI/JS ficariam presos em "initializing".
+    handle(session.state)
     Task { [weak self] in
       for await state in session.stateUpdates {
         guard let self else { return }
@@ -276,26 +280,31 @@ private struct ObjectCaptureContainerView: View {
     }
   }
 
+  // Dirige a UI direto pelo session.state (@Observable → SwiftUI re-renderiza),
+  // não pelo coordinator.phase, para não depender da entrega do stateUpdates.
   @ViewBuilder
   private func controls(for session: ObjectCaptureSession) -> some View {
-    switch coordinator.phase {
-    case "ready":
-      primaryButton("Continuar") { coordinator.startDetecting() }
-    case "detecting":
+    switch session.state {
+    case .ready:
+      VStack(spacing: 10) {
+        hint("Aponte para a superfície com o objeto (mesa/chão) e mova devagar para detectar o plano")
+        primaryButton("Continuar") { _ = session.startDetecting() }
+      }
+    case .detecting:
       VStack(spacing: 10) {
         hint("Ajuste a caixa ao redor do objeto")
-        primaryButton("Iniciar captura") { coordinator.startCapturing() }
+        primaryButton("Iniciar captura") { session.startCapturing() }
       }
-    case "capturing":
+    case .capturing:
       VStack(spacing: 10) {
-        hint(coordinator.userCompletedScanPass
+        hint(session.userCompletedScanPass
              ? "Volta completa! Pode finalizar."
              : "Dê a volta no objeto, devagar…")
-        primaryButton("Finalizar") { coordinator.finishCapture() }
+        primaryButton("Finalizar") { session.finish() }
       }
-    case "finishing":
+    case .finishing:
       labelBox("Salvando captura…")
-    case "reconstructing":
+    case .completed:
       labelBox("Renderizando modelo 3D…")
     default:
       EmptyView()

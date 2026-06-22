@@ -42,6 +42,17 @@ export default function ObjectCaptureScreen() {
   const [modelUrl, setModelUrl] = useState<string | null>(null);
   const [bounds, setBounds] = useState<Bounds | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Bump remonta a ObjectCaptureView → sessão nova (retry sem sair da tela).
+  const [attempt, setAttempt] = useState(0);
+
+  const restart = () => {
+    setError(null);
+    setModelUrl(null);
+    setBounds(null);
+    setPhase('initializing');
+    setProgress(0);
+    setAttempt((a) => a + 1);
+  };
 
   useEffect(() => {
     isObjectCaptureSupported().then(setSupported).catch(() => setSupported(false));
@@ -131,12 +142,7 @@ export default function ObjectCaptureScreen() {
 
         <TouchableOpacity
           style={[styles.primaryBtn, { marginTop: 'auto', marginBottom: insets.bottom + 16 }]}
-          onPress={() => {
-            setModelUrl(null);
-            setBounds(null);
-            setPhase('initializing');
-            setProgress(0);
-          }}
+          onPress={restart}
         >
           <Ionicons name="scan-outline" size={18} color="#FFF" />
           <Text style={styles.primaryBtnText}>Novo scan</Text>
@@ -150,6 +156,7 @@ export default function ObjectCaptureScreen() {
   return (
     <View style={styles.container}>
       <ObjectCaptureView
+        key={attempt}
         style={StyleSheet.absoluteFill}
         detail="reduced"
         onStateChange={(e) => setPhase(e.nativeEvent.state)}
@@ -179,7 +186,15 @@ export default function ObjectCaptureScreen() {
       {error && (
         <View style={styles.overlay}>
           <Ionicons name="alert-circle-outline" size={40} color="#FFF" />
-          <Text style={styles.overlayText}>{error}</Text>
+          <Text style={styles.overlayText}>Não consegui montar o modelo</Text>
+          <Text style={styles.overlayHint}>
+            Mais luz, objeto com textura sobre superfície texturizada, e dê a volta completa
+            devagar. Aponte primeiro para a superfície para detectar o plano.
+          </Text>
+          <TouchableOpacity style={styles.primaryBtnInline} onPress={restart}>
+            <Ionicons name="refresh" size={18} color="#FFF" />
+            <Text style={styles.primaryBtnText}>Tentar de novo</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => nav.goBack()}>
             <Text style={styles.secondaryBtnText}>Voltar</Text>
           </TouchableOpacity>
@@ -257,6 +272,15 @@ const styles = StyleSheet.create({
     textAlign: 'center', letterSpacing: -0.3,
   },
   overlayPct: { color: '#FFF', fontSize: 15, opacity: 0.8 },
+  overlayHint: {
+    color: '#FFF', opacity: 0.85, fontSize: 14, lineHeight: 20,
+    textAlign: 'center', paddingHorizontal: 12,
+  },
+  primaryBtnInline: {
+    marginTop: 6, paddingHorizontal: 24, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: ios.accent,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
 
   primaryBtn: {
     marginHorizontal: 16,
