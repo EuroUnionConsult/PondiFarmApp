@@ -136,22 +136,23 @@ class LidarScannerView: ExpoView {
   }
 
   func stopScan() {
-    isScanning = false
-    guard let frame = arView.session.currentFrame else {
-      onScanComplete(["meshUri": "", "vertexCount": 0, "faceCount": 0])
-      return
-    }
-    let meshAnchors = frame.anchors.compactMap { $0 as? ARMeshAnchor }
+    // Snapshot do estado compartilhado SEMPRE na main (serializa com sampleColors,
+    // que também roda na main). stopScan vem do Expo FORA da main → sem isto, ler
+    // keyframes/colorByVoxel aqui corre com a escrita na main = EXC_BAD_ACCESS.
+    DispatchQueue.main.async { [weak self] in
+      guard let self else { return }
+      self.isScanning = false
+      guard let frame = self.arView.session.currentFrame else {
+        self.onScanComplete(["meshUri": "", "vertexCount": 0, "faceCount": 0])
+        return
+      }
+      let meshAnchors = frame.anchors.compactMap { $0 as? ARMeshAnchor }
+      let boxInv = simd_inverse(self.boxWorldTransform)
+      let half = self.boxBaseSize * self.boxScale * 0.5
+      let colorMap = self.colorByVoxel
+      let frames = self.keyframes
 
-    // Lê o estado da caixa na thread principal e captura por valor (evita data race).
-    let boxInv = simd_inverse(boxWorldTransform)
-    let half = boxBaseSize * boxScale * 0.5
-    // Captura o mapa de cor por valor ANTES do dispatch (evita data race com a main).
-    let colorMap = colorByVoxel
-    // Keyframes para o bake de textura (também por valor).
-    let frames = keyframes
-
-    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let (vertices0, faces0) = LidarScannerView.consolidate(meshAnchors)
       // Recorta a malha à caixa de enquadramento ANTES de medir/exportar.
       let (vertices, faces) = MeshCropper.crop(vertices: vertices0, faces: faces0, boxInverse: boxInv, halfExtents: half)
@@ -205,6 +206,7 @@ class LidarScannerView: ExpoView {
         payload = ["meshUri": "", "vertexCount": 0, "faceCount": 0]
       }
       DispatchQueue.main.async { self?.onScanComplete(payload) }
+      }
     }
   }
 
@@ -283,9 +285,9 @@ class LidarScannerView: ExpoView {
     )
 
     // Orçamento total de vértices este tick, distribuído pelos anchors com stride.
-    // Subido de 250 → 1500: muito mais voxels coloridos por tick (cobertura), e o
-    // custo dominante (YUV→CGImage) acontece 1x por tick, então o loop extra é barato.
-    let budget = 1500
+    // 600: bom equilíbrio entre cobertura de cor e carga na main (1500 sobrecarregava
+    // a main e starvava o tracking do ARKit → "poor slam").
+    let budget = 600
     let totalVerts = meshAnchors.reduce(0) { $0 + $1.geometry.vertices.count }
     guard totalVerts > 0 else { return }
     let stride = max(1, totalVerts / budget)
