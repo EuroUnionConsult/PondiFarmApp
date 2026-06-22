@@ -22,6 +22,7 @@ export interface ScanRecord {
   faceCount: number;
   meshUri: string;
   meshPlyUri?: string;          // PLY colorido (EURODEV-80) — preferido pelo viewer 3D
+  meshTexturedUri?: string;     // OBJ+MTL+PNG texturizado (bake UV) — preferido se existir
 }
 
 const KEY = '@boviscan:scans';

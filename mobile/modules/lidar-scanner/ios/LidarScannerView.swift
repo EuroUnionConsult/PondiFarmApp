@@ -28,6 +28,14 @@ class LidarScannerView: ExpoView {
   // Tamanho do voxel (m) para a chave de cor. 1,2 cm = cor mais fina (antes 2 cm).
   private static let voxelSize: Float = 0.012
 
+  // --- Keyframes para o bake de textura UV (Passo 1) ---
+  // RGBA reduzido + proj×view + posição da câmera, distribuídos por movimento.
+  private var keyframes: [TextureBaker.Frame] = []
+  private var lastKeyframePos: SIMD3<Float>?
+  private static let maxKeyframes = 36
+  private static let keyframeWidth = 640      // largura do keyframe reduzido
+  private static let keyframeMinMove: Float = 0.06  // m de deslocamento p/ novo keyframe
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
@@ -73,8 +81,10 @@ class LidarScannerView: ExpoView {
     // .resetSceneReconstruction limpa a malha de scans anteriores.
     arView.session.run(config, options: [.resetTracking, .removeExistingAnchors, .resetSceneReconstruction])
     placeBoxInFront()
-    // Começa a acumular cor a partir de agora.
+    // Começa a acumular cor e keyframes a partir de agora.
     colorByVoxel.removeAll()
+    keyframes.removeAll()
+    lastKeyframePos = nil
     frameTick = 0
     isScanning = true
   }
@@ -138,6 +148,8 @@ class LidarScannerView: ExpoView {
     let half = boxBaseSize * boxScale * 0.5
     // Captura o mapa de cor por valor ANTES do dispatch (evita data race com a main).
     let colorMap = colorByVoxel
+    // Keyframes para o bake de textura (também por valor).
+    let frames = keyframes
 
     DispatchQueue.global(qos: .userInitiated).async { [weak self] in
       let (vertices0, faces0) = LidarScannerView.consolidate(meshAnchors)
@@ -173,6 +185,21 @@ class LidarScannerView: ExpoView {
             "chest_girth_cm": m.chestGirth * 100
           ]
         ]
+
+        // Passos 3+4: bake de textura UV e export OBJ+MTL+PNG. Best-effort —
+        // se falhar (poucos keyframes, etc.), mantém obj/ply normais.
+        if let baked = TextureBaker.bake(vertices: vertices, faces: faces, frames: frames) {
+          let texturedURL = try TexturedObjExporter.write(
+            directory: docs,
+            baseName: "scan-\(stamp)-tex",
+            vertices: vertices,
+            faces: faces,
+            texcoords: baked.texcoords,
+            atlas: baked.atlas,
+            atlasSize: baked.size
+          )
+          payload["meshTexturedUri"] = texturedURL.absoluteString
+        }
       } catch {
         print("[LidarScanner] ❌ Falha ao gravar malha: \(error)")
         payload = ["meshUri": "", "vertexCount": 0, "faceCount": 0]
@@ -232,6 +259,10 @@ class LidarScannerView: ExpoView {
     ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: cgW, height: cgH))
 
     let camera = frame.camera
+
+    // Passo 1: captura keyframe para o bake de textura (distribuído por movimento).
+    maybeCaptureKeyframe(cgImage: cgImage, camera: camera, srcW: imgW, srcH: imgH)
+
     // projectPoint espera o viewport em PONTOS na orientação dada. Usamos a imagem
     // capturada em landscape (.landscapeRight é a orientação nativa do sensor) e
     // mapeamos o ponto resultante para pixels do CGImage.
@@ -300,6 +331,46 @@ class LidarScannerView: ExpoView {
         colorByVoxel[LidarScannerView.voxelKey(world)] = SIMD3<Float>(r, g, b)
       }
     }
+  }
+
+  /// Passo 1: guarda um keyframe (RGBA reduzido + proj×view + posição) quando a câmera
+  /// se moveu o suficiente, até o limite. Usado pelo bake de textura no fim do scan.
+  private func maybeCaptureKeyframe(cgImage: CGImage, camera: ARCamera, srcW: Int, srcH: Int) {
+    guard keyframes.count < LidarScannerView.maxKeyframes else { return }
+    let c = camera.transform.columns.3
+    let camPos = SIMD3<Float>(c.x, c.y, c.z)
+    if let last = lastKeyframePos,
+       simd_distance(last, camPos) < LidarScannerView.keyframeMinMove {
+      return
+    }
+
+    // Reduz mantendo o aspecto da imagem fonte.
+    let dw = LidarScannerView.keyframeWidth
+    let dh = max(1, Int((Float(dw) * Float(srcH) / Float(srcW)).rounded()))
+    let bpr = dw * 4
+    var buf = [UInt8](repeating: 0, count: bpr * dh)
+    let cs = CGColorSpaceCreateDeviceRGB()
+    guard let ctx = CGContext(
+      data: &buf, width: dw, height: dh,
+      bitsPerComponent: 8, bytesPerRow: bpr, space: cs,
+      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    ) else { return }
+    ctx.interpolationQuality = .medium
+    ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: dw, height: dh))
+
+    // proj×view na orientação de captura; viewport com o aspecto da imagem fonte.
+    let view = camera.viewMatrix(for: .landscapeRight)
+    let proj = camera.projectionMatrix(
+      for: .landscapeRight,
+      viewportSize: CGSize(width: srcW, height: srcH),
+      zNear: 0.001, zFar: 1000
+    )
+    let projView = proj * view
+
+    keyframes.append(TextureBaker.Frame(
+      rgba: buf, width: dw, height: dh, projView: projView, camPos: camPos
+    ))
+    lastKeyframePos = camPos
   }
 
   /// Consolida todos os ARMeshAnchor em uma lista de vértices (mundo) e faces (índices 0-based).

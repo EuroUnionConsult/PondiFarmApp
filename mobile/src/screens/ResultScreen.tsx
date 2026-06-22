@@ -56,7 +56,7 @@ export default function ResultScreen() {
         {typeof record.meshUri === 'string' && record.meshUri.length > 0 && (
           <View style={styles.meshSection}>
             <View style={styles.meshCard}>
-              <MeshPreviewView source={record.meshPlyUri ?? record.meshUri} style={StyleSheet.absoluteFill} />
+              <MeshPreviewView source={record.meshTexturedUri ?? record.meshPlyUri ?? record.meshUri} style={StyleSheet.absoluteFill} />
             </View>
             <Text style={styles.meshHint}>Arraste para girar · pinça para zoom</Text>
           </View>
