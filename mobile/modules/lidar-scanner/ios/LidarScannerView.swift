@@ -25,8 +25,8 @@ class LidarScannerView: ExpoView {
   // CIContext reutilizado (criar a cada frame é caro).
   private let ciContext = CIContext(options: [.useSoftwareRenderer: false])
 
-  // Tamanho do voxel (m) para a chave de cor.
-  private static let voxelSize: Float = 0.02
+  // Tamanho do voxel (m) para a chave de cor. 1,2 cm = cor mais fina (antes 2 cm).
+  private static let voxelSize: Float = 0.012
 
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
@@ -252,7 +252,9 @@ class LidarScannerView: ExpoView {
     )
 
     // Orçamento total de vértices este tick, distribuído pelos anchors com stride.
-    let budget = 250
+    // Subido de 250 → 1500: muito mais voxels coloridos por tick (cobertura), e o
+    // custo dominante (YUV→CGImage) acontece 1x por tick, então o loop extra é barato.
+    let budget = 1500
     let totalVerts = meshAnchors.reduce(0) { $0 + $1.geometry.vertices.count }
     guard totalVerts > 0 else { return }
     let stride = max(1, totalVerts / budget)
