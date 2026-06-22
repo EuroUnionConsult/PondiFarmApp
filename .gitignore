@@ -135,3 +135,4 @@ coverage/
 secrets/
 scratch/
 .local/
+mobile/assets/*.bak
