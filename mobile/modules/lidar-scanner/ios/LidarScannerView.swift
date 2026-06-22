@@ -2,6 +2,7 @@ import ExpoModulesCore
 import ARKit
 import RealityKit
 import CoreImage
+import Combine
 
 class LidarScannerView: ExpoView {
   private let arView = ARView(frame: .zero)
