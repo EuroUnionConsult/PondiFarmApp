@@ -262,8 +262,8 @@ class LidarScannerView: ExpoView {
 
     let camera = frame.camera
 
-    // Passo 1: captura keyframe para o bake de textura (distribuído por movimento).
-    maybeCaptureKeyframe(cgImage: cgImage, camera: camera, srcW: imgW, srcH: imgH)
+    // Passo 1: captura keyframe (subamostra do `raw` já extraído — barato).
+    maybeCaptureKeyframe(raw: raw, srcW: cgW, srcH: cgH, bytesPerRow: bytesPerRow, camera: camera)
 
     // projectPoint espera o viewport em PONTOS na orientação dada. Usamos a imagem
     // capturada em landscape (.landscapeRight é a orientação nativa do sensor) e
@@ -285,9 +285,9 @@ class LidarScannerView: ExpoView {
     )
 
     // Orçamento total de vértices este tick, distribuído pelos anchors com stride.
-    // 600: bom equilíbrio entre cobertura de cor e carga na main (1500 sobrecarregava
-    // a main e starvava o tracking do ARKit → "poor slam").
-    let budget = 600
+    // 250: valor original que NÃO starvava o tracking do ARKit. Subir isto sobrecarrega
+    // a main (sampleColors roda no loop de render) e impede o VIO de inicializar.
+    let budget = 250
     let totalVerts = meshAnchors.reduce(0) { $0 + $1.geometry.vertices.count }
     guard totalVerts > 0 else { return }
     let stride = max(1, totalVerts / budget)
@@ -335,9 +335,12 @@ class LidarScannerView: ExpoView {
     }
   }
 
-  /// Passo 1: guarda um keyframe (RGBA reduzido + proj×view + posição) quando a câmera
-  /// se moveu o suficiente, até o limite. Usado pelo bake de textura no fim do scan.
-  private func maybeCaptureKeyframe(cgImage: CGImage, camera: ARCamera, srcW: Int, srcH: Int) {
+  /// Passo 1: guarda um keyframe quando a câmera se moveu o suficiente, até o limite.
+  /// BARATO: subamostra (nearest) do buffer `raw` já extraído — sem novo CGContext/draw,
+  /// pra não starvar o tracking do ARKit na main.
+  private func maybeCaptureKeyframe(
+    raw: [UInt8], srcW: Int, srcH: Int, bytesPerRow: Int, camera: ARCamera
+  ) {
     guard keyframes.count < LidarScannerView.maxKeyframes else { return }
     let c = camera.transform.columns.3
     let camPos = SIMD3<Float>(c.x, c.y, c.z)
@@ -346,19 +349,24 @@ class LidarScannerView: ExpoView {
       return
     }
 
-    // Reduz mantendo o aspecto da imagem fonte.
+    // Reduz por subamostragem (nearest), mantendo o aspecto.
     let dw = LidarScannerView.keyframeWidth
-    let dh = max(1, Int((Float(dw) * Float(srcH) / Float(srcW)).rounded()))
-    let bpr = dw * 4
-    var buf = [UInt8](repeating: 0, count: bpr * dh)
-    let cs = CGColorSpaceCreateDeviceRGB()
-    guard let ctx = CGContext(
-      data: &buf, width: dw, height: dh,
-      bitsPerComponent: 8, bytesPerRow: bpr, space: cs,
-      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-    ) else { return }
-    ctx.interpolationQuality = .medium
-    ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: dw, height: dh))
+    let dh = max(1, srcH * dw / srcW)
+    var buf = [UInt8](repeating: 0, count: dw * dh * 4)
+    for ky in 0..<dh {
+      let sy = ky * srcH / dh
+      let srcRow = sy * bytesPerRow
+      let dstRow = ky * dw * 4
+      for kx in 0..<dw {
+        let sx = kx * srcW / dw
+        let so = srcRow + sx * 4
+        let dstOff = dstRow + kx * 4
+        buf[dstOff] = raw[so]
+        buf[dstOff + 1] = raw[so + 1]
+        buf[dstOff + 2] = raw[so + 2]
+        buf[dstOff + 3] = 255
+      }
+    }
 
     // proj×view na orientação de captura; viewport com o aspecto da imagem fonte.
     let view = camera.viewMatrix(for: .landscapeRight)
