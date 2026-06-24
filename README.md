@@ -16,7 +16,7 @@ This repository hosts the **PondiFarmApp** monorepo: a React Native / Expo clien
 
 ```
 PondiFarmApp/
-├── backend/        FastAPI + YOLOv8 + scikit-learn weight estimator
+├── backend/        FastAPI + scikit-learn weight prediction (Random Forest)
 ├── mobile/         Expo SDK 54 + React Native 0.81.5 (TypeScript)
 ├── .github/        CI workflows, release-please, code scanning, templates
 └── …               Docs, LICENSE, governance files
@@ -27,13 +27,13 @@ PondiFarmApp/
 
 ## Project status
 
-**Phase 0 — Validation** (in progress, May 2026).
+**Sprint 1 — native LiDAR scanner + weight pipeline** (v0.5.0, June 2026).
 
-The Phase 0 goal is to validate the end-to-end pipeline (image / 3D scan → detection → measurements → weight estimate) against ground-truth data from controlled field sessions with partner farms.
+The goal is an end-to-end pipeline (LiDAR 3D scan → measurements → weight estimate) validated against ground-truth scale weights from field sessions with partner farms.
 
-Field session #1 — Limousine herd, Beira Interior, Portugal — is scheduled for **2026-06-08** with Prof. Joaquim Carvalho (IPCB).
+Field session #1 — Limousine herd, Beira Interior, Portugal — was conducted on **2026-06-08** with Prof. Joaquim Carvalho (IPCB).
 
-3D capture during Phase 0 uses **Polycam Pro** (iPhone Pro LiDAR) as an external tool — independent of this codebase. Empirical validation of the capture pipeline is documented in the project knowledge base.
+3D capture now uses a **proprietary on-device LiDAR scanner** (Apple ARKit scene reconstruction) built into the app, replacing the Polycam Pro external tool used during early prototyping. This gives full control over acquisition, mesh quality, and metadata.
 
 ## Predecessor
 

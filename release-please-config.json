@@ -20,6 +20,11 @@
         { "type": "ci",       "section": "Continuous Integration" },
         { "type": "chore",    "section": "Miscellaneous Chores", "hidden": false },
         { "type": "revert",   "section": "Reverts" }
+      ],
+      "extra-files": [
+        { "type": "generic", "path": "mobile/src/lib/version.ts" },
+        { "type": "json", "path": "mobile/app.json", "jsonpath": "$.expo.version" },
+        { "type": "json", "path": "mobile/package.json", "jsonpath": "$.version" }
       ]
     }
   }
