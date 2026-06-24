@@ -50,8 +50,17 @@ class MeshPreviewView: ExpoView {
   ///   cor do MDLMesh ao usar `SCNScene(mdlAsset:)` diretamente — ficaria cinza).
   /// - Para os demais formatos: tenta SCNScene(url:) e cai para ModelIO.
   private static func loadScene(from url: URL) -> SCNScene {
-    if url.pathExtension.lowercased() == "ply" {
+    let ext = url.pathExtension.lowercased()
+    if ext == "ply" {
       if let scene = coloredScene(from: url) { return scene }
+    }
+    // OBJ texturizado (com .mtl + .png irmãos): usar ModelIO + loadTextures() para
+    // EFETIVAMENTE aplicar o map_Kd. SCNScene(url:) sozinho carrega a geometria mas
+    // costuma deixar o material branco (textura não aplicada).
+    if ext == "obj" {
+      let asset = MDLAsset(url: url)
+      asset.loadTextures()
+      return SCNScene(mdlAsset: asset)
     }
     if let scene = try? SCNScene(url: url, options: [.preserveOriginalTopology: true]) {
       return scene
