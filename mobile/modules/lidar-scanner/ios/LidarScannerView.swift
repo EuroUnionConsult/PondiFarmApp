@@ -54,6 +54,10 @@ class LidarScannerView: ExpoView {
     coachingOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     arView.addSubview(coachingOverlay)
 
+    // Arrastar a caixa de enquadramento para reposicionar (raycast no ponto tocado).
+    let pan = UIPanGestureRecognizer(target: self, action: #selector(handleBoxPan(_:)))
+    arView.addGestureRecognizer(pan)
+
     // RealityKit é dono do ARSession delegate; subscrevemos ao loop de render
     // SEM substituir o delegate. A amostragem de cor roda na main (throttled).
     sceneUpdateSub = arView.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
@@ -89,8 +93,9 @@ class LidarScannerView: ExpoView {
       config.sceneReconstruction = .mesh
     }
     config.environmentTexturing = .none
-    // .resetSceneReconstruction limpa a malha de scans anteriores.
-    arView.session.run(config, options: [.resetTracking, .removeExistingAnchors, .resetSceneReconstruction])
+    // NÃO resetar tracking aqui: preserva o VIO já inicializado pelo coaching antes do
+    // Start (resetar forçava re-init do zero → poor slam + congelava). Só limpa a malha.
+    arView.session.run(config, options: [.resetSceneReconstruction])
     placeBoxInFront()
     // Começa a acumular cor e keyframes a partir de agora.
     colorByVoxel.removeAll()
@@ -163,6 +168,20 @@ class LidarScannerView: ExpoView {
 
   func recenterBox() {
     placeBoxInFront()
+  }
+
+  /// Arrasta a caixa para o ponto tocado (raycast contra superfície detectada/estimada),
+  /// preservando o yaw atual. Permite "colocar certinho" como no Object Capture.
+  @objc private func handleBoxPan(_ g: UIPanGestureRecognizer) {
+    guard let anchor = boxAnchor else { return }
+    let loc = g.location(in: arView)
+    guard let query = arView.makeRaycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any),
+          let result = arView.session.raycast(query).first else { return }
+    let hit = result.worldTransform
+    var t = boxWorldTransform
+    t.columns.3 = SIMD4<Float>(hit.columns.3.x, hit.columns.3.y, hit.columns.3.z, 1)
+    boxWorldTransform = t
+    anchor.setTransformMatrix(t, relativeTo: nil)
   }
 
   func setBoxScale(_ s: Float) {
@@ -263,6 +282,9 @@ class LidarScannerView: ExpoView {
     frameTick += 1
     guard frameTick % 5 == 0 else { return }
     guard let frame = arView.session.currentFrame else { return }
+    // Só faz o trabalho pesado (CGImage + amostragem + keyframe) com tracking estável —
+    // durante a inicialização do VIO, não roubar CPU da main (senão o tracking não trava).
+    guard case .normal = frame.camera.trackingState else { return }
 
     let pixelBuffer = frame.capturedImage
     // Tamanho da imagem capturada em pixels (CVPixelBuffer é landscape).
