@@ -6,6 +6,9 @@ import Combine
 
 class LidarScannerView: ExpoView {
   private let arView = ARView(frame: .zero)
+  // Overlay oficial da Apple que guia o usuário a mover o aparelho até o tracking
+  // (VIO) inicializar — corrige o "poor slam / vio_initialized(0)".
+  private let coachingOverlay = ARCoachingOverlayView()
   private let onScanComplete = EventDispatcher()
 
   // --- Caixa de enquadramento AR (world-anchored) ---
@@ -40,7 +43,17 @@ class LidarScannerView: ExpoView {
     super.init(appContext: appContext)
     clipsToBounds = true
     addSubview(arView)
+    // Não deixar o RealityKit reconfigurar/sobrescrever a nossa sessão (sceneReconstruction).
+    arView.automaticallyConfigureSession = false
     startSession()
+
+    // Coaching overlay: guia o usuário a mover o aparelho até o tracking inicializar.
+    coachingOverlay.session = arView.session
+    coachingOverlay.goal = .tracking
+    coachingOverlay.activatesAutomatically = true
+    coachingOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    arView.addSubview(coachingOverlay)
+
     // RealityKit é dono do ARSession delegate; subscrevemos ao loop de render
     // SEM substituir o delegate. A amostragem de cor roda na main (throttled).
     sceneUpdateSub = arView.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
@@ -51,6 +64,7 @@ class LidarScannerView: ExpoView {
   override func layoutSubviews() {
     super.layoutSubviews()
     arView.frame = bounds
+    coachingOverlay.frame = arView.bounds
   }
 
   deinit {
@@ -63,8 +77,6 @@ class LidarScannerView: ExpoView {
     let config = ARWorldTrackingConfiguration()
     if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) {
       config.sceneReconstruction = .mesh
-      // Show the LiDAR mesh — visual confirmation for Phase 1.
-      arView.debugOptions.insert(.showSceneUnderstanding)
     }
     config.environmentTexturing = .none
     arView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
@@ -75,7 +87,6 @@ class LidarScannerView: ExpoView {
     let config = ARWorldTrackingConfiguration()
     if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) {
       config.sceneReconstruction = .mesh
-      arView.debugOptions.insert(.showSceneUnderstanding)
     }
     config.environmentTexturing = .none
     // .resetSceneReconstruction limpa a malha de scans anteriores.
