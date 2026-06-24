@@ -51,20 +51,19 @@ enum TextureBaker {
       let nlen = simd_length(normal)
       if nlen > 0 { normal /= nlen }
 
-      // Melhor keyframe: maior alinhamento normal·(câmera−centroide), com os 3
-      // vértices dentro do frustum.
-      var best = -1
-      var bestScore: Float = 0.05
+      // Top-N keyframes deste triângulo (por alinhamento de vista; 3 vértices no frustum).
+      var cands: [(idx: Int, weight: Float)] = []
       for (fi, f) in frames.enumerated() {
         let dir = f.camPos - centroid
         let dlen = simd_length(dir)
         if dlen <= 0 { continue }
         let score = simd_dot(normal, dir / dlen)
-        if score <= bestScore { continue }
+        if score <= 0.05 { continue }   // só vistas viradas para a face
         if project(a, f) == nil || project(b, f) == nil || project(c, f) == nil { continue }
-        best = fi
-        bestScore = score
+        cands.append((fi, score))
       }
+      cands.sort { $0.weight > $1.weight }
+      if cands.count > 4 { cands.removeLast(cands.count - 4) }  // mistura os 4 melhores
 
       // Retângulo da célula no atlas.
       let cx = (t % cells) * cellPx
@@ -79,26 +78,37 @@ enum TextureBaker {
       texcoords[t * 3 + 1] = SIMD2(u1, 1 - av0)  // B
       texcoords[t * 3 + 2] = SIMD2(u0, 1 - av1)  // C
 
-      guard best >= 0 else {
+      guard !cands.isEmpty else {
         fillCell(&atlas, size: size, cx: cx, cy: cy, cellPx: cellPx, rgb: (150, 150, 150))
         continue
       }
-      let f = frames[best]
 
-      // Bake: itera os texels do triângulo-canto da célula (lu+lv ≤ 1).
+      // Bake com blending: cada texel mistura os top-N keyframes (peso = alinhamento²),
+      // suavizando emendas e iluminação entre vistas.
       for py in cy..<(cy + cellPx) {
         for px in cx..<(cx + cellPx) {
           let lu = (Float(px) - Float(cx)) / Float(cellPx)
           let lv = (Float(py) - Float(cy)) / Float(cellPx)
           if lu + lv > 1 { continue }
           let world = a + lu * (b - a) + lv * (c - a)
-          guard let (sx, sy) = project(world, f) else { continue }
-          let so = (sy * f.width + sx) * 4
+
+          var rr: Float = 0, gg: Float = 0, bb: Float = 0, wsum: Float = 0
+          for cand in cands {
+            let f = frames[cand.idx]
+            guard let (sx, sy) = project(world, f) else { continue }
+            let so = (sy * f.width + sx) * 4
+            guard so + 2 < f.rgba.count else { continue }
+            let w = cand.weight * cand.weight
+            rr += Float(f.rgba[so]) * w
+            gg += Float(f.rgba[so + 1]) * w
+            bb += Float(f.rgba[so + 2]) * w
+            wsum += w
+          }
+          guard wsum > 0 else { continue }
           let ao = (py * size + px) * 4
-          guard so + 2 < f.rgba.count else { continue }
-          atlas[ao] = f.rgba[so]
-          atlas[ao + 1] = f.rgba[so + 1]
-          atlas[ao + 2] = f.rgba[so + 2]
+          atlas[ao]     = UInt8(min(255, max(0, Int((rr / wsum).rounded()))))
+          atlas[ao + 1] = UInt8(min(255, max(0, Int((gg / wsum).rounded()))))
+          atlas[ao + 2] = UInt8(min(255, max(0, Int((bb / wsum).rounded()))))
           atlas[ao + 3] = 255
         }
       }
