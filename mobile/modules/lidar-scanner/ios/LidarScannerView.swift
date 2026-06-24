@@ -13,7 +13,7 @@ class LidarScannerView: ExpoView {
 
   // --- Caixa de enquadramento AR (world-anchored) ---
   private var boxAnchor: AnchorEntity?
-  private var boxModel: ModelEntity?
+  private var boxCage: Entity?   // contorno em arame (12 arestas), não bloco sólido
   private var boxWorldTransform: simd_float4x4 = matrix_identity_float4x4
   private let boxBaseSize = SIMD3<Float>(1.1, 1.7, 2.6)   // largura, altura, comprimento (m) — bovino
   private var boxScale: Float = 1.0
@@ -120,22 +120,45 @@ class LidarScannerView: ExpoView {
 
     boxAnchor?.removeFromParent()
     let anchor = AnchorEntity(world: t)
-    let size = boxBaseSize * boxScale
-    let mesh = MeshResource.generateBox(size: size)
-    // Verde nítido e translúcido (alpha 0.16 era praticamente invisível).
-    let mat = SimpleMaterial(color: .init(red: 0.20, green: 0.85, blue: 0.45, alpha: 0.30), isMetallic: false)
-    let model = ModelEntity(mesh: mesh, materials: [mat])
-    anchor.addChild(model)
+    let cage = LidarScannerView.makeBoxCage(size: boxBaseSize * boxScale)
+    anchor.addChild(cage)
     arView.scene.addAnchor(anchor)
     boxAnchor = anchor
-    boxModel = model
+    boxCage = cage
   }
 
-  /// Regenera a malha da caixa visual com o tamanho atual (boxBaseSize * boxScale).
+  /// Regenera o contorno com o tamanho atual, NO MESMO lugar (sem recentrar).
   private func updateBoxMesh() {
-    guard let model = boxModel else { return }
-    model.scale = SIMD3<Float>(repeating: 1)
-    model.model?.mesh = MeshResource.generateBox(size: boxBaseSize * boxScale)
+    guard let anchor = boxAnchor else { return }
+    boxCage?.removeFromParent()
+    let cage = LidarScannerView.makeBoxCage(size: boxBaseSize * boxScale)
+    anchor.addChild(cage)
+    boxCage = cage
+  }
+
+  /// Contorno em arame (12 arestas finas verdes) — vê-se através, estilo Polycam.
+  /// Centrado na origem; `size` = largura×altura×comprimento (m).
+  private static func makeBoxCage(size: SIMD3<Float>) -> Entity {
+    let cage = Entity()
+    let t: Float = 0.015  // espessura das arestas (m)
+    let mat = SimpleMaterial(
+      color: .init(red: 0.20, green: 0.95, blue: 0.45, alpha: 1.0),
+      isMetallic: false
+    )
+    let hx = size.x / 2, hy = size.y / 2, hz = size.z / 2
+
+    func edge(_ dims: SIMD3<Float>, _ pos: SIMD3<Float>) {
+      let m = ModelEntity(mesh: .generateBox(size: dims), materials: [mat])
+      m.position = pos
+      cage.addChild(m)
+    }
+    // 4 arestas ao longo de X (largura)
+    for sy in [hy, -hy] { for sz in [hz, -hz] { edge(SIMD3(size.x, t, t), SIMD3(0, sy, sz)) } }
+    // 4 arestas ao longo de Y (altura)
+    for sx in [hx, -hx] { for sz in [hz, -hz] { edge(SIMD3(t, size.y, t), SIMD3(sx, 0, sz)) } }
+    // 4 arestas ao longo de Z (comprimento)
+    for sx in [hx, -hx] { for sy in [hy, -hy] { edge(SIMD3(t, t, size.z), SIMD3(sx, sy, 0)) } }
+    return cage
   }
 
   func recenterBox() {
