@@ -174,8 +174,8 @@ export default function SettingsScreen() {
         {[
           { k: 'Application', v: 'PondiFarm Mobile' },
           { k: 'Version',     v: '0.2.1 (Phase 0)' },
-          { k: 'AI engine',   v: 'YOLOv8 + Random Forest' },
-          { k: 'Protocol',    v: '2D, no LiDAR' },
+          { k: 'AI engine',   v: 'PCA morphometrics — ML pending' },
+          { k: 'Protocol',    v: 'LiDAR (ARKit scene reconstruction)' },
         ].map(({ k, v }, i, arr) => (
           <View key={k}>
             <View style={styles.row}>
