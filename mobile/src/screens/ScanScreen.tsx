@@ -18,6 +18,7 @@ import {
 } from '../../modules/lidar-scanner';
 import { saveRecord, type ScanRecord, type ScanCategory } from '../lib/storage';
 import type { RootStackParamList } from '../navigation/types';
+import GlassSurface from '../components/GlassSurface';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -291,31 +292,35 @@ export default function ScanScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={styles.topIcon} onPress={() => nav.goBack()} hitSlop={8}>
-          <Ionicons name="close" size={22} color="#FFFFFF" />
-        </TouchableOpacity>
-        <View style={styles.topCenter}>
+        <GlassSurface tone="dark" radius={18} style={styles.topIcon}>
+          <TouchableOpacity style={styles.glassFill} onPress={() => nav.goBack()} hitSlop={8}>
+            <Ionicons name="close" size={22} color="#FFFFFF" />
+          </TouchableOpacity>
+        </GlassSurface>
+        <GlassSurface tone="dark" radius={16} style={styles.topCenterGlass}>
           <Text style={styles.topTitle} numberOfLines={1}>{topTitle}</Text>
           <Text style={styles.topSub} numberOfLines={1}>{topSub}</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.topIcon}
-          onPress={() => setShowPreScan(true)}
-          disabled={scanning || processing}
-          hitSlop={8}
-        >
-          <Ionicons name="create-outline" size={20} color="#FFFFFF" />
-        </TouchableOpacity>
+        </GlassSurface>
+        <GlassSurface tone="dark" radius={18} style={styles.topIcon}>
+          <TouchableOpacity
+            style={styles.glassFill}
+            onPress={() => setShowPreScan(true)}
+            disabled={scanning || processing}
+            hitSlop={8}
+          >
+            <Ionicons name="create-outline" size={20} color="#FFFFFF" />
+          </TouchableOpacity>
+        </GlassSurface>
       </View>
 
       {/* Scan hint */}
       {!scanning && !processing && (
         <View style={styles.frameArea} pointerEvents="none">
-          <View style={styles.frameHintPill}>
+          <GlassSurface tone="dark" radius={999} style={styles.frameHintPill}>
             <Text style={styles.frameHint}>
               Move slowly around the {isCow ? 'animal' : 'subject'} to capture all sides
             </Text>
-          </View>
+          </GlassSurface>
         </View>
       )}
 
@@ -325,11 +330,11 @@ export default function ScanScreen() {
           style={[styles.boxControls, { bottom: insets.bottom + 104 }]}
           pointerEvents="box-none"
         >
-          <View style={styles.boxHintPill}>
+          <GlassSurface tone="dark" radius={999} style={styles.boxHintPill}>
             <Text style={styles.boxHint}>Frame the animal inside the green box</Text>
-          </View>
+          </GlassSurface>
           <View style={styles.boxRow}>
-            <View style={styles.stepper}>
+            <GlassSurface tone="dark" radius={999} style={styles.stepper}>
               <TouchableOpacity
                 style={styles.stepperBtn}
                 onPress={() => adjustBoxScale(-0.1)}
@@ -357,16 +362,18 @@ export default function ScanScreen() {
                   color={boxScale >= 2.0 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
                 />
               </TouchableOpacity>
-            </View>
-            <TouchableOpacity
-              style={styles.recenterBtn}
-              onPress={recenterBox}
-              hitSlop={8}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="locate-outline" size={16} color={ios.accent} />
-              <Text style={styles.recenterText}>Recenter</Text>
-            </TouchableOpacity>
+            </GlassSurface>
+            <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+              <TouchableOpacity
+                style={styles.recenterBtn}
+                onPress={recenterBox}
+                hitSlop={8}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="locate-outline" size={16} color={ios.accent} />
+                <Text style={styles.recenterText}>Recenter</Text>
+              </TouchableOpacity>
+            </GlassSurface>
           </View>
         </View>
       )}
@@ -403,10 +410,10 @@ export default function ScanScreen() {
       {/* Processing overlay */}
       {processing && (
         <View style={styles.overlay} pointerEvents="none">
-          <View style={styles.processingCard}>
-            <ActivityIndicator color={ios.accent} />
+          <GlassSurface tone="dark" radius={20} style={styles.processingCard}>
+            <ActivityIndicator color="#FFFFFF" />
             <Text style={styles.processingLabel}>Building mesh…</Text>
-          </View>
+          </GlassSurface>
         </View>
       )}
     </View>
@@ -464,11 +471,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingBottom: 12,
   },
   topIcon: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: 'rgba(0,0,0,0.42)',
+    width: 36, height: 36,
+  },
+  glassFill: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     alignItems: 'center', justifyContent: 'center',
   },
-  topCenter: { alignItems: 'center', maxWidth: '60%' },
+  topCenterGlass: {
+    maxWidth: '60%',
+    alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 5,
+  },
   topTitle: {
     fontFamily: displayFont,
     color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: -0.2,
@@ -484,9 +497,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 160,
   },
   frameHintPill: {
-    backgroundColor: 'rgba(0,0,0,0.48)',
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 999,
+    paddingHorizontal: 16, paddingVertical: 8,
   },
   frameHint: {
     color: 'rgba(255,255,255,0.92)',
@@ -499,9 +510,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', gap: 10,
   },
   boxHintPill: {
-    backgroundColor: 'rgba(0,0,0,0.48)',
-    paddingHorizontal: 14, paddingVertical: 7,
-    borderRadius: 999,
+    paddingHorizontal: 16, paddingVertical: 8,
   },
   boxHint: {
     color: 'rgba(255,255,255,0.92)',
@@ -512,8 +521,7 @@ const styles = StyleSheet.create({
   },
   stepper: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.48)',
-    borderRadius: 999, paddingHorizontal: 4,
+    paddingHorizontal: 4,
   },
   stepperBtn: {
     width: 36, height: 36, borderRadius: 18,
@@ -524,10 +532,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2, minWidth: 44, textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
+  recenterWrap: {},
   recenterBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: 'rgba(0,0,0,0.48)',
-    paddingHorizontal: 14, height: 36, borderRadius: 999,
+    paddingHorizontal: 14, height: 36,
   },
   recenterText: {
     color: ios.accent, fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
@@ -558,13 +566,11 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   processingCard: {
-    backgroundColor: ios.secondarySystemGroupedBackground,
-    borderRadius: 18,
     paddingHorizontal: 28, paddingVertical: 24,
     alignItems: 'center', gap: 12,
   },
   processingLabel: {
-    fontSize: 15, color: ios.label, fontWeight: '500', letterSpacing: -0.2,
+    fontSize: 15, color: '#FFFFFF', fontWeight: '500', letterSpacing: -0.2,
   },
 
   // Pre-scan modal
