@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.5.0...v0.5.1) (2026-06-24)
+
+
+### Miscellaneous Chores
+
+* single-source version + refresh README ([#55](https://github.com/EuroUnionConsult/PondiFarmApp/issues/55)) ([3588763](https://github.com/EuroUnionConsult/PondiFarmApp/commit/35887632b9fb36de30077388edb6b7c8f53d9e27))
+
 ## [0.5.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.4.0...v0.5.0) (2026-06-24)
 
 
