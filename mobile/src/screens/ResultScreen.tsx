@@ -20,6 +20,18 @@ function prettyBreed(b?: string): string {
   return b.charAt(0).toUpperCase() + b.slice(1);
 }
 
+// Peso preliminar pela fórmula de fita (offline, sem backend) — mesma do baseline #46:
+// peso(lb) = (cinta_torácica_in² × comprimento_in) / 300 → kg.
+function formulaWeightKg(m: {
+  chest_girth_cm: number;
+  body_length_cm: number;
+}): number {
+  const hgIn = m.chest_girth_cm / 2.54;
+  const blIn = m.body_length_cm / 2.54;
+  const lb = (hgIn * hgIn * blIn) / 300;
+  return lb * 0.45359237;
+}
+
 export default function ResultScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
@@ -119,6 +131,19 @@ export default function ResultScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Estimated weight — local heart-girth formula (offline, preliminary) */}
+        <Text style={styles.sectionHeader}>Estimated weight</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowKey}>Formula estimate</Text>
+            <Text style={styles.rowMeasure}>≈ {formulaWeightKg(measurements).toFixed(0)} kg</Text>
+          </View>
+        </View>
+        <Text style={styles.sectionFooter}>
+          Preliminary (heart-girth formula, on-device). A trained model replaces this once
+          real scale weights are collected.
+        </Text>
 
         {/* Measurements — main card */}
         <Text style={styles.sectionHeader}>Measurements</Text>
