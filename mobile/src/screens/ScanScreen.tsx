@@ -206,7 +206,7 @@ export default function ScanScreen() {
   const handleScanComplete = async (e: { nativeEvent: ScanCompleteEvent }) => {
     setScanning(false);
     setProcessing(false);
-    const { meshUri, meshPlyUri, meshTexturedUri, vertexCount, faceCount, measurements } = e.nativeEvent;
+    const { meshUri, meshPlyUri, meshTexturedUri, keyframesDir, vertexCount, faceCount, measurements } = e.nativeEvent;
 
     if (!measurements || vertexCount < MIN_VERTICES) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -232,6 +232,7 @@ export default function ScanScreen() {
       meshUri,
       meshPlyUri,
       meshTexturedUri,
+      keyframesDir,
     };
 
     await saveRecord(record);

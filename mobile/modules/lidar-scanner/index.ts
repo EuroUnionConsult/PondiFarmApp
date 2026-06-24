@@ -18,6 +18,11 @@ export function isLidarSupported(): boolean {
   return LidarScannerModule.isLidarSupported();
 }
 
+/** Bakeia a textura sob demanda a partir da malha cinza + keyframes salvos. */
+export function renderTexture(meshUri: string, keyframesDir: string): Promise<{ url: string }> {
+  return LidarScannerModule.renderTexture(meshUri, keyframesDir);
+}
+
 /** True só em iOS 17+ com hardware compatível (LiDAR + A14+). Assíncrono. */
 export function isObjectCaptureSupported(): Promise<boolean> {
   return ObjectCaptureModule.isSupported();

@@ -222,19 +222,13 @@ class LidarScannerView: ExpoView {
           ]
         ]
 
-        // Passos 3+4: bake de textura UV e export OBJ+MTL+PNG. Best-effort —
-        // se falhar (poucos keyframes, etc.), mantém obj/ply normais.
-        if let baked = TextureBaker.bake(vertices: vertices, faces: faces, frames: frames) {
-          let texturedURL = try TexturedObjExporter.write(
-            directory: docs,
-            baseName: "scan-\(stamp)-tex",
-            vertices: vertices,
-            faces: faces,
-            texcoords: baked.texcoords,
-            atlas: baked.atlas,
-            atlasSize: baked.size
-          )
-          payload["meshTexturedUri"] = texturedURL.absoluteString
+        // Render desacoplado: persiste os keyframes para o "Render texture" sob
+        // demanda no Result (NÃO bakeia aqui — finaliza rápido com a malha cinza/colorida;
+        // o usuário renderiza a textura quando quiser).
+        if !frames.isEmpty {
+          let kfDir = docs.appendingPathComponent("scan-\(stamp)-kf", isDirectory: true)
+          KeyframeStore.save(frames, to: kfDir)
+          payload["keyframesDir"] = kfDir.absoluteString
         }
       } catch {
         print("[LidarScanner] ❌ Falha ao gravar malha: \(error)")
