@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.5.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.4.0...v0.5.0) (2026-06-24)
+
+
+### Features
+
+* **mobile:** on-demand 'Render texture' button (decouple bake from capture) ([6871f5b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6871f5be7f61014c44ef25ae98cc1617ded89567))
+* **mobile:** on-device formula weight estimate (offline) ([c82c115](https://github.com/EuroUnionConsult/PondiFarmApp/commit/c82c115096f0fa21e204f6e40d215cdb919f226c))
+* **mobile:** Path B — hide Studio 3D, seat framing box on floor ([841540b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/841540b50bda09a0c22605b9076f9b3454e1fe0a))
+* **mobile:** texture bake v2 — multi-view blending ([2db60ad](https://github.com/EuroUnionConsult/PondiFarmApp/commit/2db60ad526cd5e7ce1b8c79768669a7c2cc45a92))
+* **mobile:** texture bake v2 — multi-view blending ([b895bac](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b895bac01a5fe3b38d27011628e6b8975cf048a1))
+
+
+### Bug Fixes
+
+* **mobile:** load OBJ texture in viewer (was showing white) ([eeaa3e2](https://github.com/EuroUnionConsult/PondiFarmApp/commit/eeaa3e257cdf7740031b4b2a7ffd825f12ff2587))
+* **mobile:** preserve tracking at scan start + draggable framing box ([6546c31](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6546c314fa1eef0ac54d6fe02e9b2f0947861b13))
+
 ## [0.4.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.3.0...v0.4.0) (2026-06-24)
 
 
