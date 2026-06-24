@@ -116,9 +116,19 @@ class LidarScannerView: ExpoView {
     var fwd = -SIMD3<Float>(camT.columns.2.x, 0, camT.columns.2.z)
     if simd_length(fwd) < 1e-4 { fwd = SIMD3<Float>(0, 0, -1) }
     fwd = simd_normalize(fwd)
-    let center = camPos + fwd * 1.8
-    // yaw a partir de fwd
     let yaw = atan2(fwd.x, fwd.z)
+    let halfH = boxBaseSize.y * boxScale * 0.5
+
+    // Fallback: à frente, na altura da câmera.
+    var center = camPos + fwd * 1.4
+    // Assenta no chão (estilo Polycam): raycast do centro da tela p/ plano horizontal;
+    // se houver, coloca a BASE da caixa no piso detectado.
+    let mid = CGPoint(x: arView.bounds.midX, y: arView.bounds.midY)
+    if let query = arView.makeRaycastQuery(from: mid, allowing: .estimatedPlane, alignment: .horizontal),
+       let result = arView.session.raycast(query).first {
+      let hp = result.worldTransform.columns.3
+      center = SIMD3<Float>(hp.x, hp.y + halfH, hp.z)
+    }
     var t = simd_float4x4(simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0)))
     t.columns.3 = SIMD4<Float>(center.x, center.y, center.z, 1)
     boxWorldTransform = t
