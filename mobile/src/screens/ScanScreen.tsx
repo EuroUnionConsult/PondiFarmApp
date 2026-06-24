@@ -325,7 +325,7 @@ export default function ScanScreen() {
           pointerEvents="box-none"
         >
           <View style={styles.boxHintPill}>
-            <Text style={styles.boxHint}>Enquadre o animal na caixa verde</Text>
+            <Text style={styles.boxHint}>Frame the animal inside the green box</Text>
           </View>
           <View style={styles.boxRow}>
             <View style={styles.stepper}>
@@ -364,7 +364,7 @@ export default function ScanScreen() {
               activeOpacity={0.7}
             >
               <Ionicons name="locate-outline" size={16} color={ios.accent} />
-              <Text style={styles.recenterText}>Reposicionar</Text>
+              <Text style={styles.recenterText}>Recenter</Text>
             </TouchableOpacity>
           </View>
         </View>

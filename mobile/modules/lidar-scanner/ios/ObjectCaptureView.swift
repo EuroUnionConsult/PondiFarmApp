@@ -287,25 +287,25 @@ private struct ObjectCaptureContainerView: View {
     switch session.state {
     case .ready:
       VStack(spacing: 10) {
-        hint("Aponte para a superfície com o objeto (mesa/chão) e mova devagar para detectar o plano")
-        primaryButton("Continuar") { _ = session.startDetecting() }
+        hint("Point at the surface holding the object (table/floor) and move slowly to detect the plane")
+        primaryButton("Continue") { _ = session.startDetecting() }
       }
     case .detecting:
       VStack(spacing: 10) {
-        hint("Ajuste a caixa ao redor do objeto")
-        primaryButton("Iniciar captura") { session.startCapturing() }
+        hint("Adjust the box around the object")
+        primaryButton("Start capture") { session.startCapturing() }
       }
     case .capturing:
       VStack(spacing: 10) {
         hint(session.userCompletedScanPass
-             ? "Volta completa! Pode finalizar."
-             : "Dê a volta no objeto, devagar…")
-        primaryButton("Finalizar") { session.finish() }
+             ? "Full pass complete — you can finish."
+             : "Move around the object, slowly…")
+        primaryButton("Finish") { session.finish() }
       }
     case .finishing:
-      labelBox("Salvando captura…")
+      labelBox("Saving capture…")
     case .completed:
-      labelBox("Renderizando modelo 3D…")
+      labelBox("Building 3D model…")
     default:
       EmptyView()
     }

@@ -111,7 +111,8 @@ class LidarScannerView: ExpoView {
     let anchor = AnchorEntity(world: t)
     let size = boxBaseSize * boxScale
     let mesh = MeshResource.generateBox(size: size)
-    let mat = SimpleMaterial(color: .init(red: 0.37, green: 0.50, blue: 0.41, alpha: 0.16), isMetallic: false)
+    // Verde nítido e translúcido (alpha 0.16 era praticamente invisível).
+    let mat = SimpleMaterial(color: .init(red: 0.20, green: 0.85, blue: 0.45, alpha: 0.30), isMetallic: false)
     let model = ModelEntity(mesh: mesh, materials: [mat])
     anchor.addChild(model)
     arView.scene.addAnchor(anchor)

@@ -22,14 +22,14 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Bounds = { width: number; height: number; depth: number };
 
 const PHASE_LABEL: Record<ObjectCapturePhase, string> = {
-  initializing: 'Iniciando câmera…',
-  ready: 'Posicione o objeto e toque Continuar',
-  detecting: 'Ajuste a caixa ao redor do objeto',
-  capturing: 'Dê a volta no objeto, devagar',
-  finishing: 'Salvando captura…',
-  reconstructing: 'Renderizando modelo 3D…',
-  done: 'Pronto',
-  error: 'Erro',
+  initializing: 'Starting camera…',
+  ready: 'Position the object and tap Continue',
+  detecting: 'Adjust the box around the object',
+  capturing: 'Move around the object, slowly',
+  finishing: 'Saving capture…',
+  reconstructing: 'Building 3D model…',
+  done: 'Done',
+  error: 'Error',
 };
 
 export default function ObjectCaptureScreen() {
@@ -82,12 +82,12 @@ export default function ObjectCaptureScreen() {
     return (
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <Ionicons name="cube-outline" size={48} color={ios.secondaryLabel} />
-        <Text style={styles.errTitle}>Object Capture indisponível</Text>
+        <Text style={styles.errTitle}>Object Capture unavailable</Text>
         <Text style={styles.errBody}>
-          Requer iOS 17+ e iPhone com LiDAR (12 Pro ou superior).
+          Requires iOS 17+ and an iPhone with LiDAR (12 Pro or newer).
         </Text>
         <TouchableOpacity style={styles.secondaryBtn} onPress={() => nav.goBack()}>
-          <Text style={styles.secondaryBtnText}>Voltar</Text>
+          <Text style={styles.secondaryBtnText}>Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -108,9 +108,9 @@ export default function ObjectCaptureScreen() {
       <View style={styles.container}>
         <View style={[styles.navbar, { paddingTop: insets.top + 6 }]}>
           <TouchableOpacity onPress={() => nav.goBack()} style={styles.navButton} hitSlop={8}>
-            <Text style={styles.navBack}>‹ Voltar</Text>
+            <Text style={styles.navBack}>‹ Back</Text>
           </TouchableOpacity>
-          <Text style={styles.navTitle}>Modelo 3D</Text>
+          <Text style={styles.navTitle}>3D model</Text>
           <TouchableOpacity onPress={handleShare} style={styles.navButton} hitSlop={8}>
             <Ionicons name="share-outline" size={20} color={ios.accent} />
           </TouchableOpacity>
@@ -119,15 +119,15 @@ export default function ObjectCaptureScreen() {
         <View style={styles.meshCard}>
           <MeshPreviewView source={modelUrl} style={StyleSheet.absoluteFill} />
         </View>
-        <Text style={styles.meshHint}>Arraste para girar · pinça para zoom</Text>
+        <Text style={styles.meshHint}>Drag to rotate · pinch to zoom</Text>
 
         {bounds && (
           <View style={styles.card}>
-            <Text style={styles.cardHeader}>Dimensões reais</Text>
+            <Text style={styles.cardHeader}>Real dimensions</Text>
             {[
-              { k: 'Comprimento', v: cm(Math.max(bounds.width, bounds.depth)) },
-              { k: 'Largura', v: cm(Math.min(bounds.width, bounds.depth)) },
-              { k: 'Altura', v: cm(bounds.height) },
+              { k: 'Length', v: cm(Math.max(bounds.width, bounds.depth)) },
+              { k: 'Width', v: cm(Math.min(bounds.width, bounds.depth)) },
+              { k: 'Height', v: cm(bounds.height) },
             ].map(({ k, v }, i, arr) => (
               <View key={k}>
                 <View style={styles.row}>
@@ -145,7 +145,7 @@ export default function ObjectCaptureScreen() {
           onPress={restart}
         >
           <Ionicons name="scan-outline" size={18} color="#FFF" />
-          <Text style={styles.primaryBtnText}>Novo scan</Text>
+          <Text style={styles.primaryBtnText}>New scan</Text>
         </TouchableOpacity>
       </View>
     );
@@ -186,17 +186,17 @@ export default function ObjectCaptureScreen() {
       {error && (
         <View style={styles.overlay}>
           <Ionicons name="alert-circle-outline" size={40} color="#FFF" />
-          <Text style={styles.overlayText}>Não consegui montar o modelo</Text>
+          <Text style={styles.overlayText}>Couldn't build the model</Text>
           <Text style={styles.overlayHint}>
-            Mais luz, objeto com textura sobre superfície texturizada, e dê a volta completa
-            devagar. Aponte primeiro para a superfície para detectar o plano.
+            More light, a textured object on a textured surface, and do a full slow
+            orbit. Point at the surface first so the plane is detected.
           </Text>
           <TouchableOpacity style={styles.primaryBtnInline} onPress={restart}>
             <Ionicons name="refresh" size={18} color="#FFF" />
-            <Text style={styles.primaryBtnText}>Tentar de novo</Text>
+            <Text style={styles.primaryBtnText}>Try again</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryBtn} onPress={() => nav.goBack()}>
-            <Text style={styles.secondaryBtnText}>Voltar</Text>
+            <Text style={styles.secondaryBtnText}>Back</Text>
           </TouchableOpacity>
         </View>
       )}

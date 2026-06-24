@@ -191,7 +191,7 @@ export default function HomeScreen() {
       >
         <Ionicons name="cube-outline" size={18} color={ios.accent} />
         <Text style={{ color: ios.accent, fontSize: 17, fontWeight: '600', letterSpacing: -0.3 }}>
-          Studio 3D (textura)
+          Studio 3D (texture)
         </Text>
       </TouchableOpacity>
     </ScrollView>
