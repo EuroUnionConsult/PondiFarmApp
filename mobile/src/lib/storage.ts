@@ -23,6 +23,7 @@ export interface ScanRecord {
   meshUri: string;
   meshPlyUri?: string;          // PLY colorido (EURODEV-80) — preferido pelo viewer 3D
   meshTexturedUri?: string;     // OBJ+MTL+PNG texturizado (bake UV) — preferido se existir
+  keyframesDir?: string;        // pasta de keyframes para "Render texture" sob demanda
 }
 
 const KEY = '@boviscan:scans';

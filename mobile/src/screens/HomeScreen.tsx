@@ -179,21 +179,8 @@ export default function HomeScreen() {
         <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
         <Text style={styles.ctaText}>New scan</Text>
       </TouchableOpacity>
-
-      <TouchableOpacity
-        style={{
-          flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-          marginHorizontal: 16, marginTop: 10, paddingVertical: 14, borderRadius: 14,
-          borderWidth: StyleSheet.hairlineWidth, borderColor: ios.separator,
-        }}
-        onPress={() => nav.navigate('ObjectCapture')}
-        activeOpacity={0.7}
-      >
-        <Ionicons name="cube-outline" size={18} color={ios.accent} />
-        <Text style={{ color: ios.accent, fontSize: 17, fontWeight: '600', letterSpacing: -0.3 }}>
-          Studio 3D (texture)
-        </Text>
-      </TouchableOpacity>
+      {/* Studio 3D (Object Capture) escondido — fotogrametria lenta + crashes de GPU
+          em background. Foco no LiDAR nativo (Caminho B). Código mantido para revisão. */}
     </ScrollView>
   );
 }

@@ -10,6 +10,7 @@ export type ScanCompleteEvent = {
   meshUri: string;
   meshPlyUri?: string; // PLY colorido (EURODEV-80) — preferido pelo viewer 3D
   meshTexturedUri?: string; // OBJ+MTL+PNG texturizado (bake UV) — preferido se existir
+  keyframesDir?: string; // pasta com keyframes salvos para o "Render texture" sob demanda
   vertexCount: number;
   faceCount: number;
   measurements?: Measurements; // adicionado na Fase 3 (EURODEV-76)

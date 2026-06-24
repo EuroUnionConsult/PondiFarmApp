@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
-import { MeshPreviewView } from '../../modules/lidar-scanner';
+import { MeshPreviewView, renderTexture } from '../../modules/lidar-scanner';
 import { ios } from '../lib/theme';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -20,6 +20,18 @@ function prettyBreed(b?: string): string {
   return b.charAt(0).toUpperCase() + b.slice(1);
 }
 
+// Peso preliminar pela fórmula de fita (offline, sem backend) — mesma do baseline #46:
+// peso(lb) = (cinta_torácica_in² × comprimento_in) / 300 → kg.
+function formulaWeightKg(m: {
+  chest_girth_cm: number;
+  body_length_cm: number;
+}): number {
+  const hgIn = m.chest_girth_cm / 2.54;
+  const blIn = m.body_length_cm / 2.54;
+  const lb = (hgIn * hgIn * blIn) / 300;
+  return lb * 0.45359237;
+}
+
 export default function ResultScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
@@ -28,9 +40,28 @@ export default function ResultScreen() {
   const { measurements } = record;
   const isCow = record.category === 'cow';
 
+  // Render de textura sob demanda. Começa com o que já existir (se já texturizado).
+  const [texturedUri, setTexturedUri] = useState<string | null>(record.meshTexturedUri ?? null);
+  const [rendering, setRendering] = useState(false);
+  const viewerSource = texturedUri ?? record.meshPlyUri ?? record.meshUri;
+  const canRender = !texturedUri && !!record.keyframesDir;
+
+  const handleRender = async () => {
+    if (!record.keyframesDir) return;
+    setRendering(true);
+    try {
+      const { url } = await renderTexture(record.meshUri, record.keyframesDir);
+      setTexturedUri(url);
+    } catch (e: any) {
+      Alert.alert('Render failed', e?.message ?? 'Could not build the texture. Try a scan with more coverage/light.');
+    } finally {
+      setRendering(false);
+    }
+  };
+
   const handleShare = async () => {
     if (await Sharing.isAvailableAsync()) {
-      await Sharing.shareAsync(record.meshUri);
+      await Sharing.shareAsync(texturedUri ?? record.meshUri);
     }
   };
 
@@ -56,9 +87,34 @@ export default function ResultScreen() {
         {typeof record.meshUri === 'string' && record.meshUri.length > 0 && (
           <View style={styles.meshSection}>
             <View style={styles.meshCard}>
-              <MeshPreviewView source={record.meshTexturedUri ?? record.meshPlyUri ?? record.meshUri} style={StyleSheet.absoluteFill} />
+              <MeshPreviewView source={viewerSource} style={StyleSheet.absoluteFill} />
             </View>
-            <Text style={styles.meshHint}>Arraste para girar · pinça para zoom</Text>
+            <Text style={styles.meshHint}>Drag to rotate · pinch to zoom</Text>
+
+            {/* Render texture — on-demand bake (gray → photo-textured) */}
+            {canRender && (
+              <TouchableOpacity
+                style={[styles.renderBtn, rendering && { opacity: 0.6 }]}
+                onPress={handleRender}
+                disabled={rendering}
+                activeOpacity={0.85}
+              >
+                {rendering ? (
+                  <>
+                    <ActivityIndicator color="#FFF" />
+                    <Text style={styles.renderBtnText}>Rendering texture…</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="color-wand-outline" size={18} color="#FFF" />
+                    <Text style={styles.renderBtnText}>Render texture</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+            {texturedUri && (
+              <Text style={styles.meshHint}>Textured ✓</Text>
+            )}
           </View>
         )}
 
@@ -75,6 +131,19 @@ export default function ResultScreen() {
             </Text>
           </View>
         </View>
+
+        {/* Estimated weight — local heart-girth formula (offline, preliminary) */}
+        <Text style={styles.sectionHeader}>Estimated weight</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowKey}>Formula estimate</Text>
+            <Text style={styles.rowMeasure}>≈ {formulaWeightKg(measurements).toFixed(0)} kg</Text>
+          </View>
+        </View>
+        <Text style={styles.sectionFooter}>
+          Preliminary (heart-girth formula, on-device). A trained model replaces this once
+          real scale weights are collected.
+        </Text>
 
         {/* Measurements — main card */}
         <Text style={styles.sectionHeader}>Measurements</Text>
@@ -186,6 +255,12 @@ const styles = StyleSheet.create({
     color: ios.secondaryLabel,
     letterSpacing: -0.05,
   },
+  renderBtn: {
+    marginTop: 12, marginHorizontal: 16, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: ios.accent,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  renderBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: -0.3 },
 
   // Category badge
   badgeRow: {

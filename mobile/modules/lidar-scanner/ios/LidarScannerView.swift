@@ -54,6 +54,10 @@ class LidarScannerView: ExpoView {
     coachingOverlay.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     arView.addSubview(coachingOverlay)
 
+    // Arrastar a caixa de enquadramento para reposicionar (raycast no ponto tocado).
+    let pan = UIPanGestureRecognizer(target: self, action: #selector(handleBoxPan(_:)))
+    arView.addGestureRecognizer(pan)
+
     // RealityKit é dono do ARSession delegate; subscrevemos ao loop de render
     // SEM substituir o delegate. A amostragem de cor roda na main (throttled).
     sceneUpdateSub = arView.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
@@ -89,8 +93,9 @@ class LidarScannerView: ExpoView {
       config.sceneReconstruction = .mesh
     }
     config.environmentTexturing = .none
-    // .resetSceneReconstruction limpa a malha de scans anteriores.
-    arView.session.run(config, options: [.resetTracking, .removeExistingAnchors, .resetSceneReconstruction])
+    // NÃO resetar tracking aqui: preserva o VIO já inicializado pelo coaching antes do
+    // Start (resetar forçava re-init do zero → poor slam + congelava). Só limpa a malha.
+    arView.session.run(config, options: [.resetSceneReconstruction])
     placeBoxInFront()
     // Começa a acumular cor e keyframes a partir de agora.
     colorByVoxel.removeAll()
@@ -111,9 +116,19 @@ class LidarScannerView: ExpoView {
     var fwd = -SIMD3<Float>(camT.columns.2.x, 0, camT.columns.2.z)
     if simd_length(fwd) < 1e-4 { fwd = SIMD3<Float>(0, 0, -1) }
     fwd = simd_normalize(fwd)
-    let center = camPos + fwd * 1.8
-    // yaw a partir de fwd
     let yaw = atan2(fwd.x, fwd.z)
+    let halfH = boxBaseSize.y * boxScale * 0.5
+
+    // Fallback: à frente, na altura da câmera.
+    var center = camPos + fwd * 1.4
+    // Assenta no chão (estilo Polycam): raycast do centro da tela p/ plano horizontal;
+    // se houver, coloca a BASE da caixa no piso detectado.
+    let mid = CGPoint(x: arView.bounds.midX, y: arView.bounds.midY)
+    if let query = arView.makeRaycastQuery(from: mid, allowing: .estimatedPlane, alignment: .horizontal),
+       let result = arView.session.raycast(query).first {
+      let hp = result.worldTransform.columns.3
+      center = SIMD3<Float>(hp.x, hp.y + halfH, hp.z)
+    }
     var t = simd_float4x4(simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0)))
     t.columns.3 = SIMD4<Float>(center.x, center.y, center.z, 1)
     boxWorldTransform = t
@@ -163,6 +178,20 @@ class LidarScannerView: ExpoView {
 
   func recenterBox() {
     placeBoxInFront()
+  }
+
+  /// Arrasta a caixa para o ponto tocado (raycast contra superfície detectada/estimada),
+  /// preservando o yaw atual. Permite "colocar certinho" como no Object Capture.
+  @objc private func handleBoxPan(_ g: UIPanGestureRecognizer) {
+    guard let anchor = boxAnchor else { return }
+    let loc = g.location(in: arView)
+    guard let query = arView.makeRaycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any),
+          let result = arView.session.raycast(query).first else { return }
+    let hit = result.worldTransform
+    var t = boxWorldTransform
+    t.columns.3 = SIMD4<Float>(hit.columns.3.x, hit.columns.3.y, hit.columns.3.z, 1)
+    boxWorldTransform = t
+    anchor.setTransformMatrix(t, relativeTo: nil)
   }
 
   func setBoxScale(_ s: Float) {
@@ -222,19 +251,13 @@ class LidarScannerView: ExpoView {
           ]
         ]
 
-        // Passos 3+4: bake de textura UV e export OBJ+MTL+PNG. Best-effort —
-        // se falhar (poucos keyframes, etc.), mantém obj/ply normais.
-        if let baked = TextureBaker.bake(vertices: vertices, faces: faces, frames: frames) {
-          let texturedURL = try TexturedObjExporter.write(
-            directory: docs,
-            baseName: "scan-\(stamp)-tex",
-            vertices: vertices,
-            faces: faces,
-            texcoords: baked.texcoords,
-            atlas: baked.atlas,
-            atlasSize: baked.size
-          )
-          payload["meshTexturedUri"] = texturedURL.absoluteString
+        // Render desacoplado: persiste os keyframes para o "Render texture" sob
+        // demanda no Result (NÃO bakeia aqui — finaliza rápido com a malha cinza/colorida;
+        // o usuário renderiza a textura quando quiser).
+        if !frames.isEmpty {
+          let kfDir = docs.appendingPathComponent("scan-\(stamp)-kf", isDirectory: true)
+          KeyframeStore.save(frames, to: kfDir)
+          payload["keyframesDir"] = kfDir.absoluteString
         }
       } catch {
         print("[LidarScanner] ❌ Falha ao gravar malha: \(error)")
@@ -269,6 +292,9 @@ class LidarScannerView: ExpoView {
     frameTick += 1
     guard frameTick % 5 == 0 else { return }
     guard let frame = arView.session.currentFrame else { return }
+    // Só faz o trabalho pesado (CGImage + amostragem + keyframe) com tracking estável —
+    // durante a inicialização do VIO, não roubar CPU da main (senão o tracking não trava).
+    guard case .normal = frame.camera.trackingState else { return }
 
     let pixelBuffer = frame.capturedImage
     // Tamanho da imagem capturada em pixels (CVPixelBuffer é landscape).
