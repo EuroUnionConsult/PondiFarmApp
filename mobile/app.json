@@ -42,7 +42,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "15.1",
+            "buildReactNativeFromSource": true
           }
         }
       ],
@@ -59,7 +60,8 @@
         }
       ],
       "expo-font",
-      "./plugins/withDisableScriptSandboxing"
+      "./plugins/withDisableScriptSandboxing",
+      "./plugins/withFmtConstevalFix"
     ],
     "extra": {
       "eas": {
