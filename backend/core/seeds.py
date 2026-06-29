@@ -3,7 +3,6 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from core.database import SessionLocal
 from models.models import Breed, Species
 
 INITIAL_SPECIES = [
@@ -56,6 +55,8 @@ def _ensure_bovine_breeds(session: Session, bovine_id: object) -> None:
 
 
 def seed_database() -> None:
+    from core.database import SessionLocal
+
     with SessionLocal() as session:
         _ensure_species(session)
         session.commit()
