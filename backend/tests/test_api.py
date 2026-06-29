@@ -12,7 +12,6 @@ from sqlalchemy.pool import StaticPool
 from core.database import Base, get_db
 from main import app
 from models.models import (
-    Animal,
     AnimalScan,
     Breed,
     Organization,
