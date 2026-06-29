@@ -545,7 +545,9 @@ class ApiCrudTests(unittest.TestCase):
         )
 
         self.assertEqual(first_animal["tagCode"], second_animal["tagCode"])
-        self.assertNotEqual(first_animal["organizationId"], second_animal["organizationId"])
+        self.assertNotEqual(
+            first_animal["organizationId"], second_animal["organizationId"]
+        )
 
     def test_create_animal_rejects_future_birth_date(self):
         organization = self.create_organization()
@@ -663,7 +665,9 @@ class ApiCrudTests(unittest.TestCase):
         self.assertEqual(search_filter.status_code, 200)
         self.assertEqual(len(search_filter.json()), 1)
 
-    def test_create_scan_for_existing_animal_defaults_to_pending_upload_and_polycam(self):
+    def test_create_scan_for_existing_animal_defaults_to_pending_upload_and_polycam(
+        self,
+    ):
         organization = self.create_organization()
         species = self.create_species("Bovine")
         breed = self.create_breed(species["id"], "Angus")

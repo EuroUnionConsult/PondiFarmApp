@@ -66,8 +66,7 @@ def _set_scan_status(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
-                f"Cannot change scan status from {scan.scan_status} "
-                f"to {next_status}"
+                f"Cannot change scan status from {scan.scan_status} to {next_status}"
             ),
         )
 

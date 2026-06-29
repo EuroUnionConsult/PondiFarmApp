@@ -74,8 +74,14 @@ class DatabaseCompatibilityTests(unittest.TestCase):
         ensure_schema_compatibility(self.engine)
 
         inspector = inspect(self.engine)
-        self.assertIn("normalized_name", {column["name"] for column in inspector.get_columns("species")})
-        self.assertIn("normalized_name", {column["name"] for column in inspector.get_columns("breeds")})
+        self.assertIn(
+            "normalized_name",
+            {column["name"] for column in inspector.get_columns("species")},
+        )
+        self.assertIn(
+            "normalized_name",
+            {column["name"] for column in inspector.get_columns("breeds")},
+        )
 
         with self.engine.connect() as connection:
             species_normalized_name = connection.execute(

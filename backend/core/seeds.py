@@ -55,12 +55,14 @@ def _ensure_bovine_breeds(session: Session, bovine_id: object) -> None:
 
 
 def seed_database() -> None:
-    from core.database import SessionLocal
+    from core.database import get_session_local
 
-    with SessionLocal() as session:
+    with get_session_local()() as session:
         _ensure_species(session)
         session.commit()
-        bovine = session.scalar(select(Species).where(Species.normalized_name == "bovine"))
+        bovine = session.scalar(
+            select(Species).where(Species.normalized_name == "bovine")
+        )
         if bovine is not None:
             _ensure_bovine_breeds(session, bovine.id)
             session.commit()

@@ -57,8 +57,12 @@ def get_active_breed_by_species_and_normalized_name(
 
 
 def has_active_animals(db: Session, breed_id: UUID) -> bool:
-    statement = select(Animal.id).where(
-        Animal.breed_id == breed_id,
-        Animal.deleted_at.is_(None),
-    ).limit(1)
+    statement = (
+        select(Animal.id)
+        .where(
+            Animal.breed_id == breed_id,
+            Animal.deleted_at.is_(None),
+        )
+        .limit(1)
+    )
     return db.scalar(statement) is not None

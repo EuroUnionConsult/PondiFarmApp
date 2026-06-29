@@ -26,7 +26,9 @@ def get_species(species_id: UUID, db: Session = Depends(get_db)):
     return species_service.get_species(db, species_id)
 
 
-@species_router.post("", response_model=SpeciesResponse, status_code=status.HTTP_201_CREATED)
+@species_router.post(
+    "", response_model=SpeciesResponse, status_code=status.HTTP_201_CREATED
+)
 def create_species(payload: SpeciesCreate, db: Session = Depends(get_db)):
     return species_service.create_species(db, payload)
 

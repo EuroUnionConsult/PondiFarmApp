@@ -83,8 +83,6 @@ def ensure_schema_compatibility(bind: Engine) -> None:
             _ensure_normalized_name_column(connection, "breeds")
 
 
-engine = _create_engine()
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 def get_engine() -> Engine:
     global _engine
     if _engine is None:
@@ -114,7 +112,7 @@ def get_db() -> Generator[Session, None, None]:
 
 def initialize_database() -> None:
     import models.models  # noqa: F401
+
+    engine = get_engine()
     Base.metadata.create_all(bind=engine)
     ensure_schema_compatibility(engine)
-
-    get_engine()

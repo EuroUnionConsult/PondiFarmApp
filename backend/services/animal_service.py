@@ -118,7 +118,9 @@ def get_animal_entity(db: Session, animal_id: UUID) -> Animal:
     return animal
 
 
-def update_animal(db: Session, animal_id: UUID, payload: AnimalUpdate) -> AnimalResponse:
+def update_animal(
+    db: Session, animal_id: UUID, payload: AnimalUpdate
+) -> AnimalResponse:
     animal = get_animal_entity(db, animal_id)
     update_data = payload.model_dump(exclude_unset=True)
     target_organization_id = animal.organization_id
