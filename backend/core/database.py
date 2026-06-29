@@ -96,7 +96,3 @@ def initialize_database() -> None:
     import models.models  # noqa: F401
     Base.metadata.create_all(bind=engine)
     ensure_schema_compatibility(engine)
-
-    from core.seeds import seed_database
-
-    seed_database()
