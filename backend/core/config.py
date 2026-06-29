@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote_plus
 
@@ -74,4 +75,6 @@ def _build_database_url() -> str:
     ).render_as_string(hide_password=False)
 
 
-settings = Settings(database_url=_build_database_url())
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
+    return Settings(database_url=_build_database_url())

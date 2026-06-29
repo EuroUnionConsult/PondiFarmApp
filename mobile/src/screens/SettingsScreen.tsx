@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ios } from '../lib/theme';
 import { clearAll } from '../lib/storage';
 import { checkHealth } from '../lib/api';
+import { APP_VERSION } from '../lib/version';
 
 const CFG_KEY = '@pondifarm:config';
 const LEGACY_CFG_KEY = '@boviscan:config';
@@ -173,9 +174,9 @@ export default function SettingsScreen() {
       <View style={styles.card}>
         {[
           { k: 'Application', v: 'PondiFarm Mobile' },
-          { k: 'Version',     v: '0.2.1 (Phase 0)' },
-          { k: 'AI engine',   v: 'YOLOv8 + Random Forest' },
-          { k: 'Protocol',    v: '2D, no LiDAR' },
+          { k: 'Version',     v: APP_VERSION },
+          { k: 'AI engine',   v: 'PCA morphometrics — ML pending' },
+          { k: 'Protocol',    v: 'LiDAR (ARKit scene reconstruction)' },
         ].map(({ k, v }, i, arr) => (
           <View key={k}>
             <View style={styles.row}>

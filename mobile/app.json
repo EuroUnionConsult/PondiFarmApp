@@ -2,7 +2,7 @@
   "expo": {
     "name": "PondiFarm",
     "slug": "pondifarm",
-    "version": "0.1.0",
+    "version": "0.5.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,8 @@
       "bundleIdentifier": "pt.eurounionconsult.pondifarm",
       "infoPlist": {
         "NSCameraUsageDescription": "A câmera é usada para escanear o animal e estimar seu peso.",
-        "NSPhotoLibraryUsageDescription": "Acesso à galeria para selecionar fotos de animais."
+        "NSPhotoLibraryUsageDescription": "Acesso à galeria para selecionar fotos de animais.",
+        "NSWorldSensingUsageDescription": "O scanner LiDAR usa a reconstrução da cena para medir as dimensões do animal."
       }
     },
     "android": {
@@ -38,6 +39,14 @@
     },
     "plugins": [
       [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ],
+      [
         "expo-camera",
         {
           "cameraPermission": "A câmera é usada para escanear o animal e estimar seu peso."
@@ -48,7 +57,9 @@
         {
           "photosPermission": "Acesso à galeria para selecionar fotos de animais."
         }
-      ]
+      ],
+      "expo-font",
+      "./plugins/withDisableScriptSandboxing"
     ],
     "extra": {
       "eas": {

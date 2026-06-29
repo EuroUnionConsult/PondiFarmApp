@@ -1,76 +1,35 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform,
-  Image, Share, Dimensions,
+  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
+import * as Sharing from 'expo-sharing';
+import { MeshPreviewView, renderTexture } from '../../modules/lidar-scanner';
 import { ios } from '../lib/theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'Result'>;
 
-const IMG_H = 240;
-const IMG_W = Dimensions.get('window').width;
+function prettyBreed(b?: string): string {
+  if (!b || b === 'default') return 'Unspecified';
+  return b.charAt(0).toUpperCase() + b.slice(1);
+}
 
-type Measurements = {
-  body_length_cm: number;
-  withers_height_cm: number;
-  thoracic_depth_cm: number;
-  rump_width_cm: number;
+// Peso preliminar pela fórmula de fita (offline, sem backend) — mesma do baseline #46:
+// peso(lb) = (cinta_torácica_in² × comprimento_in) / 300 → kg.
+function formulaWeightKg(m: {
   chest_girth_cm: number;
-};
-
-const MEASURE_LINES = [
-  { key: 'body_length_cm'    as keyof Measurements, color: ios.accent,    dir: 'h' as const, x1: 0.07, x2: 0.93, yc: 0.57 },
-  { key: 'withers_height_cm' as keyof Measurements, color: ios.systemBlue, dir: 'v' as const, xc: 0.21, y1: 0.09, y2: 0.84 },
-];
-
-function MeasurementOverlay({ measurements }: { measurements: Measurements }) {
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      {MEASURE_LINES.map(item => {
-        const val = measurements[item.key];
-        const label = `${val.toFixed(0)} cm`;
-
-        if (item.dir === 'h') {
-          const left = item.x1 * IMG_W;
-          const top  = item.yc * IMG_H;
-          const w    = (item.x2 - item.x1) * IMG_W;
-          return (
-            <View key={item.key}>
-              <View style={{ position: 'absolute', left, top, width: w, height: 2, backgroundColor: item.color }}>
-                <View style={{ position: 'absolute', left: 0,  top: -4, width: 2,  height: 10, backgroundColor: item.color }} />
-                <View style={{ position: 'absolute', right: 0, top: -4, width: 2,  height: 10, backgroundColor: item.color }} />
-              </View>
-              <View style={{ position: 'absolute', left: left + w / 2 - 24, top: top - 22, backgroundColor: item.color, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: -0.1 }}>{label}</Text>
-              </View>
-            </View>
-          );
-        } else {
-          const left = item.xc * IMG_W;
-          const top  = item.y1 * IMG_H;
-          const h    = (item.y2 - item.y1) * IMG_H;
-          return (
-            <View key={item.key}>
-              <View style={{ position: 'absolute', left, top, width: 2, height: h, backgroundColor: item.color }}>
-                <View style={{ position: 'absolute', top: 0,    left: -4, width: 10, height: 2, backgroundColor: item.color }} />
-                <View style={{ position: 'absolute', bottom: 0, left: -4, width: 10, height: 2, backgroundColor: item.color }} />
-              </View>
-              <View style={{ position: 'absolute', left: left + 8, top: top + h / 2 - 10, backgroundColor: item.color, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 }}>
-                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700', letterSpacing: -0.1 }}>{label}</Text>
-              </View>
-            </View>
-          );
-        }
-      })}
-    </View>
-  );
+  body_length_cm: number;
+}): number {
+  const hgIn = m.chest_girth_cm / 2.54;
+  const blIn = m.body_length_cm / 2.54;
+  const lb = (hgIn * hgIn * blIn) / 300;
+  return lb * 0.45359237;
 }
 
 export default function ResultScreen() {
@@ -78,31 +37,45 @@ export default function ResultScreen() {
   const nav = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const { record } = params;
-  const { detection, measurements, result } = record;
-  const confPct = Math.round(result.confidence_pct);
-  const isDemo = record._isDemo === true;
-  const [showOverlay, setShowOverlay] = useState(true);
+  const { measurements } = record;
+  const isCow = record.category === 'cow';
+
+  // Render de textura sob demanda. Começa com o que já existir (se já texturizado).
+  const [texturedUri, setTexturedUri] = useState<string | null>(record.meshTexturedUri ?? null);
+  const [rendering, setRendering] = useState(false);
+  const viewerSource = texturedUri ?? record.meshPlyUri ?? record.meshUri;
+  const canRender = !texturedUri && !!record.keyframesDir;
+
+  const handleRender = async () => {
+    if (!record.keyframesDir) return;
+    setRendering(true);
+    try {
+      const { url } = await renderTexture(record.meshUri, record.keyframesDir);
+      setTexturedUri(url);
+    } catch (e: any) {
+      Alert.alert('Render failed', e?.message ?? 'Could not build the texture. Try a scan with more coverage/light.');
+    } finally {
+      setRendering(false);
+    }
+  };
 
   const handleShare = async () => {
-    await Share.share({
-      message:
-        `PondiFarm — ${record.animal_id}\n` +
-        `Breed: ${record.breed}\n` +
-        `Estimated weight: ${result.estimated_weight_kg.toFixed(1)} kg\n` +
-        `Confidence: ${confPct}%\n` +
-        `Date: ${new Date(record.scannedAt).toLocaleDateString('pt-PT')}`,
-    });
+    if (await Sharing.isAvailableAsync()) {
+      await Sharing.shareAsync(texturedUri ?? record.meshUri);
+    }
   };
+
+  const title = isCow ? (record.animalId ?? 'Bovino') : 'Scan (extra)';
 
   return (
     <View style={styles.container}>
-      {/* Inline navigation bar (push view, not large title) */}
+      {/* Inline navigation bar */}
       <View style={[styles.navbar, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity onPress={() => nav.goBack()} style={styles.navButton} hitSlop={8}>
           <Text style={styles.navBack}>‹ Back</Text>
         </TouchableOpacity>
         <View style={styles.navCenter}>
-          <Text style={styles.navTitle}>{record.animal_id}</Text>
+          <Text style={styles.navTitle} numberOfLines={1}>{title}</Text>
         </View>
         <TouchableOpacity onPress={handleShare} style={styles.navButton} hitSlop={8}>
           <Ionicons name="share-outline" size={20} color={ios.accent} />
@@ -110,75 +83,69 @@ export default function ResultScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
-        {/* Demo banner — iOS warning info strip */}
-        {isDemo && (
-          <View style={styles.demoBanner}>
-            <Ionicons name="cloud-offline-outline" size={16} color={ios.label} />
-            <Text style={styles.demoBannerText}>
-              Demo mode — backend unreachable. Showing precomputed result.
+        {/* 3D model — scanned mesh */}
+        {typeof record.meshUri === 'string' && record.meshUri.length > 0 && (
+          <View style={styles.meshSection}>
+            <View style={styles.meshCard}>
+              <MeshPreviewView source={viewerSource} style={StyleSheet.absoluteFill} />
+            </View>
+            <Text style={styles.meshHint}>Drag to rotate · pinch to zoom</Text>
+
+            {/* Render texture — on-demand bake (gray → photo-textured) */}
+            {canRender && (
+              <TouchableOpacity
+                style={[styles.renderBtn, rendering && { opacity: 0.6 }]}
+                onPress={handleRender}
+                disabled={rendering}
+                activeOpacity={0.85}
+              >
+                {rendering ? (
+                  <>
+                    <ActivityIndicator color="#FFF" />
+                    <Text style={styles.renderBtnText}>Rendering texture…</Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="color-wand-outline" size={18} color="#FFF" />
+                    <Text style={styles.renderBtnText}>Render texture</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+            {texturedUri && (
+              <Text style={styles.meshHint}>Textured ✓</Text>
+            )}
+          </View>
+        )}
+
+        {/* Category badge */}
+        <View style={styles.badgeRow}>
+          <View style={[styles.badge, isCow ? styles.badgeCow : styles.badgeExtra]}>
+            <Ionicons
+              name={isCow ? 'paw' : 'cube-outline'}
+              size={13}
+              color={isCow ? ios.accent : ios.secondaryLabel}
+            />
+            <Text style={[styles.badgeText, isCow ? styles.badgeTextCow : styles.badgeTextExtra]}>
+              {isCow ? 'Bovino' : 'Extra'}
             </Text>
           </View>
-        )}
-
-        {/* Photo + measurement overlay */}
-        {record.imageUri && (
-          <View style={styles.previewContainer}>
-            <Image source={{ uri: record.imageUri }} style={styles.preview} resizeMode="cover" />
-            {showOverlay && <MeasurementOverlay measurements={measurements} />}
-            <TouchableOpacity style={styles.overlayToggle} onPress={() => setShowOverlay(v => !v)}>
-              <Ionicons name={showOverlay ? 'eye-off-outline' : 'eye-outline'} size={13} color="#fff" />
-              <Text style={styles.overlayToggleText}>
-                {showOverlay ? 'Hide measurements' : 'Show measurements'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Hero — Estimated weight */}
-        <View style={[styles.group, { marginTop: 22 }]}>
-          <View style={styles.card}>
-            <View style={styles.hero}>
-              <View style={styles.eyebrow}>
-                <Ionicons name="speedometer-outline" size={14} color={ios.accent} />
-                <Text style={styles.eyebrowText}>Estimated weight</Text>
-              </View>
-              <View style={styles.valueRow}>
-                <Text style={styles.value}>{result.estimated_weight_kg.toFixed(1)}</Text>
-                <Text style={styles.valueUnit}>kg</Text>
-              </View>
-              <View style={styles.confRow}>
-                <View style={styles.confBar}>
-                  <View style={[styles.confFill, { width: `${confPct}%` as `${number}%` }]} />
-                </View>
-                <Text style={styles.confLabel}>{confPct}%</Text>
-              </View>
-              {!!result.accuracy_note && (
-                <Text style={styles.accuracyNote}>{result.accuracy_note}</Text>
-              )}
-            </View>
-          </View>
         </View>
 
-        {/* Detection */}
-        <Text style={styles.sectionHeader}>Detection</Text>
+        {/* Estimated weight — local heart-girth formula (offline, preliminary) */}
+        <Text style={styles.sectionHeader}>Estimated weight</Text>
         <View style={styles.card}>
-          {[
-            { k: 'Detected class',    v: detection.class },
-            { k: 'Model confidence',  v: `${Math.round(detection.confidence_pct * 100)}%` },
-            { k: 'Mode',              v: detection.mode },
-            { k: 'Breed',             v: record.breed },
-          ].map(({ k, v }, i, arr) => (
-            <View key={k}>
-              <View style={styles.row}>
-                <Text style={styles.rowKey}>{k}</Text>
-                <Text style={styles.rowVal}>{v}</Text>
-              </View>
-              {i < arr.length - 1 && <View style={styles.rowDivider} />}
-            </View>
-          ))}
+          <View style={styles.row}>
+            <Text style={styles.rowKey}>Formula estimate</Text>
+            <Text style={styles.rowMeasure}>≈ {formulaWeightKg(measurements).toFixed(0)} kg</Text>
+          </View>
         </View>
+        <Text style={styles.sectionFooter}>
+          Preliminary (heart-girth formula, on-device). A trained model replaces this once
+          real scale weights are collected.
+        </Text>
 
-        {/* Measurements */}
+        {/* Measurements — main card */}
         <Text style={styles.sectionHeader}>Measurements</Text>
         <View style={styles.card}>
           {[
@@ -197,6 +164,27 @@ export default function ResultScreen() {
             </View>
           ))}
         </View>
+
+        {/* Scan info */}
+        <Text style={styles.sectionHeader}>Scan</Text>
+        <View style={styles.card}>
+          {[
+            { k: 'Category', v: isCow ? 'Bovino' : 'Extra' },
+            ...(isCow ? [{ k: 'Breed', v: prettyBreed(record.breed) }] : []),
+            { k: 'Source',   v: 'LiDAR (on-device)' },
+            { k: 'Vertices', v: record.vertexCount.toLocaleString('pt-PT') },
+            { k: 'Faces',    v: record.faceCount.toLocaleString('pt-PT') },
+          ].map(({ k, v }, i, arr) => (
+            <View key={k}>
+              <View style={styles.row}>
+                <Text style={styles.rowKey}>{k}</Text>
+                <Text style={styles.rowVal}>{v}</Text>
+              </View>
+              {i < arr.length - 1 && <View style={styles.rowDivider} />}
+            </View>
+          ))}
+        </View>
+
         <Text style={styles.sectionFooter}>
           Captured at {new Date(record.scannedAt).toLocaleString('pt-PT', {
             day: '2-digit', month: 'short', year: 'numeric',
@@ -248,43 +236,53 @@ const styles = StyleSheet.create({
     fontSize: 17, fontWeight: '600', color: ios.label, letterSpacing: -0.3,
   },
 
-  // Demo banner
-  demoBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    marginHorizontal: 16, marginBottom: 8,
-    backgroundColor: '#FFF4D6',
-    paddingHorizontal: 14, paddingVertical: 10,
-    borderRadius: 10,
+  // 3D model card
+  meshSection: {
+    marginTop: 12,
   },
-  demoBannerText: {
-    flex: 1, fontSize: 13, color: ios.label, letterSpacing: -0.05,
-  },
-
-  // Photo
-  previewContainer: {
-    position: 'relative',
+  meshCard: {
+    height: 260,
     marginHorizontal: 16,
-    height: IMG_H,
     borderRadius: 18,
+    backgroundColor: '#000000',
     overflow: 'hidden',
-    backgroundColor: '#000',
   },
-  preview: { width: '100%', height: IMG_H },
-  overlayToggle: {
-    position: 'absolute', bottom: 12, right: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+  meshHint: {
+    marginTop: 8,
+    paddingHorizontal: 32,
+    textAlign: 'center',
+    fontSize: 13, lineHeight: 18,
+    color: ios.secondaryLabel,
+    letterSpacing: -0.05,
+  },
+  renderBtn: {
+    marginTop: 12, marginHorizontal: 16, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: ios.accent,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  renderBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: -0.3 },
+
+  // Category badge
+  badgeRow: {
+    paddingHorizontal: 16, marginTop: 12, marginBottom: 4,
+    flexDirection: 'row',
+  },
+  badge: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 6,
     borderRadius: 999,
   },
-  overlayToggleText: {
-    color: '#FFFFFF', fontSize: 12, fontWeight: '600', letterSpacing: -0.1,
+  badgeCow: { backgroundColor: ios.accentLight },
+  badgeExtra: { backgroundColor: '#EFEFF4' },
+  badgeText: {
+    fontSize: 13, fontWeight: '600', letterSpacing: -0.1,
   },
+  badgeTextCow: { color: ios.accent },
+  badgeTextExtra: { color: ios.secondaryLabel },
 
   // Sections
-  group: { paddingHorizontal: 16 },
   sectionHeader: {
-    marginTop: 32, marginBottom: 8,
+    marginTop: 24, marginBottom: 8,
     paddingHorizontal: 32,
     fontSize: 13, fontWeight: '400',
     color: ios.secondaryLabel,
@@ -302,45 +300,6 @@ const styles = StyleSheet.create({
     backgroundColor: ios.secondarySystemGroupedBackground,
     borderRadius: 12,
     overflow: 'hidden',
-  },
-
-  // Hero
-  hero: { padding: 22, gap: 10 },
-  eyebrow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-  },
-  eyebrowText: {
-    fontSize: 13, fontWeight: '600',
-    color: ios.accent, letterSpacing: -0.05,
-  },
-  valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
-  value: {
-    fontFamily: displayFont,
-    fontSize: 56, fontWeight: '700',
-    lineHeight: 56, letterSpacing: -2.2, color: ios.label,
-  },
-  valueUnit: {
-    fontFamily: displayFont,
-    fontSize: 22, fontWeight: '500',
-    color: ios.secondaryLabel, letterSpacing: -0.2,
-  },
-  confRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    marginTop: 6,
-  },
-  confBar: {
-    flex: 1, height: 6, backgroundColor: '#E5E5EA',
-    borderRadius: 3, overflow: 'hidden',
-  },
-  confFill: { height: 6, backgroundColor: ios.accent, borderRadius: 3 },
-  confLabel: {
-    fontFamily: displayFont,
-    fontSize: 13, fontWeight: '600',
-    color: ios.accent, minWidth: 40, letterSpacing: -0.1,
-  },
-  accuracyNote: {
-    fontSize: 13, color: ios.secondaryLabel,
-    marginTop: 4, letterSpacing: -0.05,
   },
 
   // Rows

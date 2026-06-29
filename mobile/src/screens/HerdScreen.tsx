@@ -59,8 +59,9 @@ export default function HerdScreen() {
     () => records.filter(r => {
       const q = query.toLowerCase().trim();
       if (!q) return true;
-      return r.animal_id.toLowerCase().includes(q)
-          || r.breed.toLowerCase().includes(q);
+      return (r.animalId ?? '').toLowerCase().includes(q)
+          || (r.breed ?? '').toLowerCase().includes(q)
+          || r.category.toLowerCase().includes(q);
     }),
     [records, query]
   );
@@ -68,8 +69,9 @@ export default function HerdScreen() {
   const sections = useMemo(() => groupRecords(filtered), [filtered]);
 
   const handleLongPress = (rec: ScanRecord) => {
+    const name = rec.category === 'cow' ? (rec.animalId ?? 'bovino') : 'extra';
     Alert.alert(
-      `Remove scan of ${rec.animal_id}?`,
+      `Remove scan of ${name}?`,
       'This permanently deletes the scan from local storage. Backend data is not affected.',
       [
         { text: 'Cancel', style: 'cancel' },
@@ -106,7 +108,7 @@ export default function HerdScreen() {
           <Ionicons name="search" size={16} color={ios.tertiaryLabel} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by ID or breed"
+            placeholder="Search by ID, breed or category"
             placeholderTextColor={ios.tertiaryLabel}
             value={query}
             onChangeText={setQuery}
@@ -135,7 +137,12 @@ export default function HerdScreen() {
           <View key={section.title}>
             <Text style={styles.sectionHeader}>{section.title}</Text>
             <View style={styles.card}>
-              {section.data.map((rec, i) => (
+              {section.data.map((rec, i) => {
+                const isCow = rec.category === 'cow';
+                const breedLabel = !rec.breed || rec.breed === 'default'
+                  ? 'Unspecified breed'
+                  : rec.breed.charAt(0).toUpperCase() + rec.breed.slice(1);
+                return (
                 <View key={rec.id}>
                   <TouchableOpacity
                     style={styles.row}
@@ -146,37 +153,39 @@ export default function HerdScreen() {
                   >
                     <View style={[
                       styles.rowIcon,
-                      { backgroundColor: rec.detection.is_real_animal ? ios.accentLight : '#FFF4D6' },
+                      { backgroundColor: isCow ? ios.accentLight : '#EFEFF4' },
                     ]}>
                       <Ionicons
-                        name={rec.detection.is_real_animal ? 'paw' : 'cube-outline'}
+                        name={isCow ? 'paw' : 'cube-outline'}
                         size={16}
-                        color={rec.detection.is_real_animal ? ios.accent : '#B4641A'}
+                        color={isCow ? ios.accent : ios.secondaryLabel}
                       />
                     </View>
                     <View style={styles.rowInfo}>
-                      <Text style={styles.rowId}>{rec.animal_id}</Text>
+                      <Text style={styles.rowId}>
+                        {isCow ? (rec.animalId ?? 'Bovino') : 'Extra'}
+                      </Text>
                       <Text style={styles.rowMeta} numberOfLines={1}>
-                        {rec.breed === 'default'
-                          ? 'Unspecified breed'
-                          : rec.breed.charAt(0).toUpperCase() + rec.breed.slice(1)}
+                        {isCow ? breedLabel : 'Object / person'}
                         {'  ·  '}
                         {new Date(rec.scannedAt).toLocaleString('pt-PT', {
                           day: '2-digit', month: 'short',
                           hour: '2-digit', minute: '2-digit',
                         })}
-                        {'  ·  '}
-                        {Math.round(rec.result.confidence_pct)}%
                       </Text>
                     </View>
-                    <Text style={styles.rowWeight}>
-                      {rec.result.estimated_weight_kg.toFixed(0)} kg
-                    </Text>
+                    <View style={styles.rowMetric}>
+                      <Text style={styles.rowMetricValue}>
+                        {rec.measurements.chest_girth_cm.toFixed(0)}
+                      </Text>
+                      <Text style={styles.rowMetricUnit}>cm girth</Text>
+                    </View>
                     <Text style={styles.rowChev}>›</Text>
                   </TouchableOpacity>
                   {i < section.data.length - 1 && <View style={styles.rowDivider} />}
                 </View>
-              ))}
+              );
+              })}
             </View>
           </View>
         ))
@@ -266,10 +275,17 @@ const styles = StyleSheet.create({
     fontSize: 13, color: ios.secondaryLabel,
     marginTop: 1, letterSpacing: -0.05,
   },
-  rowWeight: {
+  rowMetric: {
+    alignItems: 'flex-end',
+  },
+  rowMetricValue: {
     fontFamily: displayFont,
     fontSize: 17, fontWeight: '600',
     letterSpacing: -0.3, color: ios.label,
+  },
+  rowMetricUnit: {
+    fontSize: 11, color: ios.tertiaryLabel,
+    letterSpacing: -0.05,
   },
   rowChev: {
     fontSize: 20, color: ios.tertiaryLabel,

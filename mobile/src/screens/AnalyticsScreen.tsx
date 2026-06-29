@@ -28,25 +28,27 @@ export default function AnalyticsScreen() {
   }, []));
 
   const totalScans = records.length;
-  const realAnimals = records.filter(r => r.detection.is_real_animal).length;
+  const cows = records.filter(r => r.category === 'cow');
+  const cowCount = cows.length;
+  const extraCount = totalScans - cowCount;
 
-  const weights = records.map(r => r.result.estimated_weight_kg);
-  const avgWeight = weights.length ? weights.reduce((a, b) => a + b, 0) / weights.length : 0;
-  const maxWeight = weights.length ? Math.max(...weights) : 0;
-  const minWeight = weights.length ? Math.min(...weights) : 0;
-  const avgConf = records.length
-    ? records.reduce((s, r) => s + r.result.confidence_pct, 0) / records.length
-    : 0;
+  // Aggregate over a real geometry measurement (chest girth), never weight.
+  const girths = records.map(r => r.measurements.chest_girth_cm);
+  const avgGirth = girths.length ? girths.reduce((a, b) => a + b, 0) / girths.length : 0;
+  const maxGirth = girths.length ? Math.max(...girths) : 0;
+  const minGirth = girths.length ? Math.min(...girths) : 0;
 
+  // Breed distribution (cows only) by mean chest girth.
   const breedMap: Record<string, number[]> = {};
-  records.forEach(r => {
-    if (!breedMap[r.breed]) breedMap[r.breed] = [];
-    breedMap[r.breed].push(r.result.estimated_weight_kg);
+  cows.forEach(r => {
+    const breed = r.breed ?? 'default';
+    if (!breedMap[breed]) breedMap[breed] = [];
+    breedMap[breed].push(r.measurements.chest_girth_cm);
   });
-  const breedStats = Object.entries(breedMap).map(([breed, ws]) => ({
+  const breedStats = Object.entries(breedMap).map(([breed, gs]) => ({
     breed,
-    avg: ws.reduce((a, b) => a + b, 0) / ws.length,
-    count: ws.length,
+    avg: gs.reduce((a, b) => a + b, 0) / gs.length,
+    count: gs.length,
   })).sort((a, b) => b.avg - a.avg);
   const breedMax = breedStats.length ? Math.max(...breedStats.map(b => b.avg)) : 0;
 
@@ -79,24 +81,22 @@ export default function AnalyticsScreen() {
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No data to show</Text>
           <Text style={styles.emptySub}>
-            Record a few scans to see weight trends, breed distribution and activity here.
+            Record a few scans to see chest girth trends, breed distribution and activity here.
           </Text>
         </View>
       ) : (
         <>
-          {/* Hero — Mean live weight */}
+          {/* Hero — Mean chest girth */}
           <View style={[styles.group, { marginTop: 22 }]}>
             <View style={styles.card}>
               <View style={styles.hero}>
-                <Text style={styles.eyebrow}>Mean live weight</Text>
+                <Text style={styles.eyebrow}>Mean chest girth</Text>
                 <View style={styles.valueRow}>
-                  <Text style={styles.value}>{avgWeight.toFixed(0)}</Text>
-                  <Text style={styles.valueUnit}>kg</Text>
+                  <Text style={styles.value}>{avgGirth.toFixed(0)}</Text>
+                  <Text style={styles.valueUnit}>cm</Text>
                 </View>
                 <Text style={styles.heroMeta}>
-                  Range {minWeight.toFixed(0)}–{maxWeight.toFixed(0)} kg
-                  {'  ·  '}
-                  Avg confidence {avgConf.toFixed(0)}%
+                  Range {minGirth.toFixed(0)}–{maxGirth.toFixed(0)} cm
                 </Text>
               </View>
               <View style={styles.heroDivider} />
@@ -106,12 +106,12 @@ export default function AnalyticsScreen() {
                   <Text style={styles.tileLabel}>scans</Text>
                 </View>
                 <View style={[styles.tile, styles.tileMid]}>
-                  <Text style={styles.tileValue}>{realAnimals}</Text>
-                  <Text style={styles.tileLabel}>real animals</Text>
+                  <Text style={styles.tileValue}>{cowCount}</Text>
+                  <Text style={styles.tileLabel}>cows</Text>
                 </View>
                 <View style={styles.tile}>
-                  <Text style={styles.tileValue}>{Object.keys(breedMap).length}</Text>
-                  <Text style={styles.tileLabel}>breeds</Text>
+                  <Text style={styles.tileValue}>{extraCount}</Text>
+                  <Text style={styles.tileLabel}>extras</Text>
                 </View>
               </View>
             </View>
@@ -127,10 +127,10 @@ export default function AnalyticsScreen() {
             <ActivityChart values={last7} max={last7Max} now={now} />
           </View>
 
-          {/* Weight by breed */}
+          {/* Mean chest girth by breed */}
           {breedStats.length > 0 && (
             <>
-              <Text style={styles.sectionHeader}>Mean weight by breed</Text>
+              <Text style={styles.sectionHeader}>Mean chest girth by breed</Text>
               <View style={styles.card}>
                 {breedStats.map((b, i, arr) => {
                   const pct = breedMax > 0 ? (b.avg / breedMax) * 100 : 0;
@@ -142,7 +142,7 @@ export default function AnalyticsScreen() {
                             {prettyBreed(b.breed)}
                             <Text style={styles.breedCount}>  · {b.count}</Text>
                           </Text>
-                          <Text style={styles.breedValue}>{b.avg.toFixed(0)} kg</Text>
+                          <Text style={styles.breedValue}>{b.avg.toFixed(0)} cm</Text>
                         </View>
                         <View style={styles.breedTrack}>
                           <View style={[styles.breedFill, { width: `${pct}%` as `${number}%` }]} />
@@ -160,10 +160,10 @@ export default function AnalyticsScreen() {
           <Text style={styles.sectionHeader}>Summary</Text>
           <View style={styles.card}>
             {[
-              { k: 'Max weight',      v: `${maxWeight.toFixed(1)} kg` },
-              { k: 'Min weight',      v: `${minWeight.toFixed(1)} kg` },
-              { k: 'Mean confidence', v: `${avgConf.toFixed(1)}%` },
-              { k: 'Real animals',    v: `${realAnimals} / ${totalScans}` },
+              { k: 'Max chest girth', v: `${maxGirth.toFixed(1)} cm` },
+              { k: 'Min chest girth', v: `${minGirth.toFixed(1)} cm` },
+              { k: 'Cows',            v: `${cowCount} / ${totalScans}` },
+              { k: 'Extras',          v: `${extraCount} / ${totalScans}` },
             ].map(({ k, v }, i, arr) => (
               <View key={k}>
                 <View style={styles.row}>

@@ -4,12 +4,15 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.v1.organizations.organizations_routes import organizations_router
-from api.v1.organizations_members.organizations_members_routes import organizations_member_router
-from api.v1.users.users_routes import users_router
 from api.v1.species.species_routes import species_router
 from api.v1.breeds.breeds_routes import breeds_router
 from api.v1.animals.animals_routes import animals_router
 from api.v1.scans.scans_routes import scans_router
+from api.v1.users.users_routes import users_router
+from api.v1.organizations_members.organizations_members_routes import (
+    organizations_member_router,
+)
+from api.v1.predictions.prediction_routes import predictions_router
 from core.database import initialize_database
 from core.errors import register_exception_handlers
 
@@ -34,11 +37,9 @@ def create_app() -> FastAPI:
     def health():
         return {"status": "ok", "service": "PondiFarm API v0.1 — Phase 0"}
 
-
     @app.get("/health")
     def health_check():
         return {"status": "ok"}
-
 
     @app.post("/api/v1/scan")
     async def scan(
@@ -94,9 +95,9 @@ def create_app() -> FastAPI:
                 "chest_girth_cm": measurements["chest_girth_cm"],
             },
             "result": {
-                    "estimated_weight_kg": peso_kg,
-                    "confidence_pct": confianca,
-                    "accuracy_note": "Estimativa por visão computacional 2D · Precisão aumentada com LiDAR na versão final",
+                "estimated_weight_kg": peso_kg,
+                "confidence_pct": confianca,
+                "accuracy_note": "Estimativa por visão computacional 2D · Precisão aumentada com LiDAR na versão final",
             },
         }
 
@@ -107,6 +108,7 @@ def create_app() -> FastAPI:
     app.include_router(breeds_router)
     app.include_router(animals_router)
     app.include_router(scans_router)
+    app.include_router(predictions_router)
     return app
 
 

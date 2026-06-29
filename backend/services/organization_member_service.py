@@ -60,10 +60,12 @@ def create_member(
     get_organization_entity(db, organization_id)
     get_user_entity(db, payload.user_id)
 
-    existing = organization_member_repository.get_active_member_by_organization_and_user(
-        db,
-        organization_id,
-        payload.user_id,
+    existing = (
+        organization_member_repository.get_active_member_by_organization_and_user(
+            db,
+            organization_id,
+            payload.user_id,
+        )
     )
     if existing:
         raise HTTPException(

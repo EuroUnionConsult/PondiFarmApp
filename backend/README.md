@@ -147,6 +147,32 @@ The legacy `POST /api/v1/scan` endpoint accepts multipart form data:
 | `animal_id` | string | no | `DEMO-001` |
 | `breed` | string | no | `default` |
 
+### Predictions
+
+- `POST /api/v1/predictions/weight-estimation`
+
+JSON request example:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/predictions/weight-estimation \
+  -H "Content-Type: application/json" \
+  -d '{
+    "species": "cattle",
+    "breed": "minhota",
+    "sex": "female",
+    "age_months": 28,
+    "measurements": {
+      "body_length_cm": 152.4,
+      "withers_height_cm": 126.8,
+      "thoracic_depth_cm": 65.9,
+      "rump_width_cm": 50.2,
+      "chest_girth_cm": 194.3
+    }
+  }'
+```
+
+This endpoint does not persist any data. It validates morphometric measurements and returns a formula-based approximate weight estimate with conservative diagnostics.
+
 ### Organizations
 
 | Method | Path | Purpose |

@@ -103,6 +103,11 @@ pip-delete-this-directory.txt
 **/android/
 !**/ios/.gitkeep
 !**/android/.gitkeep
+# Local Expo modules ship their own native source — keep it tracked
+!mobile/modules/**/ios/
+!mobile/modules/**/ios/**
+!mobile/modules/**/android/
+!mobile/modules/**/android/**
 
 # Husky output (keep config, ignore cache)
 .husky/_/
@@ -130,3 +135,4 @@ coverage/
 secrets/
 scratch/
 .local/
+mobile/assets/*.bak
