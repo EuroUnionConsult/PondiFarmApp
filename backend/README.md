@@ -309,6 +309,26 @@ Supported list filters:
 - `page`
 - `limit`
 
+### Veterinary appointments
+
+| Method | Path | Purpose |
+|-------|------|---------|
+| `POST` | `/api/v1/animals/{animalId}/veterinary-appointments` | Create an appointment for an animal |
+| `GET` | `/api/v1/animals/{animalId}/veterinary-appointments` | List appointments for an animal |
+| `GET` | `/api/v1/organizations/{organizationId}/veterinary-appointments` | List an organization's calendar |
+| `GET` | `/api/v1/veterinary-appointments/{appointmentId}` | Fetch one appointment |
+| `PATCH` | `/api/v1/veterinary-appointments/{appointmentId}` | Update scheduled appointment metadata or mark it missed |
+| `POST` | `/api/v1/veterinary-appointments/{appointmentId}/complete` | Complete an appointment |
+| `POST` | `/api/v1/veterinary-appointments/{appointmentId}/cancel` | Cancel an appointment |
+| `POST` | `/api/v1/veterinary-appointments/{appointmentId}/archive` | Archive an appointment |
+| `DELETE` | `/api/v1/veterinary-appointments/{appointmentId}` | Soft-delete an eligible appointment |
+
+Appointments inherit `organizationId` from the linked animal. Clients cannot
+set or override the organization or animal identifiers. Optional `userId`,
+`notes`, and `calendarEventId` values map directly to the existing table. List
+endpoints support status, date range, page, and limit filters; organization
+lists additionally support `animalId` and `upcomingOnly`.
+
 ## Business rules
 
 ### Cross-cutting rules
@@ -379,6 +399,20 @@ Supported list filters:
 - Deleting a scan in `processing` returns `409`.
 - Deleting a scan in `completed` archives it instead of soft-deleting it.
 - Deleting a scan in other states sets `deleted_at`.
+
+### Veterinary appointment rules
+
+- The linked animal must exist, and `organization_id` is copied from it.
+- Future appointments start as `scheduled`; past records must be created as
+  `completed`.
+- Exact duplicate active scheduled appointments return `409`.
+- Completion, cancellation, and archival use dedicated endpoints.
+- PATCH supports scheduled metadata and the `scheduled` to `missed` transition.
+- Complete and cancel actions can update the existing `notes` field.
+- Completed appointments are retained and cannot be deleted.
+- Only future scheduled appointments can be soft-deleted.
+- Authorization is prepared with TODO markers until authenticated membership
+  context is available.
 
 ## Tests
 
