@@ -13,10 +13,8 @@ from core.database import Base, get_db
 from main import app
 from models.models import (
     AnimalScan,
-    Breed,
     Organization,
     OrganizationMember,
-    Species,
     User,
 )
 
