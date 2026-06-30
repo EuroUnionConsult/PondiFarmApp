@@ -7,6 +7,7 @@ from api.v1.organizations.organizations_routes import organizations_router
 from api.v1.species.species_routes import species_router
 from api.v1.breeds.breeds_routes import breeds_router
 from api.v1.animals.animals_routes import animals_router
+from api.v1.animal_documents.animal_documents_routes import animal_documents_router
 from api.v1.scans.scans_routes import scans_router
 from api.v1.veterinary_appointments.veterinary_appointments_routes import (
     veterinary_appointments_router,
@@ -110,6 +111,7 @@ def create_app() -> FastAPI:
     app.include_router(species_router)
     app.include_router(breeds_router)
     app.include_router(animals_router)
+    app.include_router(animal_documents_router)
     app.include_router(scans_router)
     app.include_router(veterinary_appointments_router)
     app.include_router(predictions_router)

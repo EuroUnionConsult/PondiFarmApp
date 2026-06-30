@@ -1,12 +1,13 @@
 import os
 import unittest
+from unittest.mock import patch
 
 os.environ["DATABASE_URL"] = "sqlite://"
 
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.pool import StaticPool
 
-from core.database import ensure_schema_compatibility
+from core.database import ensure_schema_compatibility, initialize_database
 
 
 class DatabaseCompatibilityTests(unittest.TestCase):
@@ -93,6 +94,14 @@ class DatabaseCompatibilityTests(unittest.TestCase):
 
         self.assertEqual(species_normalized_name, "bovine")
         self.assertEqual(breed_normalized_name, "angus")
+
+    def test_bootstrap_does_not_create_externally_managed_animal_documents(self):
+        with patch("core.database.get_engine", return_value=self.engine):
+            initialize_database()
+
+        table_names = set(inspect(self.engine).get_table_names())
+        self.assertIn("animals", table_names)
+        self.assertNotIn("animal_documents", table_names)
 
 
 if __name__ == "__main__":

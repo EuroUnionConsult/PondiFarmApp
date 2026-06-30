@@ -11,6 +11,7 @@ from core.config import get_settings
 Base = declarative_base()
 _engine: Engine | None = None
 _session_local: sessionmaker | None = None
+EXTERNALLY_MANAGED_TABLES = {"animal_documents"}
 
 
 def _create_engine() -> Engine:
@@ -114,5 +115,10 @@ def initialize_database() -> None:
     import models.models  # noqa: F401
 
     engine = get_engine()
-    Base.metadata.create_all(bind=engine)
+    bootstrap_tables = [
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name not in EXTERNALLY_MANAGED_TABLES
+    ]
+    Base.metadata.create_all(bind=engine, tables=bootstrap_tables)
     ensure_schema_compatibility(engine)

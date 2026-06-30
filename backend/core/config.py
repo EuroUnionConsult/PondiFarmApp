@@ -12,6 +12,8 @@ from sqlalchemy.engine import URL
 @dataclass(frozen=True)
 class Settings:
     database_url: str
+    document_storage_path: Path
+    document_max_file_size_bytes: int
 
 
 def _load_env_file() -> None:
@@ -77,4 +79,18 @@ def _build_database_url() -> str:
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    return Settings(database_url=_build_database_url())
+    database_url = _build_database_url()
+    backend_path = Path(__file__).resolve().parent.parent
+    storage_path = Path(
+        os.getenv("DOCUMENT_STORAGE_PATH", str(backend_path / ".document_storage")),
+    )
+    max_file_size = int(
+        os.getenv("DOCUMENT_MAX_FILE_SIZE_BYTES", str(10 * 1024 * 1024))
+    )
+    if max_file_size <= 0:
+        raise RuntimeError("DOCUMENT_MAX_FILE_SIZE_BYTES must be greater than zero")
+    return Settings(
+        database_url=database_url,
+        document_storage_path=storage_path,
+        document_max_file_size_bytes=max_file_size,
+    )
