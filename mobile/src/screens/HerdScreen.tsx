@@ -10,6 +10,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
 import { listRecords, deleteRecord, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
+import { syncPending } from '../lib/sync';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -60,6 +61,13 @@ export default function HerdScreen() {
     } catch {
       /* backend offline → mantém o cache (não zera a lista) */
     }
+    // Reprocessa a fila de scans pendentes; se subiu algo, atualiza lista + nuvem.
+    syncPending().then(async (r) => {
+      if (r.synced > 0) {
+        setRecords(await listRecords());
+        fetchCloudAnimals().then(setCloud).catch(() => {});
+      }
+    }).catch(() => {});
   }, []);
 
   const cloudFiltered = useMemo(

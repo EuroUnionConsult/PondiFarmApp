@@ -17,6 +17,7 @@ import {
   type ScanCompleteEvent,
 } from '../../modules/lidar-scanner';
 import { saveRecord, type ScanRecord, type ScanCategory } from '../lib/storage';
+import { pushRecord } from '../lib/sync';
 import type { RootStackParamList } from '../navigation/types';
 import GlassSurface from '../components/GlassSurface';
 
@@ -238,6 +239,9 @@ export default function ScanScreen() {
 
     await saveRecord(record);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Sobe pro backend em 2º plano (offline-first): não bloqueia a navegação;
+    // se falhar, fica pending e o syncPending tenta depois.
+    pushRecord(record).catch(() => {});
     nav.replace('Result', { record });
   };
 
