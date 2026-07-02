@@ -11,18 +11,27 @@ from core.config import get_settings
 Base = declarative_base()
 _engine: Engine | None = None
 _session_local: sessionmaker | None = None
+EXTERNALLY_MANAGED_TABLES = {"animal_documents"}
 
 
 def _create_engine() -> Engine:
     settings = get_settings()
     connect_args = {}
+    engine_kwargs: dict = {"future": True}
     if settings.database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
+    else:
+        # Resiliência p/ Azure SQL free-tier (auto-pausa quando ocioso):
+        # pre-ping descarta conexões mortas e reconecta; timeout de login maior
+        # dá tempo do DB acordar (~30-60s) na primeira query após a pausa.
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["pool_recycle"] = 1800
+        connect_args["timeout"] = 60
 
     engine = create_engine(
         settings.database_url,
-        future=True,
         connect_args=connect_args,
+        **engine_kwargs,
     )
 
     if settings.database_url.startswith("sqlite"):
@@ -70,10 +79,33 @@ def _ensure_normalized_name_column(
     )
 
 
+def _ensure_client_scan_id_column(connection: Connection) -> None:
+    """Idempotência do push (C4): coluna + índice único filtrado em animal_scans.
+    Dois pushes do mesmo scan local (retry após timeout) não criam duplicata."""
+    inspector = inspect(connection)
+    existing = {column["name"] for column in inspector.get_columns("animal_scans")}
+    if "client_scan_id" not in existing:
+        connection.execute(
+            text("ALTER TABLE animal_scans ADD client_scan_id VARCHAR(64) NULL"),
+        )
+    index_names = {ix["name"] for ix in inspector.get_indexes("animal_scans")}
+    if "ux_animal_scans_client_scan_id" not in index_names:
+        # Índice único filtrado (NULLs não colidem). Sintaxe válida em mssql e sqlite.
+        try:
+            connection.execute(
+                text(
+                    "CREATE UNIQUE INDEX ux_animal_scans_client_scan_id "
+                    "ON animal_scans (client_scan_id) WHERE client_scan_id IS NOT NULL"
+                ),
+            )
+        except Exception:
+            pass  # já existe / corrida — ok
+
+
 def ensure_schema_compatibility(bind: Engine) -> None:
     inspector = inspect(bind)
     table_names = set(inspector.get_table_names())
-    if "species" not in table_names and "breeds" not in table_names:
+    if not table_names & {"species", "breeds", "animal_scans"}:
         return
 
     with bind.begin() as connection:
@@ -81,6 +113,8 @@ def ensure_schema_compatibility(bind: Engine) -> None:
             _ensure_normalized_name_column(connection, "species")
         if "breeds" in table_names:
             _ensure_normalized_name_column(connection, "breeds")
+        if "animal_scans" in table_names:
+            _ensure_client_scan_id_column(connection)
 
 
 def get_engine() -> Engine:
@@ -114,5 +148,10 @@ def initialize_database() -> None:
     import models.models  # noqa: F401
 
     engine = get_engine()
-    Base.metadata.create_all(bind=engine)
+    bootstrap_tables = [
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name not in EXTERNALLY_MANAGED_TABLES
+    ]
+    Base.metadata.create_all(bind=engine, tables=bootstrap_tables)
     ensure_schema_compatibility(engine)

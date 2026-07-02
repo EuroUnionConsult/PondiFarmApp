@@ -73,6 +73,7 @@ ml/models/weight/*
 *.log
 tmp/
 temp/
+.document_storage/
 
 # macOS noise (redundant with root, kept for safety)
 .DS_Store
