@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ios } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
+import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 
 const CHART_H = 140;
 const CHART_PAD_X = 16;
@@ -22,9 +23,12 @@ function prettyBreed(b: string): string {
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [cloud, setCloud] = useState<CloudAnimal[]>([]);
 
   useFocusEffect(useCallback(() => {
     listRecords().then(setRecords);
+    getCachedCloudAnimals().then(c => { if (c.length) setCloud(c); });  // instantâneo
+    fetchCloudAnimals().then(setCloud).catch(() => { /* mantém cache */ });
   }, []));
 
   const totalScans = records.length;
@@ -61,6 +65,16 @@ export default function AnalyticsScreen() {
   const last7Max = Math.max(...last7, 1);
   const last7Total = last7.reduce((a, b) => a + b, 0);
 
+  const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);
+  const cloudCount = cloud.length;
+  const cloudMeanKg = cloudWeights.length ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length) : 0;
+  const cloudMinKg = cloudWeights.length ? Math.round(Math.min(...cloudWeights)) : 0;
+  const cloudMaxKg = cloudWeights.length ? Math.round(Math.max(...cloudWeights)) : 0;
+
+  // Produto = peso. Quando há animais na nuvem, o painel fala de peso (kg);
+  // sem nuvem, cai para o perímetro torácico dos scans locais.
+  const hasCloud = cloudCount > 0;
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -70,14 +84,16 @@ export default function AnalyticsScreen() {
         <View>
           <Text style={styles.title}>Analytics</Text>
           <Text style={styles.subtitle}>
-            {totalScans === 0
-              ? 'No data yet'
-              : `${totalScans} scan${totalScans !== 1 ? 's' : ''} · all time`}
+            {hasCloud
+              ? `${cloudCount} animal${cloudCount !== 1 ? 's' : ''} · herd`
+              : totalScans === 0
+                ? 'No data yet'
+                : `${totalScans} scan${totalScans !== 1 ? 's' : ''} · all time`}
           </Text>
         </View>
       </View>
 
-      {totalScans === 0 ? (
+      {totalScans === 0 && cloudCount === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No data to show</Text>
           <Text style={styles.emptySub}>
@@ -90,28 +106,30 @@ export default function AnalyticsScreen() {
           <View style={[styles.group, { marginTop: 22 }]}>
             <View style={styles.card}>
               <View style={styles.hero}>
-                <Text style={styles.eyebrow}>Mean chest girth</Text>
+                <Text style={styles.eyebrow}>{hasCloud ? 'Mean weight' : 'Mean chest girth'}</Text>
                 <View style={styles.valueRow}>
-                  <Text style={styles.value}>{avgGirth.toFixed(0)}</Text>
-                  <Text style={styles.valueUnit}>cm</Text>
+                  <Text style={styles.value}>{hasCloud ? cloudMeanKg : avgGirth.toFixed(0)}</Text>
+                  <Text style={styles.valueUnit}>{hasCloud ? 'kg' : 'cm'}</Text>
                 </View>
                 <Text style={styles.heroMeta}>
-                  Range {minGirth.toFixed(0)}–{maxGirth.toFixed(0)} cm
+                  {hasCloud
+                    ? `Range ${cloudMinKg}–${cloudMaxKg} kg`
+                    : `Range ${minGirth.toFixed(0)}–${maxGirth.toFixed(0)} cm`}
                 </Text>
               </View>
               <View style={styles.heroDivider} />
               <View style={styles.tiles}>
                 <View style={styles.tile}>
-                  <Text style={styles.tileValue}>{totalScans}</Text>
-                  <Text style={styles.tileLabel}>scans</Text>
+                  <Text style={styles.tileValue}>{hasCloud ? cloudCount : totalScans}</Text>
+                  <Text style={styles.tileLabel}>{hasCloud ? 'animals' : 'scans'}</Text>
                 </View>
                 <View style={[styles.tile, styles.tileMid]}>
-                  <Text style={styles.tileValue}>{cowCount}</Text>
-                  <Text style={styles.tileLabel}>cows</Text>
+                  <Text style={styles.tileValue}>{hasCloud ? cloudWeights.length : cowCount}</Text>
+                  <Text style={styles.tileLabel}>{hasCloud ? 'with weight' : 'cows'}</Text>
                 </View>
                 <View style={styles.tile}>
-                  <Text style={styles.tileValue}>{extraCount}</Text>
-                  <Text style={styles.tileLabel}>extras</Text>
+                  <Text style={styles.tileValue}>{hasCloud ? totalScans : extraCount}</Text>
+                  <Text style={styles.tileLabel}>{hasCloud ? 'local scans' : 'extras'}</Text>
                 </View>
               </View>
             </View>
@@ -159,12 +177,20 @@ export default function AnalyticsScreen() {
           {/* Summary */}
           <Text style={styles.sectionHeader}>Summary</Text>
           <View style={styles.card}>
-            {[
-              { k: 'Max chest girth', v: `${maxGirth.toFixed(1)} cm` },
-              { k: 'Min chest girth', v: `${minGirth.toFixed(1)} cm` },
-              { k: 'Cows',            v: `${cowCount} / ${totalScans}` },
-              { k: 'Extras',          v: `${extraCount} / ${totalScans}` },
-            ].map(({ k, v }, i, arr) => (
+            {(hasCloud
+              ? [
+                  { k: 'Max weight',   v: `${cloudMaxKg} kg` },
+                  { k: 'Min weight',   v: `${cloudMinKg} kg` },
+                  { k: 'With weight',  v: `${cloudWeights.length} / ${cloudCount}` },
+                  { k: 'Local scans',  v: `${totalScans}` },
+                ]
+              : [
+                  { k: 'Max chest girth', v: `${maxGirth.toFixed(1)} cm` },
+                  { k: 'Min chest girth', v: `${minGirth.toFixed(1)} cm` },
+                  { k: 'Cows',            v: `${cowCount} / ${totalScans}` },
+                  { k: 'Extras',          v: `${extraCount} / ${totalScans}` },
+                ]
+            ).map(({ k, v }, i, arr) => (
               <View key={k}>
                 <View style={styles.row}>
                   <Text style={styles.rowKey}>{k}</Text>
@@ -175,7 +201,9 @@ export default function AnalyticsScreen() {
             ))}
           </View>
           <Text style={styles.sectionFooter}>
-            All figures computed from locally stored scans. Trend over longer windows requires backend sync.
+            {hasCloud
+              ? 'Weight estimated by the PondiFarm model (v0.1, external calibration). Activity and per-breed girth come from local scans.'
+              : 'Figures computed from locally stored scans. Trend over longer windows requires backend sync.'}
           </Text>
         </>
       )}

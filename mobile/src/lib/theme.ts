@@ -4,13 +4,16 @@ export const colors = {
   surface:      '#FFFFFF',
   surfaceHigh:  '#F8FAFC',
 
-  // Brand
-  primary:      '#059669',
-  primaryDark:  '#047857',
-  primaryLight: 'rgba(5,150,105,0.10)',
+  // Brand — paleta do ícone PondiFarm (navy + verde + laranja)
+  primary:      '#16294D',   // navy (boi/moldura) — âncora da marca
+  primaryDark:  '#0F1D3A',
+  primaryLight: 'rgba(22,41,77,0.10)',
 
-  secondary:    '#0284C7',
-  secondaryLight: 'rgba(2,132,199,0.10)',
+  secondary:    '#2F9E44',   // verde (campo)
+  secondaryLight: 'rgba(47,158,68,0.10)',
+
+  highlight:    '#E8731F',   // laranja (moldura de scan) — destaque/atenção
+  highlightLight: 'rgba(232,115,31,0.12)',
 
   warning:      '#D97706',
   warningLight: 'rgba(217,119,6,0.10)',
@@ -25,7 +28,7 @@ export const colors = {
 
   // Borders & dividers
   border:       '#E2E8F0',
-  borderActive: 'rgba(5,150,105,0.35)',
+  borderActive: 'rgba(47,158,68,0.35)',
 
   // Shadows (used inline)
   shadow:       '#64748B',
@@ -53,15 +56,40 @@ export const ios = {
   separator:       'rgba(60,60,67,0.29)',
   opaqueSeparator: '#C6C6C8',
 
-  // PondiFarm accent — sage (NOT Tailwind emerald)
-  accent:      '#5F8068',
-  accentLight: 'rgba(95,128,104,0.12)',
-  accentDark:  '#4A6452',
+  // PondiFarm accent — verde da marca (campo do ícone)
+  accent:      '#2F9E44',
+  accentLight: 'rgba(47,158,68,0.12)',
+  accentDark:  '#257A35',
+
+  // Âncoras de marca (ícone): navy + laranja
+  navy:        '#16294D',
+  navyLight:   'rgba(22,41,77,0.10)',
+  orange:      '#E8731F',
+  orangeLight: 'rgba(232,115,31,0.12)',
 
   // System colors (iOS HIG)
   systemRed:    '#FF3B30',
   systemGreen:  '#34C759',
   systemBlue:   '#007AFF',
+};
+
+// Liquid Glass — superfícies de vidro fosco (usar com BlurView/GlassSurface).
+// `tint` = intensidade do material do expo-blur; `fill`/`border` = camadas por cima.
+export const glass = {
+  // Vidro claro (sobre fundos claros): cards, nav.
+  light: {
+    tint: 'light' as const,
+    intensity: 40,
+    fill: 'rgba(255,255,255,0.55)',
+    border: 'rgba(255,255,255,0.65)',
+  },
+  // Vidro escuro/navy (sobre câmera/AR/foto): overlays do scanner, resultado 3D.
+  dark: {
+    tint: 'dark' as const,
+    intensity: 30,
+    fill: 'rgba(22,41,77,0.45)',
+    border: 'rgba(255,255,255,0.18)',
+  },
 };
 
 export const spacing = {

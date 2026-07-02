@@ -9,8 +9,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
-import { listRecords, type ScanRecord } from '../lib/storage';
-import { checkHealth } from '../lib/api';
+import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
+import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -22,13 +22,18 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    // Cache primeiro (instantâneo), depois atualiza em 2º plano.
+    const cached = await getCachedCloudAnimals();
+    if (cached.length) setCloud(cached);
     const [recs, health] = await Promise.all([listRecords(), checkHealth()]);
     setRecords(recs);
     setBackendOk(health);
+    try { setCloud(await fetchCloudAnimals()); } catch { /* mantém o cache em falha de rede */ }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -44,10 +49,27 @@ export default function HomeScreen() {
   const avgGirth = records.length
     ? Math.round(records.reduce((s, r) => s + r.measurements.chest_girth_cm, 0) / records.length)
     : 0;
-  // Ring shows share of scans that are cows (vs extras) — a real proportion.
   const cowPct = records.length ? Math.round((cows.length / records.length) * 100) : 0;
-  const ringPct = Math.min(100, Math.max(0, cowPct));
-  const ringOffset = RING_CIRC - (ringPct / 100) * RING_CIRC;
+
+  const cloudCount = cloud.length;
+  const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);
+  const cloudMeanKg = cloudWeights.length
+    ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length)
+    : 0;
+
+  // Headline metric: weight (the product) when there are cloud animals; else local girth.
+  const hasCloud = cloudCount > 0;
+  const heroLabel = hasCloud ? 'Mean weight' : 'Mean chest girth';
+  const heroValue = hasCloud ? (cloudMeanKg > 0 ? String(cloudMeanKg) : '—')
+                             : (avgGirth > 0 ? String(avgGirth) : '—');
+  const heroUnit = hasCloud ? 'kg' : 'cm';
+  const totalAnimalsUnified = totalAnimals + cloudCount;
+  const pendingSync = countPendingSync(records);
+  // Ring = sync progress of local scans (100% when nothing is waiting to upload).
+  const ringPct = records.length
+    ? Math.round(((records.length - pendingSync) / records.length) * 100)
+    : 100;
+  const ringOffset = RING_CIRC - (Math.min(100, Math.max(0, ringPct)) / 100) * RING_CIRC;
 
   const today = records.slice(0, 5);
 
@@ -79,16 +101,20 @@ export default function HomeScreen() {
             <View style={styles.heroLeft}>
               <View style={styles.eyebrow}>
                 <Ionicons name="layers-outline" size={14} color={ios.accent} />
-                <Text style={styles.eyebrowText}>Mean chest girth</Text>
+                <Text style={styles.eyebrowText}>{heroLabel}</Text>
               </View>
               <View style={styles.valueRow}>
-                <Text style={styles.value}>{avgGirth > 0 ? avgGirth : '—'}</Text>
-                <Text style={styles.valueUnit}>cm</Text>
+                <Text style={styles.value}>{heroValue}</Text>
+                <Text style={styles.valueUnit}>{heroUnit}</Text>
               </View>
               <Text style={styles.delta}>
-                {records.length > 0
-                  ? `${records.length} scan${records.length !== 1 ? 's' : ''} stored locally`
-                  : 'No scans yet · capture one to begin'}
+                {pendingSync > 0
+                  ? `${pendingSync} scan${pendingSync !== 1 ? 's' : ''} pending sync`
+                  : hasCloud
+                    ? `${totalAnimalsUnified} animal${totalAnimalsUnified !== 1 ? 's' : ''} in herd · all synced`
+                    : records.length > 0
+                      ? `${records.length} scan${records.length !== 1 ? 's' : ''} · all synced`
+                      : 'No scans yet · capture one to begin'}
               </Text>
             </View>
             <View style={styles.ringWrap}>
@@ -105,22 +131,23 @@ export default function HomeScreen() {
               </Svg>
               <View style={styles.ringLabel} pointerEvents="none">
                 <Text style={styles.ringPct}>{ringPct}%</Text>
+                <Text style={styles.ringCaption}>synced</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.tiles}>
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{records.length}</Text>
-              <Text style={styles.tileLabel}>scans</Text>
-            </View>
-            <View style={[styles.tile, styles.tileDivider]}>
-              <Text style={styles.tileValue}>{totalAnimals}</Text>
+              <Text style={styles.tileValue}>{totalAnimalsUnified}</Text>
               <Text style={styles.tileLabel}>animals</Text>
             </View>
+            <View style={[styles.tile, styles.tileDivider]}>
+              <Text style={[styles.tileValue, pendingSync > 0 && { color: ios.orange }]}>{pendingSync}</Text>
+              <Text style={styles.tileLabel}>pending sync</Text>
+            </View>
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{ringPct > 0 ? `${ringPct}%` : '—'}</Text>
-              <Text style={styles.tileLabel}>cows</Text>
+              <Text style={styles.tileValue}>{records.length}</Text>
+              <Text style={styles.tileLabel}>local scans</Text>
             </View>
           </View>
         </View>
@@ -192,6 +219,12 @@ const displayFont = Platform.select({
 });
 
 const styles = StyleSheet.create({
+  cloudLine: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingTop: 10, marginTop: 2,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5EA',
+  },
+  cloudLineText: { fontSize: 12.5, color: '#8A8A8E', letterSpacing: -0.05 },
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   // Large title
@@ -277,6 +310,10 @@ const styles = StyleSheet.create({
     fontFamily: displayFont,
     fontSize: 17, fontWeight: '700',
     letterSpacing: -0.4, color: ios.label,
+  },
+  ringCaption: {
+    fontSize: 9, color: ios.secondaryLabel,
+    letterSpacing: 0.2, textTransform: 'uppercase', marginTop: 1,
   },
 
   // 3 tiles inside hero card
