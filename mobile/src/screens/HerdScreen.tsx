@@ -102,7 +102,7 @@ export default function HerdScreen() {
   const sections = useMemo(() => groupRecords(localForList), [localForList]);
 
   const handleLongPress = (rec: ScanRecord) => {
-    const name = rec.category === 'cow' ? (rec.animalId ?? 'bovino') : 'extra';
+    const name = rec.category === 'cow' ? (rec.animalId ?? 'cattle') : 'extra';
     Alert.alert(
       `Remove scan of ${name}?`,
       'This permanently deletes the scan from local storage. Backend data is not affected.',
@@ -172,7 +172,7 @@ export default function HerdScreen() {
                   <View style={styles.rowInfo}>
                     <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
-                      {c.breed || 'Raça n/d'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
+                      {c.breed || 'Breed n/a'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
                     </Text>
                   </View>
                   <View style={styles.rowMetric}>
@@ -233,7 +233,7 @@ export default function HerdScreen() {
                     </View>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowId}>
-                        {isCow ? (rec.animalId ?? 'Bovino') : 'Extra'}
+                        {isCow ? (rec.animalId ?? 'Cattle') : 'Extra'}
                       </Text>
                       <Text style={styles.rowMeta} numberOfLines={1}>
                         {isCow ? breedLabel : 'Object / person'}

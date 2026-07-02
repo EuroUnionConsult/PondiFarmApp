@@ -80,11 +80,11 @@ export default function SettingsScreen() {
 
   const handleLogout = () => {
     Alert.alert(
-      'Sair da conta',
-      user ? `Terminar sessão de ${user.email}?` : 'Terminar sessão?',
+      'Sign out',
+      user ? `Sign out of ${user.email}?` : 'Sign out?',
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Sair', style: 'destructive', onPress: () => { logout(); } },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: () => { logout(); } },
       ],
     );
   };
@@ -262,7 +262,7 @@ export default function SettingsScreen() {
           </>
         )}
         <TouchableOpacity style={styles.row} onPress={handleLogout} activeOpacity={0.6}>
-          <Text style={[styles.rowLabel, { color: ios.systemRed }]}>Sair da conta</Text>
+          <Text style={[styles.rowLabel, { color: '#DC2626' }]}>Sign out</Text>
         </TouchableOpacity>
       </View>
 

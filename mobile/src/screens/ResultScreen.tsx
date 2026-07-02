@@ -57,7 +57,7 @@ export default function ResultScreen() {
     }
   };
 
-  const title = isCow ? (record.animalId ?? 'Bovino') : 'Scan (extra)';
+  const title = isCow ? (record.animalId ?? 'Cattle') : 'Scan (extra)';
 
   return (
     <View style={styles.container}>
@@ -119,7 +119,7 @@ export default function ResultScreen() {
               color={isCow ? ios.accent : ios.secondaryLabel}
             />
             <Text style={[styles.badgeText, isCow ? styles.badgeTextCow : styles.badgeTextExtra]}>
-              {isCow ? 'Bovino' : 'Extra'}
+              {isCow ? 'Cattle' : 'Extra'}
             </Text>
           </View>
         </View>
@@ -162,7 +162,7 @@ export default function ResultScreen() {
         <Text style={styles.sectionHeader}>Scan</Text>
         <View style={styles.card}>
           {[
-            { k: 'Category', v: isCow ? 'Bovino' : 'Extra' },
+            { k: 'Category', v: isCow ? 'Cattle' : 'Extra' },
             ...(isCow ? [{ k: 'Breed', v: prettyBreed(record.breed) }] : []),
             { k: 'Source',   v: 'LiDAR (on-device)' },
             { k: 'Vertices', v: record.vertexCount.toLocaleString('pt-PT') },
