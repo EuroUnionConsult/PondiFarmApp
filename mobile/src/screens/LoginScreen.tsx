@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ios } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import { getDevServerUrl, setDevServerUrl } from '../lib/api';
-import GlassSurface from '../components/GlassSurface';
+import LiquidGlass from '../components/LiquidGlass';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -90,7 +90,7 @@ export default function LoginScreen() {
           <Text style={styles.brand}>PondiFarm</Text>
           <Text style={styles.tagline}>Estimativa de peso bovino por LiDAR</Text>
 
-          <GlassSurface tone="dark" radius={24} style={styles.glassCard}>
+          <LiquidGlass tone="dark" radius={24} style={styles.glassCard}>
             <View style={styles.segment}>
               {(['login', 'register'] as const).map(m => (
                 <TouchableOpacity
@@ -117,12 +117,20 @@ export default function LoginScreen() {
 
             {error && <Text style={styles.error}>{error}</Text>}
 
-            <TouchableOpacity style={[styles.button, busy && { opacity: 0.6 }]} onPress={submit} disabled={busy} activeOpacity={0.85}>
-              {busy ? <ActivityIndicator color="#fff" /> : (
-                <Text style={styles.buttonText}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</Text>
-              )}
-            </TouchableOpacity>
-          </GlassSurface>
+            <LiquidGlass
+              tone="dark"
+              radius={12}
+              fillColor="rgba(47,158,68,0.9)"
+              interactive
+              style={[styles.buttonGlass, busy && { opacity: 0.6 }]}
+            >
+              <TouchableOpacity style={styles.button} onPress={submit} disabled={busy} activeOpacity={0.85}>
+                {busy ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={styles.buttonText}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</Text>
+                )}
+              </TouchableOpacity>
+            </LiquidGlass>
+          </LiquidGlass>
 
           {__DEV__ && (
             <View style={styles.serverBox}>
@@ -155,7 +163,6 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
 }
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
-const GREEN = '#2F9E44';
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#0B1730' },
@@ -187,9 +194,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: '#FFFFFF',
   },
   error: { color: '#FFB4A9', fontSize: 13.5, marginTop: 2, marginBottom: 4, textAlign: 'center' },
+  buttonGlass: { marginTop: 14, minHeight: 52 },
   button: {
-    backgroundColor: GREEN, borderRadius: 12, paddingVertical: 15,
-    alignItems: 'center', justifyContent: 'center', marginTop: 14, minHeight: 52,
+    flex: 1, paddingVertical: 15, minHeight: 52,
+    alignItems: 'center', justifyContent: 'center',
   },
   buttonText: { color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
 
