@@ -10,6 +10,7 @@ import type { RouteProp } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
 import { MeshPreviewView, renderTexture } from '../../modules/lidar-scanner';
 import { ios } from '../lib/theme';
+import { estimateWeightKg, WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -22,15 +23,6 @@ function prettyBreed(b?: string): string {
 
 // Peso preliminar pela fórmula de fita (offline, sem backend) — mesma do baseline #46:
 // peso(lb) = (cinta_torácica_in² × comprimento_in) / 300 → kg.
-function formulaWeightKg(m: {
-  chest_girth_cm: number;
-  body_length_cm: number;
-}): number {
-  const hgIn = m.chest_girth_cm / 2.54;
-  const blIn = m.body_length_cm / 2.54;
-  const lb = (hgIn * hgIn * blIn) / 300;
-  return lb * 0.45359237;
-}
 
 export default function ResultScreen() {
   const insets = useSafeAreaInsets();
@@ -132,17 +124,18 @@ export default function ResultScreen() {
           </View>
         </View>
 
-        {/* Estimated weight — local heart-girth formula (offline, preliminary) */}
+        {/* Estimated weight — embedded trained model (offline, on-device) */}
         <Text style={styles.sectionHeader}>Estimated weight</Text>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.rowKey}>Formula estimate</Text>
-            <Text style={styles.rowMeasure}>≈ {formulaWeightKg(measurements).toFixed(0)} kg</Text>
+            <Text style={styles.rowKey}>Model estimate</Text>
+            <Text style={styles.rowMeasure}>≈ {estimateWeightKg(measurements).toFixed(0)} kg</Text>
           </View>
         </View>
         <Text style={styles.sectionFooter}>
-          Preliminary (heart-girth formula, on-device). A trained model replaces this once
-          real scale weights are collected.
+          On-device trained model ({WEIGHT_MODEL_VERSION}, MAPE 3.96%), running offline from
+          the 3D measurements. Base model trained on public beef-cattle data; being
+          recalibrated with PondiFarm Limousine ground-truth.
         </Text>
 
         {/* Measurements — main card */}
