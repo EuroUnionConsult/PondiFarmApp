@@ -7,7 +7,8 @@ pyodbc==5.3.0
 passlib==1.7.4
 email-validator==2.3.0
 ultralytics==8.4.60
-opencv-python==4.13.0.92
-scikit-learn==1.9.0
+opencv-python==4.11.0.86
+scikit-learn==1.6.1
+joblib==1.4.2
 numpy==1.26.4
 Pillow==12.2.0
