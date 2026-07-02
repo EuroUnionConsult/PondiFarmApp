@@ -36,7 +36,9 @@ export default function ResultScreen() {
   const [texturedUri, setTexturedUri] = useState<string | null>(record.meshTexturedUri ?? null);
   const [rendering, setRendering] = useState(false);
   const viewerSource = texturedUri ?? record.meshPlyUri ?? record.meshUri;
-  const canRender = !texturedUri && !!record.keyframesDir;
+  // "Render texture" desativado: o bake por-triângulo (TextureBaker) tem teto de qualidade
+  // baixo (mosaico/emendas). O caminho de textura fotorrealista é o Object Capture (USDZ).
+  const canRender = false && !texturedUri && !!record.keyframesDir;
 
   const handleRender = async () => {
     if (!record.keyframesDir) return;
