@@ -17,13 +17,21 @@ EXTERNALLY_MANAGED_TABLES = {"animal_documents"}
 def _create_engine() -> Engine:
     settings = get_settings()
     connect_args = {}
+    engine_kwargs: dict = {"future": True}
     if settings.database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
+    else:
+        # Resiliência p/ Azure SQL free-tier (auto-pausa quando ocioso):
+        # pre-ping descarta conexões mortas e reconecta; timeout de login maior
+        # dá tempo do DB acordar (~30-60s) na primeira query após a pausa.
+        engine_kwargs["pool_pre_ping"] = True
+        engine_kwargs["pool_recycle"] = 1800
+        connect_args["timeout"] = 60
 
     engine = create_engine(
         settings.database_url,
-        future=True,
         connect_args=connect_args,
+        **engine_kwargs,
     )
 
     if settings.database_url.startswith("sqlite"):
