@@ -41,7 +41,9 @@ def _ensure_scanned_at_not_future(value: datetime | None) -> datetime | None:
         current_time = datetime.utcnow()
         comparable_value = value
 
-    if comparable_value > current_time:
+    # Tolerância de 5 min p/ skew de relógio do device (senão o push logo após a
+    # captura vira 422 permanente num iPhone com relógio adiantado).
+    if comparable_value > current_time + timedelta(minutes=5):
         raise ValueError("scannedAt cannot be in the future")
 
     return value
