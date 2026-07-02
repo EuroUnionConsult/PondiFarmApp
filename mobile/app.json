@@ -61,7 +61,8 @@
       ],
       "expo-font",
       "./plugins/withDisableScriptSandboxing",
-      "./plugins/withFmtConstevalFix"
+      "./plugins/withFmtConstevalFix",
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {

@@ -3,9 +3,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform } from 'react-native';
+import { Platform, View, ActivityIndicator } from 'react-native';
 
 import { colors, font } from '../lib/theme';
+import { AuthProvider, useAuth } from '../lib/AuthContext';
 
 import HomeScreen from '../screens/HomeScreen';
 import HerdScreen from '../screens/HerdScreen';
@@ -14,6 +15,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import ScanScreen from '../screens/ScanScreen';
 import ObjectCaptureScreen from '../screens/ObjectCaptureScreen';
 import ResultScreen from '../screens/ResultScreen';
+import LoginScreen from '../screens/LoginScreen';
 
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -60,7 +62,21 @@ function TabNavigator() {
   );
 }
 
-export default function AppNavigator() {
+function RootNavigator() {
+  const { token, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!token) {
+    return <LoginScreen />;
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -82,5 +98,13 @@ export default function AppNavigator() {
         />
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function AppNavigator() {
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
   );
 }

@@ -10,7 +10,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
-import { checkHealth } from '../lib/api';
+import { checkHealth, fetchCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -22,6 +22,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -29,6 +30,7 @@ export default function HomeScreen() {
     const [recs, health] = await Promise.all([listRecords(), checkHealth()]);
     setRecords(recs);
     setBackendOk(health);
+    try { setCloud(await fetchCloudAnimals()); } catch { setCloud([]); }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -48,6 +50,12 @@ export default function HomeScreen() {
   const cowPct = records.length ? Math.round((cows.length / records.length) * 100) : 0;
   const ringPct = Math.min(100, Math.max(0, cowPct));
   const ringOffset = RING_CIRC - (ringPct / 100) * RING_CIRC;
+
+  const cloudCount = cloud.length;
+  const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);
+  const cloudMeanKg = cloudWeights.length
+    ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length)
+    : 0;
 
   const today = records.slice(0, 5);
 
@@ -115,7 +123,7 @@ export default function HomeScreen() {
               <Text style={styles.tileLabel}>scans</Text>
             </View>
             <View style={[styles.tile, styles.tileDivider]}>
-              <Text style={styles.tileValue}>{totalAnimals}</Text>
+              <Text style={styles.tileValue}>{totalAnimals + cloudCount}</Text>
               <Text style={styles.tileLabel}>animals</Text>
             </View>
             <View style={styles.tile}>
@@ -123,6 +131,15 @@ export default function HomeScreen() {
               <Text style={styles.tileLabel}>cows</Text>
             </View>
           </View>
+
+          {cloudCount > 0 && (
+            <View style={styles.cloudLine}>
+              <Ionicons name="cloud-outline" size={13} color={ios.accent} />
+              <Text style={styles.cloudLineText}>
+                {cloudCount} na nuvem{cloudMeanKg > 0 ? ` · média ${cloudMeanKg} kg` : ''}
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -192,6 +209,12 @@ const displayFont = Platform.select({
 });
 
 const styles = StyleSheet.create({
+  cloudLine: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
+    paddingTop: 10, marginTop: 2,
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5EA',
+  },
+  cloudLineText: { fontSize: 12.5, color: '#8A8A8E', letterSpacing: -0.05 },
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   // Large title
