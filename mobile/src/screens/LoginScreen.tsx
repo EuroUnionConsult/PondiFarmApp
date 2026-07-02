@@ -129,7 +129,7 @@ export default function LoginScreen() {
                   value={serverUrl}
                   onChangeText={saveServer}
                   placeholder="use app default"
-                  placeholderTextColor={ios.quaternaryLabel}
+                  placeholderTextColor={ios.tertiaryLabel}
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
@@ -147,7 +147,7 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput style={styles.input} placeholderTextColor={ios.quaternaryLabel} {...input} />
+      <TextInput style={styles.input} placeholderTextColor={ios.tertiaryLabel} {...input} />
     </View>
   );
 }

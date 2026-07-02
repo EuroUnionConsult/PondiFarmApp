@@ -28,7 +28,7 @@ const { width } = Dimensions.get('window');
 const MIN_VERTICES = 100;
 
 const CATEGORIES: { key: ScanCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'cow',   label: 'Bovino', icon: 'paw-outline' },
+  { key: 'cow',   label: 'Cattle', icon: 'paw-outline' },
   { key: 'extra', label: 'Extra',  icon: 'cube-outline' },
 ];
 
@@ -213,8 +213,8 @@ export default function ScanScreen() {
     if (!measurements || vertexCount < MIN_VERTICES) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(
-        'Scan insuficiente',
-        'Não captámos geometria suficiente. Aproxime-se do animal e tente novamente.',
+        'Not enough data',
+        'We couldn’t capture enough geometry. Move closer to the animal and try again.',
         [{ text: 'OK' }],
       );
       return;

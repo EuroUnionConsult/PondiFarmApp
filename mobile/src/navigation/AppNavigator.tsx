@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, ActivityIndicator, StyleSheet } from 'react-native';
 
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, ios } from '../lib/theme';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 import LiquidGlass from '../components/LiquidGlass';
@@ -25,26 +26,29 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
 
 function TabNavigator() {
+  const insets = useSafeAreaInsets();
+  const bottom = insets.bottom > 0 ? insets.bottom : 12;
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        // Tab bar de vidro (Liquid Glass claro): flutua sobre o conteúdo que rola por baixo.
+        // Tab bar FLUTUANTE estilo iOS 26 (pill de Liquid Glass, destacada das bordas).
         tabBarStyle: {
           position: 'absolute',
+          left: 16, right: 16, bottom,
+          height: 64,
+          borderRadius: 32,
           backgroundColor: 'transparent',
           borderTopWidth: 0,
           elevation: 0,
-          height: Platform.OS === 'ios' ? 84 : 62,
-          paddingBottom: Platform.OS === 'ios' ? 26 : 8,
+          paddingTop: 0, paddingBottom: 0,
+          shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 6 },
         },
+        tabBarItemStyle: { paddingVertical: 10 },
         tabBarBackground: () => (
-          <View style={StyleSheet.absoluteFill}>
-            <LiquidGlass tone="light" radius={0} style={StyleSheet.absoluteFill} />
-            <View style={styles.tabHairline} />
-          </View>
+          <LiquidGlass tone="light" radius={32} style={StyleSheet.absoluteFill} />
         ),
-        tabBarActiveTintColor: ios.accent,
+        tabBarActiveTintColor: ios.accentDark,
         tabBarInactiveTintColor: 'rgba(60,60,67,0.6)',
         tabBarLabelStyle: { fontSize: font.xs, fontWeight: '600', marginTop: 2 },
         tabBarIcon: ({ focused, color, size }) => {
@@ -59,10 +63,10 @@ function TabNavigator() {
         },
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Início' }} />
-      <Tab.Screen name="Herd" component={HerdScreen} options={{ tabBarLabel: 'Rebanho' }} />
-      <Tab.Screen name="Analytics" component={AnalyticsScreen} options={{ tabBarLabel: 'Análises' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Config' }} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen name="Herd" component={HerdScreen} options={{ tabBarLabel: 'Herd' }} />
+      <Tab.Screen name="Analytics" component={AnalyticsScreen} options={{ tabBarLabel: 'Analytics' }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Settings' }} />
     </Tab.Navigator>
   );
 }
