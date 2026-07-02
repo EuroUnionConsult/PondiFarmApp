@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from schemas.base import APIModel
 
@@ -64,6 +64,7 @@ class AnimalScanCreate(APIModel):
     chest_circumference: float | None = None
     hip_width: float | None = None
     raw_result_json: dict[str, Any] | list[Any] | None = None
+    client_scan_id: str | None = Field(default=None, max_length=64)  # idempotência (C4)
     notes: str | None = None
 
     @field_validator("notes", mode="before")
@@ -109,6 +110,7 @@ class AnimalScanResponse(APIModel):
     chest_circumference: float | None = None
     hip_width: float | None = None
     raw_result_json: dict[str, Any] | list[Any] | None = None
+    client_scan_id: str | None = None
     notes: str | None = None
     created_at: datetime
     updated_at: datetime

@@ -333,6 +333,8 @@ class AnimalScan(Base):
     # none_as_null: Python None → SQL NULL (não a string JSON 'null', que viola
     # o CHECK chk_animal_scans_raw_json). Dict/list válidos passam por ISJSON.
     raw_result_json: Mapped[dict | list | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+    # Idempotência do push (C4): id do scan no device. UNIQUE filtrado no DB.
+    client_scan_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

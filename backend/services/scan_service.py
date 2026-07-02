@@ -4,6 +4,7 @@ from datetime import date, datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from models.models import AnimalScan
@@ -92,6 +93,12 @@ def create_scan(
     payload: AnimalScanCreate,
 ) -> AnimalScanResponse:
     animal = animal_service.get_animal_entity(db, animal_id)
+    # C4 (idempotência): se este scan de device já foi criado, devolve o existente
+    # em vez de duplicar (retry após timeout do Azure resume).
+    if payload.client_scan_id:
+        existing = scan_repository.get_scan_by_client_id(db, payload.client_scan_id)
+        if existing is not None:
+            return AnimalScanResponse.model_validate(existing)
     # Só barra se o NOVO scan for "ativo não terminado" (ex.: upload em curso).
     # Scans do app já vêm `completed` (processados no device) → múltiplos por animal OK.
     if payload.scan_status in ACTIVE_UNFINISHED_SCAN_STATUSES:
@@ -119,9 +126,19 @@ def create_scan(
         chest_circumference=payload.chest_circumference,
         hip_width=payload.hip_width,
         raw_result_json=payload.raw_result_json,
+        client_scan_id=payload.client_scan_id,
         notes=_normalize_optional_string(payload.notes),
     )
-    created = scan_repository.create_scan(db, scan)
+    try:
+        created = scan_repository.create_scan(db, scan)
+    except IntegrityError:
+        # Corrida no índice único de client_scan_id → devolve o que venceu.
+        db.rollback()
+        if payload.client_scan_id:
+            existing = scan_repository.get_scan_by_client_id(db, payload.client_scan_id)
+            if existing is not None:
+                return AnimalScanResponse.model_validate(existing)
+        raise
     return AnimalScanResponse.model_validate(created)
 
 
