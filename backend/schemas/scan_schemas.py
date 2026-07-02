@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Literal
 from uuid import UUID
 
-from pydantic import ConfigDict, field_validator
+from pydantic import ConfigDict, Field, field_validator
 
 from schemas.base import APIModel
 
@@ -18,7 +18,9 @@ ScanStatus = Literal[
     "failed",
     "archived",
 ]
-ScanSource = Literal["polycam", "manual", "imported"]
+# Alinhado ao CHECK do DB (dbo.animal_scans): {other, manual, photogrammetry, lidar}.
+# O scan do app é LiDAR; polycam/imported foram removidos (o DB nunca os aceitou).
+ScanSource = Literal["lidar", "manual", "photogrammetry", "other"]
 
 
 def _normalize_optional_string(value: str | None) -> str | None:
@@ -39,7 +41,9 @@ def _ensure_scanned_at_not_future(value: datetime | None) -> datetime | None:
         current_time = datetime.utcnow()
         comparable_value = value
 
-    if comparable_value > current_time:
+    # Tolerância de 5 min p/ skew de relógio do device (senão o push logo após a
+    # captura vira 422 permanente num iPhone com relógio adiantado).
+    if comparable_value > current_time + timedelta(minutes=5):
         raise ValueError("scannedAt cannot be in the future")
 
     return value
@@ -48,8 +52,19 @@ def _ensure_scanned_at_not_future(value: datetime | None) -> datetime | None:
 class AnimalScanCreate(APIModel):
     model_config = ConfigDict(extra="forbid")
 
-    scan_source: ScanSource = "polycam"
+    scan_source: ScanSource = "lidar"
+    # Processamento é feito no device → o scan já nasce concluído por padrão.
+    scan_status: ScanStatus = "completed"
     scanned_at: datetime | None = None
+    # Medidas morfométricas + peso estimado (vêm prontos do device).
+    estimated_weight: float | None = None
+    confidence_score: float | None = None
+    body_length: float | None = None
+    withers_height: float | None = None
+    chest_circumference: float | None = None
+    hip_width: float | None = None
+    raw_result_json: dict[str, Any] | list[Any] | None = None
+    client_scan_id: str | None = Field(default=None, max_length=64)  # idempotência (C4)
     notes: str | None = None
 
     @field_validator("notes", mode="before")
@@ -95,6 +110,7 @@ class AnimalScanResponse(APIModel):
     chest_circumference: float | None = None
     hip_width: float | None = None
     raw_result_json: dict[str, Any] | list[Any] | None = None
+    client_scan_id: str | None = None
     notes: str | None = None
     created_at: datetime
     updated_at: datetime

@@ -262,6 +262,10 @@ class Animal(Base):
     species: Mapped[Species] = relationship(back_populates="animals")
     breed: Mapped[Breed] = relationship(back_populates="animals")
     scans: Mapped[list["AnimalScan"]] = relationship(back_populates="animal")
+    veterinary_appointments: Mapped[list["VeterinaryAppointment"]] = relationship(
+        back_populates="animal",
+    )
+    documents: Mapped[list["AnimalDocument"]] = relationship(back_populates="animal")
 
 
 class AnimalScan(Base):
@@ -326,7 +330,11 @@ class AnimalScan(Base):
     withers_height: Mapped[float | None] = mapped_column(Float, nullable=True)
     chest_circumference: Mapped[float | None] = mapped_column(Float, nullable=True)
     hip_width: Mapped[float | None] = mapped_column(Float, nullable=True)
-    raw_result_json: Mapped[dict | list | None] = mapped_column(JSON, nullable=True)
+    # none_as_null: Python None → SQL NULL (não a string JSON 'null', que viola
+    # o CHECK chk_animal_scans_raw_json). Dict/list válidos passam por ISJSON.
+    raw_result_json: Mapped[dict | list | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+    # Idempotência do push (C4): id do scan no device. UNIQUE filtrado no DB.
+    client_scan_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -343,3 +351,129 @@ class AnimalScan(Base):
 
     organization: Mapped[Organization] = relationship()
     animal: Mapped[Animal] = relationship(back_populates="scans")
+
+
+class VeterinaryAppointment(Base):
+    __tablename__ = "veterinary_appointments"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('scheduled', 'completed', 'cancelled', 'missed', 'archived')",
+            name="ck_veterinary_appointments_status_values",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        ForeignKey("organizations.id"),
+        nullable=False,
+        index=True,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        ForeignKey("animals.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="scheduled",
+        server_default=text("'scheduled'"),
+        index=True,
+    )
+    notes: Mapped[str | None] = mapped_column(String(2000), nullable=True)
+    calendar_event_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    organization: Mapped[Organization] = relationship()
+    animal: Mapped[Animal] = relationship(back_populates="veterinary_appointments")
+    user: Mapped[User | None] = relationship()
+
+
+class AnimalDocument(Base):
+    __tablename__ = "animal_documents"
+    __table_args__ = (
+        CheckConstraint(
+            (
+                "document_type IN ("
+                "'identification', "
+                "'pedigree', "
+                "'health_certificate', "
+                "'vaccination_record', "
+                "'transport_permit', "
+                "'ownership_proof', "
+                "'insurance', "
+                "'laboratory_result', "
+                "'other'"
+                ")"
+            ),
+            name="ck_animal_documents_type_values",
+        ),
+        CheckConstraint(
+            "status IN ('active', 'archived')",
+            name="ck_animal_documents_status_values",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        ForeignKey("organizations.id"),
+        nullable=False,
+    )
+    animal_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(),
+        ForeignKey("animals.id"),
+        nullable=False,
+    )
+    document_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    file_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    file_url: Mapped[str] = mapped_column(String(1000), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="active",
+        server_default=text("'active'"),
+    )
+    issued_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    expires_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    uploaded_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(),
+        ForeignKey("users.id"),
+        nullable=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    organization: Mapped[Organization] = relationship()
+    animal: Mapped[Animal] = relationship(back_populates="documents")
+    uploaded_by_user: Mapped[User | None] = relationship()

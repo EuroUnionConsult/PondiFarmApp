@@ -98,9 +98,24 @@ export AZURE_SQL_TRUST_SERVER_CERTIFICATE="no"
 
 The backend no longer falls back to SQLite at runtime. It expects `DATABASE_URL` or the Azure SQL variables above to be present.
 
+Animal document files use private storage outside SQL Server. Local development
+defaults to `backend/.document_storage`, which is ignored by Git. The location
+and upload limit can be configured without changing database metadata:
+
+```bash
+export DOCUMENT_STORAGE_PATH="/private/path/pondifarm-documents"
+export DOCUMENT_MAX_FILE_SIZE_BYTES="10485760"
+```
+
+The local storage implementation persists only a relative private locator in
+`animal_documents.file_url`. Production deployments should provide an object
+storage adapter, such as Azure Blob Storage, behind the same `DocumentStorage`
+interface.
+
 On startup the service:
 
-- creates any missing mapped tables with SQLAlchemy `create_all()`
+- creates missing bootstrap-managed tables with SQLAlchemy `create_all()`;
+  pre-existing `animal_documents` remains externally managed
 - runs a small compatibility patch for legacy `species` and `breeds` tables so `normalized_name` exists and is backfilled
 - seeds the default species list and common bovine breeds
 
@@ -309,6 +324,49 @@ Supported list filters:
 - `page`
 - `limit`
 
+### Animal documents
+
+| Method | Path | Purpose |
+|-------|------|---------|
+| `POST` | `/api/v1/animals/{animalId}/documents` | Upload and register a private document |
+| `GET` | `/api/v1/animals/{animalId}/documents` | List documents for an animal |
+| `GET` | `/api/v1/organizations/{organizationId}/documents` | List documents for an organization |
+| `GET` | `/api/v1/documents/{documentId}` | Fetch document metadata |
+| `GET` | `/api/v1/documents/{documentId}/download` | Stream an authorized private document |
+| `PATCH` | `/api/v1/documents/{documentId}` | Update document metadata |
+| `POST` | `/api/v1/documents/{documentId}/archive` | Archive a document |
+| `DELETE` | `/api/v1/documents/{documentId}` | Soft-delete a document |
+
+Uploads use `multipart/form-data` with `file` and `documentType`; `issuedAt`
+and `expiresAt` are optional. PDF, JPEG, PNG, and WEBP are accepted after
+extension, MIME type, size, and file-signature validation. The API derives the
+organization from the animal and never returns the internal `file_url` value.
+
+List endpoints support `documentType`, `status`, `expiresBefore`,
+`expiresAfter`, `includeExpired`, `includeArchived`, `page`, and `limit`.
+Organization lists additionally support `animalId` and
+`expiringWithinDays`.
+
+### Veterinary appointments
+
+| Method | Path | Purpose |
+|-------|------|---------|
+| `POST` | `/api/v1/animals/{animalId}/veterinary-appointments` | Create an appointment for an animal |
+| `GET` | `/api/v1/animals/{animalId}/veterinary-appointments` | List appointments for an animal |
+| `GET` | `/api/v1/organizations/{organizationId}/veterinary-appointments` | List an organization's calendar |
+| `GET` | `/api/v1/veterinary-appointments/{appointmentId}` | Fetch one appointment |
+| `PATCH` | `/api/v1/veterinary-appointments/{appointmentId}` | Update scheduled appointment metadata or mark it missed |
+| `POST` | `/api/v1/veterinary-appointments/{appointmentId}/complete` | Complete an appointment |
+| `POST` | `/api/v1/veterinary-appointments/{appointmentId}/cancel` | Cancel an appointment |
+| `POST` | `/api/v1/veterinary-appointments/{appointmentId}/archive` | Archive an appointment |
+| `DELETE` | `/api/v1/veterinary-appointments/{appointmentId}` | Soft-delete an eligible appointment |
+
+Appointments inherit `organizationId` from the linked animal. Clients cannot
+set or override the organization or animal identifiers. Optional `userId`,
+`notes`, and `calendarEventId` values map directly to the existing table. List
+endpoints support status, date range, page, and limit filters; organization
+lists additionally support `animalId` and `upcomingOnly`.
+
 ## Business rules
 
 ### Cross-cutting rules
@@ -380,6 +438,34 @@ Supported list filters:
 - Deleting a scan in `completed` archives it instead of soft-deleting it.
 - Deleting a scan in other states sets `deleted_at`.
 
+### Veterinary appointment rules
+
+- The linked animal must exist, and `organization_id` is copied from it.
+- Future appointments start as `scheduled`; past records must be created as
+  `completed`.
+- Exact duplicate active scheduled appointments return `409`.
+- Completion, cancellation, and archival use dedicated endpoints.
+- PATCH supports scheduled metadata and the `scheduled` to `missed` transition.
+- Complete and cancel actions can update the existing `notes` field.
+- Completed appointments are retained and cannot be deleted.
+- Only future scheduled appointments can be soft-deleted.
+- Authorization is prepared with TODO markers until authenticated membership
+  context is available.
+
+### Animal document rules
+
+- Documents inherit `organization_id` from their linked animal.
+- Files are stored privately outside SQL Server; only a server-generated
+  locator is persisted in `file_url`.
+- New documents are active. Expiration is calculated from `expires_at` and is
+  not stored as a separate status.
+- Archived documents are retained but excluded from default lists and cannot
+  be updated or downloaded.
+- DELETE sets `deleted_at`; it does not immediately destroy the stored file.
+- PATCH accepts only `documentType`, `issuedAt`, and `expiresAt`.
+- Authorization hooks are prepared with TODO markers until authenticated
+  organization membership is available.
+
 ## Tests
 
 ```bash
@@ -397,7 +483,8 @@ ruff format .
 
 - CORS is currently fully permissive (`allow_origins=["*"]`). This is acceptable for the Phase 0 demo; production deployments must restrict the allowlist before being exposed beyond a development network.
 - The backend persists its domain data in SQL Server and seeds baseline species and common bovine breeds on startup.
-- The current automated coverage is based on `unittest` smoke and CRUD tests in [backend/tests/test_api.py](/C:/EUCInovacao/PondiFarmApp/backend/tests/test_api.py) and compatibility coverage in [backend/tests/test_database_compatibility.py](/C:/EUCInovacao/PondiFarmApp/backend/tests/test_database_compatibility.py).
+- The current automated coverage includes API, database compatibility,
+  veterinary appointment, and private animal document tests under `tests/`.
 
 ## Licence
 

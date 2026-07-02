@@ -16,6 +16,15 @@ def create_scan(db: Session, scan: AnimalScan) -> AnimalScan:
     return scan
 
 
+def get_scan_by_client_id(db: Session, client_scan_id: str) -> AnimalScan | None:
+    """Idempotência (C4): acha um scan já criado pelo mesmo id de device."""
+    statement = select(AnimalScan).where(
+        AnimalScan.client_scan_id == client_scan_id,
+        AnimalScan.deleted_at.is_(None),
+    )
+    return db.scalar(statement)
+
+
 def get_active_scan_by_id(db: Session, scan_id: UUID) -> AnimalScan | None:
     statement = select(AnimalScan).where(
         AnimalScan.id == scan_id,
