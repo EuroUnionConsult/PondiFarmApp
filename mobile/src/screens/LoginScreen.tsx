@@ -24,7 +24,7 @@ export default function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Animação de entrada (apresentação): fade + slide-up com easing iOS.
+  // Entrance animation (presentation): fade + slide-up with iOS easing.
   const enter = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.timing(enter, {
@@ -51,9 +51,9 @@ export default function LoginScreen() {
 
   const submit = async () => {
     setError(null);
-    if (!email.trim() || !password) { setError('Preencha email e senha.'); return; }
+    if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
     if (mode === 'register' && (!name.trim() || !org.trim())) {
-      setError('Preencha nome e organização.'); return;
+      setError('Enter your name and organization.'); return;
     }
     setBusy(true);
     try {
@@ -68,7 +68,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.flex}>
-      {/* Fundo claro do tema + blobs de marca suaves (o vidro os desfoca) */}
+      {/* Light theme background + soft brand blobs (the glass blurs them). */}
       <ScreenBackground />
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -79,7 +79,7 @@ export default function LoginScreen() {
         >
           <Animated.View style={enterStyle}>
             <Text style={styles.brand}>PondiFarm</Text>
-            <Text style={styles.tagline}>Estimativa de peso bovino por LiDAR</Text>
+            <Text style={styles.tagline}>LiDAR cattle weight estimation</Text>
 
             <LiquidGlass tone="light" radius={24} style={styles.glassCard}>
               <View style={styles.segment}>
@@ -91,7 +91,7 @@ export default function LoginScreen() {
                     activeOpacity={0.8}
                   >
                     <Text style={[styles.segText, mode === m && styles.segTextActive]}>
-                      {m === 'login' ? 'Entrar' : 'Criar conta'}
+                      {m === 'login' ? 'Sign in' : 'Sign up'}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -99,38 +99,36 @@ export default function LoginScreen() {
 
               {mode === 'register' && (
                 <>
-                  <Field label="Nome" value={name} onChangeText={setName} placeholder="Teu nome" autoCapitalize="words" />
-                  <Field label="Organização" value={org} onChangeText={setOrg} placeholder="Ex.: Quinta Limousine" autoCapitalize="words" />
+                  <Field label="Name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
+                  <Field label="Organization" value={org} onChangeText={setOrg} placeholder="e.g. Limousine Farm" autoCapitalize="words" />
                 </>
               )}
-              <Field label="Email" value={email} onChangeText={setEmail} placeholder="email@exemplo.pt" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-              <Field label="Senha" value={password} onChangeText={setPassword} placeholder="mínimo 8 caracteres" secureTextEntry autoCapitalize="none" />
+              <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+              <Field label="Password" value={password} onChangeText={setPassword} placeholder="at least 8 characters" secureTextEntry autoCapitalize="none" />
 
               {error && <Text style={styles.error}>{error}</Text>}
 
-              <LiquidGlass
-                tone="light"
-                radius={12}
-                fillColor="rgba(47,158,68,0.92)"
-                interactive
-                style={[styles.buttonGlass, busy && { opacity: 0.6 }]}
+              {/* Primary CTA = SOLID (never glass — glass tint is translucent = invisible). */}
+              <TouchableOpacity
+                style={[styles.button, busy && styles.buttonBusy]}
+                onPress={submit}
+                disabled={busy}
+                activeOpacity={0.85}
               >
-                <TouchableOpacity style={styles.button} onPress={submit} disabled={busy} activeOpacity={0.85}>
-                  {busy ? <ActivityIndicator color="#fff" /> : (
-                    <Text style={styles.buttonText}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</Text>
-                  )}
-                </TouchableOpacity>
-              </LiquidGlass>
+                {busy ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={styles.buttonText}>{mode === 'login' ? 'Sign in' : 'Create account'}</Text>
+                )}
+              </TouchableOpacity>
             </LiquidGlass>
 
             {__DEV__ && (
               <View style={styles.serverBox}>
-                <Text style={styles.serverLabel}>Servidor (dev)</Text>
+                <Text style={styles.serverLabel}>Server (dev)</Text>
                 <TextInput
                   style={styles.serverInput}
                   value={serverUrl}
                   onChangeText={saveServer}
-                  placeholder="usar padrão do app"
+                  placeholder="use app default"
                   placeholderTextColor={ios.quaternaryLabel}
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -184,11 +182,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: ios.label,
   },
   error: { color: '#DC2626', fontSize: 13.5, marginTop: 2, marginBottom: 4, textAlign: 'center' },
-  buttonGlass: { marginTop: 14, minHeight: 52 },
+
+  // Primary button — SOLID green, white text (contrast AA). Never glass.
   button: {
-    flex: 1, paddingVertical: 15, minHeight: 52,
-    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: ios.accent, borderRadius: 12, marginTop: 14, minHeight: 52,
+    alignItems: 'center', justifyContent: 'center', paddingVertical: 15,
+    shadowColor: ios.accent, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
   },
+  buttonBusy: { opacity: 0.6 },
   buttonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
 
   serverBox: { marginTop: 28, opacity: 0.9 },
