@@ -8,8 +8,10 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios } from '../lib/theme';
+import { ios, glass } from '../lib/theme';
 import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
+import LiquidGlass from '../components/LiquidGlass';
+import ScreenBackground from '../components/ScreenBackground';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -74,9 +76,11 @@ export default function HomeScreen() {
   const today = records.slice(0, 5);
 
   return (
+    <View style={{ flex: 1 }}>
+      <ScreenBackground />
     <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+      style={[styles.scroll, { backgroundColor: 'transparent' }]}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ios.accent} />}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
@@ -96,7 +100,7 @@ export default function HomeScreen() {
       </View>
 
       <View style={styles.group}>
-        <View style={styles.card}>
+        <LiquidGlass tone="light" radius={18} fillColor={glass.light.fillStrong} style={styles.heroGlass}>
           <View style={styles.hero}>
             <View style={styles.heroLeft}>
               <View style={styles.eyebrow}>
@@ -150,7 +154,7 @@ export default function HomeScreen() {
               <Text style={styles.tileLabel}>local scans</Text>
             </View>
           </View>
-        </View>
+        </LiquidGlass>
       </View>
 
       {today.length > 0 && (
@@ -209,6 +213,7 @@ export default function HomeScreen() {
       {/* Studio 3D (Object Capture) escondido — fotogrametria lenta + crashes de GPU
           em background. Foco no LiDAR nativo (Caminho B). Código mantido para revisão. */}
     </ScrollView>
+    </View>
   );
 }
 
@@ -267,6 +272,7 @@ const styles = StyleSheet.create({
     backgroundColor: ios.secondarySystemGroupedBackground,
     borderRadius: 18, overflow: 'hidden',
   },
+  heroGlass: { borderRadius: 18, overflow: 'hidden' },
 
   // Hero
   hero: {
