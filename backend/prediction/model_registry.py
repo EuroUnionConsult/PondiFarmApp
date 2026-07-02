@@ -42,4 +42,16 @@ class ModelRegistry:
 def get_model_registry() -> ModelRegistry:
     registry = ModelRegistry()
     registry.register(FormulaBasedWeightPredictor())
+
+    # Optionally register the offline-trained model when its joblib artifact is
+    # present. The formula baseline always stays the default (get_default());
+    # the trained model is retrieved explicitly by its version. Import is local
+    # so a missing scikit-learn/joblib or a missing artifact never breaks the
+    # formula-only runtime.
+    from prediction.trained_predictor import load_if_available
+
+    trained_model = load_if_available()
+    if trained_model is not None:
+        registry.register(trained_model)
+
     return registry
