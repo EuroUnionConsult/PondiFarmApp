@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
-import { listRecords, deleteRecord, type ScanRecord } from '../lib/storage';
+import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
 import type { RootStackParamList } from '../navigation/types';
@@ -94,7 +94,12 @@ export default function HerdScreen() {
     [records, query]
   );
 
-  const sections = useMemo(() => groupRecords(filtered), [filtered]);
+  // I9: scans sincronizados aparecem na seção Nuvem — não repetir na lista local.
+  const localForList = useMemo(
+    () => filtered.filter(r => effectiveSyncState(r) !== 'synced'),
+    [filtered],
+  );
+  const sections = useMemo(() => groupRecords(localForList), [localForList]);
 
   const handleLongPress = (rec: ScanRecord) => {
     const name = rec.category === 'cow' ? (rec.animalId ?? 'bovino') : 'extra';
@@ -122,8 +127,10 @@ export default function HerdScreen() {
           <Text style={styles.title}>Herd</Text>
           <Text style={styles.subtitle}>
             {(() => {
-              const total = records.length + cloud.length;
-              const shown = filtered.length + cloudFiltered.length;
+              // Dedup: scans sincronizados contam só na nuvem (não em dobro).
+              const localVisible = records.filter(r => effectiveSyncState(r) !== 'synced').length;
+              const total = localVisible + cloud.length;
+              const shown = localForList.length + cloudFiltered.length;
               return shown === total
                 ? `${total} ${total === 1 ? 'record' : 'records'}`
                 : `${shown} of ${total}`;
@@ -243,6 +250,13 @@ export default function HerdScreen() {
                       </Text>
                       <Text style={styles.rowMetricUnit}>cm girth</Text>
                     </View>
+                    {isCow && effectiveSyncState(rec) !== 'synced' && (
+                      <Ionicons
+                        name={effectiveSyncState(rec) === 'error' ? 'alert-circle' : 'time-outline'}
+                        size={15}
+                        color={effectiveSyncState(rec) === 'error' ? ios.systemRed : ios.orange}
+                      />
+                    )}
                     <Text style={styles.rowChev}>›</Text>
                   </TouchableOpacity>
                   {i < section.data.length - 1 && <View style={styles.rowDivider} />}

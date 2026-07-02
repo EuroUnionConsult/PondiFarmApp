@@ -90,7 +90,7 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
   const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
 
   const res = await fetchWithTimeout(
-    `${base}/api/v1/organizations/${orgId}/animals`,
+    `${base}/api/v1/organizations/${orgId}/animals?limit=100`,
     20000,
   );
   if (!res.ok) throw new Error(`animals HTTP ${res.status}`);

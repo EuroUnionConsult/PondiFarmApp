@@ -222,11 +222,14 @@ export default function ScanScreen() {
 
     const isCow = category === 'cow';
     const record: ScanRecord = {
-      id: `${Date.now()}`,
+      // id único e estável (também serve de chave de idempotência no push).
+      id: `${Date.now()}-${Math.round(Math.random() * 1e9)}`,
       scannedAt: Date.now(),
       category,
       source: 'lidar',
-      animalId: isCow ? (animalId || 'PT-—') : undefined,
+      // Sem placeholder compartilhado: se o usuário não digitou ID, fica undefined
+      // (o push gera uma tag única por scan — nunca junta animais diferentes).
+      animalId: isCow ? ((animalId || '').trim() || undefined) : undefined,
       breed: isCow ? breed : undefined,
       measurements,
       vertexCount,
@@ -239,9 +242,8 @@ export default function ScanScreen() {
 
     await saveRecord(record);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    // Sobe pro backend em 2º plano (offline-first): não bloqueia a navegação;
-    // se falhar, fica pending e o syncPending tenta depois.
-    pushRecord(record).catch(() => {});
+    // Só bovinos sobem pro backend (offline-first, 2º plano, não bloqueia a navegação).
+    if (isCow) pushRecord(record).catch(() => {});
     nav.replace('Result', { record });
   };
 
