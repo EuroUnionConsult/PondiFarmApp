@@ -119,6 +119,7 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
       body: JSON.stringify({
         scanSource: 'lidar',
         scanStatus: 'completed',
+        clientScanId: record.id,          // C4: idempotência (UNIQUE no backend)
         scannedAt: new Date(record.scannedAt).toISOString(),
         estimatedWeight: estimateWeightKg(m),
         bodyLength: m.body_length_cm,
