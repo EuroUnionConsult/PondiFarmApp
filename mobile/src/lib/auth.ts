@@ -31,6 +31,29 @@ export async function authHeaders(): Promise<Record<string, string>> {
   return t ? { Authorization: `Bearer ${t}` } : {};
 }
 
+/** Decodifica o payload de um JWT (base64url) sem dependência externa. */
+function decodeJwtPayload(token: string): Record<string, any> | null {
+  try {
+    const part = token.split('.')[1];
+    if (!part) return null;
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(part.length / 4) * 4, '=');
+    // global.atob existe no Hermes (RN 0.76 / SDK 54).
+    const json = decodeURIComponent(
+      Array.from(atob(b64), (c) => '%' + c.charCodeAt(0).toString(16).padStart(2, '0')).join(''),
+    );
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+/** Org do usuário logado, derivada do claim `org` do token (multi-tenant). */
+export async function getOrganizationId(): Promise<string | null> {
+  const t = await getToken();
+  if (!t) return null;
+  return decodeJwtPayload(t)?.org ?? null;
+}
+
 async function base(): Promise<string> {
   return (await getBackendUrl()).trim().replace(/\/+$/, '');
 }
