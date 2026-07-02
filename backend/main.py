@@ -26,10 +26,13 @@ from core.errors import register_exception_handlers
 
 def create_app() -> FastAPI:
     app = FastAPI(title="PondiFarm API", version="0.1.0")
-    # CORS aberto para demo Fase 0 — restringir em produção
+    # CORS configurável por env (D.6): restringir em produção via CORS_ORIGINS
+    # (lista separada por vírgula). O app nativo não usa CORS; isto é só p/ docs/ferramentas.
+    import os
+    cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
     )
