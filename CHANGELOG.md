@@ -1,5 +1,72 @@
 # Changelog
 
+## [0.6.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.5.1...v0.6.0) (2026-07-02)
+
+
+### Features
+
+* **backend:** A.1 — AnimalScanCreate aceita medidas+peso + enum lidar + scan completed ([a0e0171](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a0e0171c59c5512a538bdc50c86d969f69b32f86))
+* **backend:** add scan estimate-weight endpoint (takeover of [#47](https://github.com/EuroUnionConsult/PondiFarmApp/issues/47)) ([#68](https://github.com/EuroUnionConsult/PondiFarmApp/issues/68)) ([3aca83e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/3aca83ec5498ad7144cdfc7a89f844b5f3e82f02))
+* **backend:** add secure animal document management ([24668e5](https://github.com/EuroUnionConsult/PondiFarmApp/commit/24668e5ef62bd22b93527c92ffc4f065c38cb5fb))
+* **backend:** add veterinary appointment endpoints ([b47e3b6](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b47e3b6765bee750ca7e9cc904cd700a3c2000ff))
+* **backend:** auth JWT multi-tenant (register/login/me) + resiliência Azure SQL ([5120d23](https://github.com/EuroUnionConsult/PondiFarmApp/commit/5120d2384b5cb0b41a754b2bddcf1024590a3079))
+* **backend:** C4 — idempotência do push de scan (client_scan_id UNIQUE) ([4fcde3e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/4fcde3ee7f52673e052fc1275e0e7b670e61c030))
+* **backend:** M3-A — proteção por token + scope por organização (isolamento multi-tenant) ([fb9c257](https://github.com/EuroUnionConsult/PondiFarmApp/commit/fb9c257c00a944cf018160978be0988cd2aa076c))
+* **backend:** ML weight-training pipeline (takeover of EURODEV-89) ([#69](https://github.com/EuroUnionConsult/PondiFarmApp/issues/69)) ([11d6cc0](https://github.com/EuroUnionConsult/PondiFarmApp/commit/11d6cc0e05e70b421d2a35523da28ea8b6bdde1d))
+* **mobile:** animação de entrada no Login (fade + slide-up, easing iOS, Animated nativo) ([b918da8](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b918da8daa0bd9fc260c3b5bd1e0908c56d98ad5))
+* **mobile:** brand palette + Liquid Glass tokens ([1149121](https://github.com/EuroUnionConsult/PondiFarmApp/commit/114912127ca180ad502bf07e79a52acfecb1fb9b))
+* **mobile:** D2 — derivar organização do token (remove org hardcoded) ([7745d73](https://github.com/EuroUnionConsult/PondiFarmApp/commit/7745d7345bd229451e8b342f501ddd0ef1d296f1))
+* **mobile:** dados da nuvem em Home/Análises + tela de detalhe estilizada (M4) ([75c2a34](https://github.com/EuroUnionConsult/PondiFarmApp/commit/75c2a34b1750746cfdb747aebab3d8a3a5b2d91b))
+* **mobile:** embed trained weight model on-device (offline) ([#70](https://github.com/EuroUnionConsult/PondiFarmApp/issues/70)) ([3e2e560](https://github.com/EuroUnionConsult/PondiFarmApp/commit/3e2e56060b09e49fac46d1c1760f0289f0289b8f))
+* **mobile:** envia clientScanId top-level no push (C4 idempotência) ([ee060e4](https://github.com/EuroUnionConsult/PondiFarmApp/commit/ee060e459aad096dfd11551aa8a55b73064ad6d2))
+* **mobile:** i18n EN + tab bar flutuante (pill iOS 26) + contraste (Fable) ([805b496](https://github.com/EuroUnionConsult/PondiFarmApp/commit/805b496b42a88c5b2ed16b72c5a5730a1e355649))
+* **mobile:** i18n EN + tab bar flutuante animada (iOS 26) + contraste ([7168677](https://github.com/EuroUnionConsult/PondiFarmApp/commit/7168677fc3deff0591a3660683cfc1418454a761))
+* **mobile:** Liquid Glass nativo iOS 26 (expo-glass-effect) + wrapper com fallback ([7af19d3](https://github.com/EuroUnionConsult/PondiFarmApp/commit/7af19d34150849ad50db4cb9e34c574378ac8b4c))
+* **mobile:** Liquid Glass no Login/Registro (vidro navy + gradiente + blobs) ([8bb9486](https://github.com/EuroUnionConsult/PondiFarmApp/commit/8bb948617b84ef4d5ca1688d5087bff98eb233ee))
+* **mobile:** Liquid Glass no TEMA CLARO — Login refeito, tab bar de vidro, Home hero (plano Fable) ([d99e67a](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d99e67a88402e7fde16c3e02c2ff7c4bf4e44f8b))
+* **mobile:** Liquid Glass surfaces on scanner overlays (iOS 26) ([4940159](https://github.com/EuroUnionConsult/PondiFarmApp/commit/494015962a0af28633831d3a5182b964381c2585))
+* **mobile:** Liquid Glass tema claro — Login + tab bar + Home (Fable) ([64c8fc9](https://github.com/EuroUnionConsult/PondiFarmApp/commit/64c8fc90c52b1f8c618b359a3653722561384f88))
+* **mobile:** login/registro JWT (Keychain via SecureStore) + gate de auth ([4dd9b73](https://github.com/EuroUnionConsult/PondiFarmApp/commit/4dd9b733f2c8353b913c0972c67e0377231a9f22))
+* **mobile:** M3-B — push offline-first do scan pro backend ([144469f](https://github.com/EuroUnionConsult/PondiFarmApp/commit/144469fe08f3554179d30ee0c06f644aab42f31f))
+* **mobile:** sincronização com a nuvem por toggle + URL do backend fora da UI ([9ab950d](https://github.com/EuroUnionConsult/PondiFarmApp/commit/9ab950dfa78fc74952ee65f65bc5d0f18e698324))
+* **mobile:** tab bar com realce ANIMADO que desliza pra aba ativa (iOS 26) ([a4dbcce](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a4dbccea70a6c27db6f42355789537c573b4d0e7))
+
+
+### Bug Fixes
+
+* **backend:** /health/db toca o DB (keep-alive do Azure SQL free-tier) ([e97762a](https://github.com/EuroUnionConsult/PondiFarmApp/commit/e97762a610d5cd4ecca965fb883fe17514c33b68))
+* **backend:** auth em species/breeds (C3) + tolerância de skew no scannedAt (I6) ([f240d0c](https://github.com/EuroUnionConsult/PondiFarmApp/commit/f240d0c5faca241c432a2ae57558f357cf069362))
+* **backend:** fecha IDOR/auth restantes — users, members, estimate-weight, /scan, predictions ([198f4dd](https://github.com/EuroUnionConsult/PondiFarmApp/commit/198f4dd2a7f309279bc47871f0cbef88084a1dc9))
+* **backend:** fecha IDOR/broken-auth (security review + auditoria Fable) ([f5955af](https://github.com/EuroUnionConsult/PondiFarmApp/commit/f5955afa692463bc936cb028ade7761c76913b20))
+* **backend:** IDOR/auth em animal_documents + veterinary_appointments (CRITICAL) ([6cde989](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6cde989ab584cbf0ae7845c5afc7ef9b218bf3c5))
+* **backend:** raw_result_json None → SQL NULL (none_as_null) — CHECK chk_animal_scans_raw_json ([6d78404](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6d78404306dbab3189e563c9843095edca26322f))
+* **backend:** resolve CI compatibility and ruff format checks ([877349e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/877349ecb7975e2d5d52d62201f61b13fca463fb))
+* **deploy:** pin bookworm (Debian 12) p/ msodbcsql18 + diagnóstico ODBC no build ([d82cc2c](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d82cc2c54826b7f22eae889a33ea5c373ace299f))
+* **ios:** build RN from source + patch fmt consteval for Xcode 26 ([8880fb5](https://github.com/EuroUnionConsult/PondiFarmApp/commit/8880fb5984ff9739dc9538d848bd38bcb42a6fd6))
+* **mobile:** hardening do M3-B (revisão Fable) — dedup, idempotência, classificação de erro ([1cda0a0](https://github.com/EuroUnionConsult/PondiFarmApp/commit/1cda0a0fd4d31900a77b9bf5fbf12299276f6f54))
+* **mobile:** hardening do M3-B sync (revisão Fable) ([01c30b2](https://github.com/EuroUnionConsult/PondiFarmApp/commit/01c30b2e2333b536a71d9355093dc1c2fe6924a0))
+* **mobile:** Home sem redundância (anel=sync) + idioma consistente (EN) + base syncState ([2f3a74e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/2f3a74e6e4eaf55b900b8e0ce7433b03d3f74e4b))
+* **mobile:** Login em inglês + CTA verde SÓLIDO (botão estava invisível) ([09c56ad](https://github.com/EuroUnionConsult/PondiFarmApp/commit/09c56ad19f2c9163351702c031a5de9bb2c3c8ad))
+* **mobile:** Login inglês + CTA sólido visível ([3c1137f](https://github.com/EuroUnionConsult/PondiFarmApp/commit/3c1137f406701eab09a80d0be1e0818ad4453214))
+* **mobile:** realign RN/React deps to Expo SDK 54 (unblock native build) ([202e286](https://github.com/EuroUnionConsult/PondiFarmApp/commit/202e286e4529116e77c02a3850f504519f27f5cb))
+* **scanner:** 3D mesh preview clay viewer + hide broken Render texture ([45870c1](https://github.com/EuroUnionConsult/PondiFarmApp/commit/45870c1729a48577d1feee7bee1047043efd6270))
+* **scanner:** caixa verde ancorada no piso + arrasto contido + oclusão (LiDAR) ([5c00ba8](https://github.com/EuroUnionConsult/PondiFarmApp/commit/5c00ba8070d66836e787638589b154d2e6bc9b55))
+* **scanner:** hide the low-quality per-triangle Render texture button ([85177e2](https://github.com/EuroUnionConsult/PondiFarmApp/commit/85177e24657c58e386b0a8c89a6188f48351a6a5))
+* **scanner:** render 3D mesh preview as lit clay on a studio background ([94cee4e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/94cee4e6f035d31cd2d1cc484d788abe153433e3))
+
+
+### Performance Improvements
+
+* **mobile:** cache da nuvem — telas instantâneas + atualização em 2º plano ([a37e14f](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a37e14fa6c3bbf1fcbe83d95fde0f9705f3157e4))
+
+
+### Miscellaneous Chores
+
+* **assets:** fixed app icon, flattened on brand navy ([#57](https://github.com/EuroUnionConsult/PondiFarmApp/issues/57)) ([c411e03](https://github.com/EuroUnionConsult/PondiFarmApp/commit/c411e03c22b72a250ca2cc5217e3c0dd509e8dd4))
+* **deploy:** Dockerfile (msodbcsql18) + requirements-api enxuto + CORS por env (M5) ([72ff0f4](https://github.com/EuroUnionConsult/PondiFarmApp/commit/72ff0f4176a8c5cf10e84d9e81924173a1c49792))
+* **deploy:** M5 — backend no Azure App Service (Container) ([248cc0e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/248cc0e178a27f5f018c7ad411224777e119a95d))
+* **mobile:** apontar o app pro backend no Azure (M5) ([cdafe5b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/cdafe5b2a70136d34c0d8850d4e372be7c41c06a))
+
 ## [0.5.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.5.0...v0.5.1) (2026-06-24)
 
 
