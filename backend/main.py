@@ -1,7 +1,9 @@
 import io
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from api.v1.organizations.organizations_routes import organizations_router
 from api.v1.species.species_routes import species_router
@@ -18,7 +20,7 @@ from api.v1.organizations_members.organizations_members_routes import (
 )
 from api.v1.predictions.prediction_routes import predictions_router
 from api.v1.auth.auth_routes import auth_router
-from core.database import initialize_database
+from core.database import get_db, initialize_database
 from core.errors import register_exception_handlers
 
 
@@ -45,6 +47,13 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health_check():
         return {"status": "ok"}
+
+    @app.get("/health/db")
+    def health_db(db: Session = Depends(get_db)):
+        # Toca o DB (SELECT 1) — mantém o Azure SQL free-tier acordado (keep-alive)
+        # e serve como readiness probe. Sem auth de propósito.
+        db.execute(text("SELECT 1"))
+        return {"status": "ok", "db": "ok"}
 
     @app.post("/api/v1/scan")
     async def scan(
