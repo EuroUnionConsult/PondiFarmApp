@@ -7,6 +7,8 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from models.models import AnimalScan
+from prediction.model_registry import get_model_registry
+from prediction.schemas import WeightEstimationRequest
 from repositories import scan_repository
 from schemas.scan_schemas import (
     AnimalScanCreate,
@@ -185,6 +187,125 @@ def update_scan(
     db.commit()
     db.refresh(scan)
     return AnimalScanResponse.model_validate(scan)
+
+
+# Measurements the morphometric formula strictly needs to estimate weight.
+# ``chest_circumference`` is the heart girth used by the baseline formula and
+# ``body_length`` is its second input. Both are mapped onto the prediction
+# request below.
+REQUIRED_ESTIMATION_COLUMNS: tuple[str, ...] = (
+    "chest_circumference",
+    "body_length",
+)
+
+# Optional measurements that refine the plausibility diagnostics but are not
+# required by the weight formula itself. When present they must still be valid
+# (greater than zero); when absent, plausible bovine defaults are used so the
+# prediction request can be validated.
+OPTIONAL_ESTIMATION_COLUMNS: tuple[str, ...] = (
+    "withers_height",
+    "hip_width",
+)
+
+# Plausible bovine fallbacks (in centimetres) for measurements that the current
+# scan schema does not persist or that were left blank. They sit comfortably
+# inside the predictor's plausible ranges and never affect the estimated weight,
+# which depends only on chest circumference and body length.
+_MEASUREMENT_FALLBACKS: dict[str, float] = {
+    "withers_height_cm": 130.0,
+    "thoracic_depth_cm": 65.0,
+    "rump_width_cm": 50.0,
+}
+
+
+def estimate_scan_weight(db: Session, scan_id: UUID) -> AnimalScanResponse:
+    # TODO: enforce organization membership and authorization when auth is available.
+    scan = get_scan_entity(db, scan_id)
+    _validate_estimation_measurements(scan)
+
+    scan.scan_status = "processing"
+    scan.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(scan)
+
+    try:
+        predictor = get_model_registry().get_default()
+        prediction_request = _build_prediction_request(scan)
+        result = predictor.predict(prediction_request)
+
+        scan.estimated_weight = result.estimated_weight_kg
+        scan.confidence_score = result.confidence_score
+        scan.raw_result_json = result.model_dump(mode="json")
+        scan.scan_status = "completed"
+        scan.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(scan)
+        return AnimalScanResponse.model_validate(scan)
+    except Exception as exc:
+        db.rollback()
+        _mark_scan_failed(db, scan_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Weight estimation failed unexpectedly",
+        ) from exc
+
+
+def _validate_estimation_measurements(scan: AnimalScan) -> None:
+    missing = [
+        column
+        for column in REQUIRED_ESTIMATION_COLUMNS
+        if getattr(scan, column) is None
+    ]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": (
+                    "Scan is missing measurements required for weight estimation"
+                ),
+                "missingMeasurements": missing,
+            },
+        )
+
+    invalid = [
+        column
+        for column in (*REQUIRED_ESTIMATION_COLUMNS, *OPTIONAL_ESTIMATION_COLUMNS)
+        if getattr(scan, column) is not None and getattr(scan, column) <= 0
+    ]
+    if invalid:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Scan measurements must be greater than zero",
+                "invalidMeasurements": invalid,
+            },
+        )
+
+
+def _build_prediction_request(scan: AnimalScan) -> WeightEstimationRequest:
+    return WeightEstimationRequest(
+        species="cattle",
+        breed="unknown",
+        sex="unknown",
+        age_months=0,
+        measurements={
+            "chest_girth_cm": scan.chest_circumference,
+            "body_length_cm": scan.body_length,
+            "withers_height_cm": scan.withers_height
+            or _MEASUREMENT_FALLBACKS["withers_height_cm"],
+            "rump_width_cm": scan.hip_width or _MEASUREMENT_FALLBACKS["rump_width_cm"],
+            "thoracic_depth_cm": _MEASUREMENT_FALLBACKS["thoracic_depth_cm"],
+        },
+    )
+
+
+def _mark_scan_failed(db: Session, scan_id: UUID) -> None:
+    scan = scan_repository.get_active_scan_by_id(db, scan_id)
+    if scan is None:
+        return
+    scan.scan_status = "failed"
+    scan.updated_at = datetime.utcnow()
+    db.commit()
 
 
 def delete_scan(db: Session, scan_id: UUID) -> None:
