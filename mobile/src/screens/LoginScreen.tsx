@@ -4,12 +4,12 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
   Animated, Easing,
 } from 'react-native';
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ios } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import { getDevServerUrl, setDevServerUrl } from '../lib/api';
 import LiquidGlass from '../components/LiquidGlass';
+import ScreenBackground from '../components/ScreenBackground';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -68,18 +68,8 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.flex}>
-      {/* Fundo: gradiente navy da marca + blobs de cor que o vidro desfoca (efeito líquido) */}
-      <Svg style={StyleSheet.absoluteFill}>
-        <Defs>
-          <LinearGradient id="bg" x1="0" y1="0" x2="0.4" y2="1">
-            <Stop offset="0" stopColor="#16294D" />
-            <Stop offset="1" stopColor="#0B1730" />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#bg)" />
-      </Svg>
-      <View style={[styles.blob, styles.blobGreen]} pointerEvents="none" />
-      <View style={[styles.blob, styles.blobOrange]} pointerEvents="none" />
+      {/* Fundo claro do tema + blobs de marca suaves (o vidro os desfoca) */}
+      <ScreenBackground />
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -87,65 +77,67 @@ export default function LoginScreen() {
           contentContainerStyle={[styles.content, { paddingTop: insets.top + 64, paddingBottom: insets.bottom + 24 }]}
           keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.brand}>PondiFarm</Text>
-          <Text style={styles.tagline}>Estimativa de peso bovino por LiDAR</Text>
+          <Animated.View style={enterStyle}>
+            <Text style={styles.brand}>PondiFarm</Text>
+            <Text style={styles.tagline}>Estimativa de peso bovino por LiDAR</Text>
 
-          <LiquidGlass tone="dark" radius={24} style={styles.glassCard}>
-            <View style={styles.segment}>
-              {(['login', 'register'] as const).map(m => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.segItem, mode === m && styles.segItemActive]}
-                  onPress={() => { setMode(m); setError(null); }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={[styles.segText, mode === m && styles.segTextActive]}>
-                    {m === 'login' ? 'Entrar' : 'Criar conta'}
-                  </Text>
+            <LiquidGlass tone="light" radius={24} style={styles.glassCard}>
+              <View style={styles.segment}>
+                {(['login', 'register'] as const).map(m => (
+                  <TouchableOpacity
+                    key={m}
+                    style={[styles.segItem, mode === m && styles.segItemActive]}
+                    onPress={() => { setMode(m); setError(null); }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.segText, mode === m && styles.segTextActive]}>
+                      {m === 'login' ? 'Entrar' : 'Criar conta'}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {mode === 'register' && (
+                <>
+                  <Field label="Nome" value={name} onChangeText={setName} placeholder="Teu nome" autoCapitalize="words" />
+                  <Field label="Organização" value={org} onChangeText={setOrg} placeholder="Ex.: Quinta Limousine" autoCapitalize="words" />
+                </>
+              )}
+              <Field label="Email" value={email} onChangeText={setEmail} placeholder="email@exemplo.pt" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+              <Field label="Senha" value={password} onChangeText={setPassword} placeholder="mínimo 8 caracteres" secureTextEntry autoCapitalize="none" />
+
+              {error && <Text style={styles.error}>{error}</Text>}
+
+              <LiquidGlass
+                tone="light"
+                radius={12}
+                fillColor="rgba(47,158,68,0.92)"
+                interactive
+                style={[styles.buttonGlass, busy && { opacity: 0.6 }]}
+              >
+                <TouchableOpacity style={styles.button} onPress={submit} disabled={busy} activeOpacity={0.85}>
+                  {busy ? <ActivityIndicator color="#fff" /> : (
+                    <Text style={styles.buttonText}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</Text>
+                  )}
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            {mode === 'register' && (
-              <>
-                <Field label="Nome" value={name} onChangeText={setName} placeholder="Teu nome" autoCapitalize="words" />
-                <Field label="Organização" value={org} onChangeText={setOrg} placeholder="Ex.: Quinta Limousine" autoCapitalize="words" />
-              </>
-            )}
-            <Field label="Email" value={email} onChangeText={setEmail} placeholder="email@exemplo.pt" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-            <Field label="Senha" value={password} onChangeText={setPassword} placeholder="mínimo 8 caracteres" secureTextEntry autoCapitalize="none" />
-
-            {error && <Text style={styles.error}>{error}</Text>}
-
-            <LiquidGlass
-              tone="dark"
-              radius={12}
-              fillColor="rgba(47,158,68,0.9)"
-              interactive
-              style={[styles.buttonGlass, busy && { opacity: 0.6 }]}
-            >
-              <TouchableOpacity style={styles.button} onPress={submit} disabled={busy} activeOpacity={0.85}>
-                {busy ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={styles.buttonText}>{mode === 'login' ? 'Entrar' : 'Criar conta'}</Text>
-                )}
-              </TouchableOpacity>
+              </LiquidGlass>
             </LiquidGlass>
-          </LiquidGlass>
 
-          {__DEV__ && (
-            <View style={styles.serverBox}>
-              <Text style={styles.serverLabel}>Servidor (dev)</Text>
-              <TextInput
-                style={styles.serverInput}
-                value={serverUrl}
-                onChangeText={saveServer}
-                placeholder="usar padrão do app"
-                placeholderTextColor="rgba(255,255,255,0.35)"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
-          )}
+            {__DEV__ && (
+              <View style={styles.serverBox}>
+                <Text style={styles.serverLabel}>Servidor (dev)</Text>
+                <TextInput
+                  style={styles.serverInput}
+                  value={serverUrl}
+                  onChangeText={saveServer}
+                  placeholder="usar padrão do app"
+                  placeholderTextColor={ios.quaternaryLabel}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            )}
+          </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
@@ -157,7 +149,7 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <TextInput style={styles.input} placeholderTextColor="rgba(255,255,255,0.4)" {...input} />
+      <TextInput style={styles.input} placeholderTextColor={ios.quaternaryLabel} {...input} />
     </View>
   );
 }
@@ -165,46 +157,44 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#0B1730' },
+  flex: { flex: 1, backgroundColor: ios.systemGroupedBackground },
   content: { paddingHorizontal: 24 },
 
-  // Blobs de cor por trás do vidro (o BlurView os desfoca → profundidade líquida)
-  blob: { position: 'absolute', width: 260, height: 260, borderRadius: 130, opacity: 0.5 },
-  blobGreen: { top: 40, right: -80, backgroundColor: 'rgba(47,158,68,0.55)' },
-  blobOrange: { bottom: 60, left: -90, backgroundColor: 'rgba(232,115,31,0.45)' },
-
-  brand: { fontFamily: displayFont, fontSize: 42, fontWeight: '800', color: '#FFFFFF', letterSpacing: -1.2, textAlign: 'center' },
-  tagline: { fontSize: 14, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 6, marginBottom: 28 },
+  brand: { fontFamily: displayFont, fontSize: 42, fontWeight: '800', color: ios.navy, letterSpacing: -1.2, textAlign: 'center' },
+  tagline: { fontSize: 14, color: ios.tertiaryLabel, textAlign: 'center', marginTop: 6, marginBottom: 28 },
 
   glassCard: { padding: 20 },
 
   segment: {
-    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: 3, marginBottom: 18,
+    flexDirection: 'row', backgroundColor: 'rgba(120,120,128,0.16)', borderRadius: 12, padding: 3, marginBottom: 18,
   },
   segItem: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
-  segItemActive: { backgroundColor: 'rgba(255,255,255,0.92)' },
-  segText: { fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.75)' },
+  segItemActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
+  },
+  segText: { fontSize: 15, fontWeight: '600', color: 'rgba(60,60,67,0.6)' },
   segTextActive: { color: ios.label },
 
   fieldWrap: { marginBottom: 14 },
-  fieldLabel: { fontSize: 12.5, fontWeight: '600', color: 'rgba(255,255,255,0.65)', marginBottom: 6, marginLeft: 2 },
+  fieldLabel: { fontSize: 12.5, fontWeight: '600', color: ios.secondaryLabel, marginBottom: 6, marginLeft: 2 },
   input: {
-    backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)',
-    paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: '#FFFFFF',
+    backgroundColor: 'rgba(120,120,128,0.12)', borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(60,60,67,0.18)',
+    paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: ios.label,
   },
-  error: { color: '#FFB4A9', fontSize: 13.5, marginTop: 2, marginBottom: 4, textAlign: 'center' },
+  error: { color: '#DC2626', fontSize: 13.5, marginTop: 2, marginBottom: 4, textAlign: 'center' },
   buttonGlass: { marginTop: 14, minHeight: 52 },
   button: {
     flex: 1, paddingVertical: 15, minHeight: 52,
     alignItems: 'center', justifyContent: 'center',
   },
-  buttonText: { color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
+  buttonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
 
-  serverBox: { marginTop: 28, opacity: 0.8 },
-  serverLabel: { fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5, marginLeft: 2 },
+  serverBox: { marginTop: 28, opacity: 0.9 },
+  serverLabel: { fontSize: 11, fontWeight: '600', color: ios.tertiaryLabel, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5, marginLeft: 2 },
   serverInput: {
-    backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.25)',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: 'rgba(255,255,255,0.8)',
+    backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: ios.separator,
+    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: ios.secondaryLabel,
   },
 });

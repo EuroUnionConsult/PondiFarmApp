@@ -119,7 +119,7 @@ export default function HerdScreen() {
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
       keyboardShouldPersistTaps="handled"
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>

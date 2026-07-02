@@ -78,7 +78,7 @@ export default function AnalyticsScreen() {
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
         <View>

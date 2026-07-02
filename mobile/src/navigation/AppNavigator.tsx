@@ -3,10 +3,11 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, ActivityIndicator } from 'react-native';
+import { Platform, View, ActivityIndicator, StyleSheet } from 'react-native';
 
-import { colors, font } from '../lib/theme';
+import { colors, font, ios } from '../lib/theme';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
+import LiquidGlass from '../components/LiquidGlass';
 
 import HomeScreen from '../screens/HomeScreen';
 import HerdScreen from '../screens/HerdScreen';
@@ -28,20 +29,23 @@ function TabNavigator() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        // Tab bar de vidro (Liquid Glass claro): flutua sobre o conteúdo que rola por baixo.
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
+          position: 'absolute',
+          backgroundColor: 'transparent',
+          borderTopWidth: 0,
+          elevation: 0,
           height: Platform.OS === 'ios' ? 84 : 62,
           paddingBottom: Platform.OS === 'ios' ? 26 : 8,
-          shadowColor: '#64748B',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 8,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textDim,
+        tabBarBackground: () => (
+          <View style={StyleSheet.absoluteFill}>
+            <LiquidGlass tone="light" radius={0} style={StyleSheet.absoluteFill} />
+            <View style={styles.tabHairline} />
+          </View>
+        ),
+        tabBarActiveTintColor: ios.accent,
+        tabBarInactiveTintColor: 'rgba(60,60,67,0.6)',
         tabBarLabelStyle: { fontSize: font.xs, fontWeight: '600', marginTop: 2 },
         tabBarIcon: ({ focused, color, size }) => {
           const icons: Record<string, [string, string]> = {
@@ -106,6 +110,13 @@ function RootNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  tabHairline: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: StyleSheet.hairlineWidth, backgroundColor: ios.separator,
+  },
+});
 
 export default function AppNavigator() {
   return (
