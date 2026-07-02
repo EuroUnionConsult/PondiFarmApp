@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
-import { listRecords, type ScanRecord } from '../lib/storage';
+import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -57,16 +57,19 @@ export default function HomeScreen() {
     ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length)
     : 0;
 
-  // Métrica-título: peso (produto) quando há animais na nuvem; senão, perímetro local.
+  // Headline metric: weight (the product) when there are cloud animals; else local girth.
   const hasCloud = cloudCount > 0;
-  const heroLabel = hasCloud ? 'Peso médio' : 'Perímetro torácico médio';
+  const heroLabel = hasCloud ? 'Mean weight' : 'Mean chest girth';
   const heroValue = hasCloud ? (cloudMeanKg > 0 ? String(cloudMeanKg) : '—')
                              : (avgGirth > 0 ? String(avgGirth) : '—');
   const heroUnit = hasCloud ? 'kg' : 'cm';
-  // Rosca: % de animais com peso estimado (nuvem) ou % de vacas (local).
-  const ringPct = Math.min(100, Math.max(0,
-    hasCloud ? (cloudCount ? Math.round((cloudWeights.length / cloudCount) * 100) : 0) : cowPct));
-  const ringOffset = RING_CIRC - (ringPct / 100) * RING_CIRC;
+  const totalAnimalsUnified = totalAnimals + cloudCount;
+  const pendingSync = countPendingSync(records);
+  // Ring = sync progress of local scans (100% when nothing is waiting to upload).
+  const ringPct = records.length
+    ? Math.round(((records.length - pendingSync) / records.length) * 100)
+    : 100;
+  const ringOffset = RING_CIRC - (Math.min(100, Math.max(0, ringPct)) / 100) * RING_CIRC;
 
   const today = records.slice(0, 5);
 
@@ -105,11 +108,13 @@ export default function HomeScreen() {
                 <Text style={styles.valueUnit}>{heroUnit}</Text>
               </View>
               <Text style={styles.delta}>
-                {hasCloud
-                  ? `${cloudCount} ${cloudCount === 1 ? 'animal' : 'animais'} no rebanho`
-                  : records.length > 0
-                    ? `${records.length} scan${records.length !== 1 ? 's' : ''} locais`
-                    : 'Sem scans ainda · capture um para começar'}
+                {pendingSync > 0
+                  ? `${pendingSync} scan${pendingSync !== 1 ? 's' : ''} pending sync`
+                  : hasCloud
+                    ? `${totalAnimalsUnified} animal${totalAnimalsUnified !== 1 ? 's' : ''} in herd · all synced`
+                    : records.length > 0
+                      ? `${records.length} scan${records.length !== 1 ? 's' : ''} · all synced`
+                      : 'No scans yet · capture one to begin'}
               </Text>
             </View>
             <View style={styles.ringWrap}>
@@ -126,33 +131,25 @@ export default function HomeScreen() {
               </Svg>
               <View style={styles.ringLabel} pointerEvents="none">
                 <Text style={styles.ringPct}>{ringPct}%</Text>
+                <Text style={styles.ringCaption}>synced</Text>
               </View>
             </View>
           </View>
 
           <View style={styles.tiles}>
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{totalAnimals + cloudCount}</Text>
-              <Text style={styles.tileLabel}>animais</Text>
+              <Text style={styles.tileValue}>{totalAnimalsUnified}</Text>
+              <Text style={styles.tileLabel}>animals</Text>
             </View>
             <View style={[styles.tile, styles.tileDivider]}>
-              <Text style={styles.tileValue}>{records.length}</Text>
-              <Text style={styles.tileLabel}>scans locais</Text>
+              <Text style={[styles.tileValue, pendingSync > 0 && { color: ios.orange }]}>{pendingSync}</Text>
+              <Text style={styles.tileLabel}>pending sync</Text>
             </View>
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{hasCloud && cloudMeanKg > 0 ? cloudMeanKg : '—'}</Text>
-              <Text style={styles.tileLabel}>peso méd (kg)</Text>
+              <Text style={styles.tileValue}>{records.length}</Text>
+              <Text style={styles.tileLabel}>local scans</Text>
             </View>
           </View>
-
-          {cloudCount > 0 && (
-            <View style={styles.cloudLine}>
-              <Ionicons name="cloud-outline" size={13} color={ios.accent} />
-              <Text style={styles.cloudLineText}>
-                {cloudCount} na nuvem{cloudMeanKg > 0 ? ` · média ${cloudMeanKg} kg` : ''}
-              </Text>
-            </View>
-          )}
         </View>
       </View>
 
@@ -313,6 +310,10 @@ const styles = StyleSheet.create({
     fontFamily: displayFont,
     fontSize: 17, fontWeight: '700',
     letterSpacing: -0.4, color: ios.label,
+  },
+  ringCaption: {
+    fontSize: 9, color: ios.secondaryLabel,
+    letterSpacing: 0.2, textTransform: 'uppercase', marginTop: 1,
   },
 
   // 3 tiles inside hero card

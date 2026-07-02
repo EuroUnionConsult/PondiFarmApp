@@ -17,11 +17,11 @@ export default function AnimalDetailScreen() {
 
   const measures: { label: string; value: string }[] = [
     animal.bodyLengthCm != null
-      ? { label: 'Comprimento corporal', value: `${animal.bodyLengthCm.toFixed(0)} cm` } : null,
+      ? { label: 'Body length', value: `${animal.bodyLengthCm.toFixed(0)} cm` } : null,
     animal.withersHeightCm != null
-      ? { label: 'Altura à cernelha', value: `${animal.withersHeightCm.toFixed(0)} cm` } : null,
-    animal.breed ? { label: 'Raça', value: animal.breed } : null,
-    animal.tagCode ? { label: 'Brinco / tag', value: animal.tagCode } : null,
+      ? { label: 'Withers height', value: `${animal.withersHeightCm.toFixed(0)} cm` } : null,
+    animal.breed ? { label: 'Breed', value: animal.breed } : null,
+    animal.tagCode ? { label: 'Tag', value: animal.tagCode } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
   return (
@@ -29,7 +29,7 @@ export default function AnimalDetailScreen() {
       <View style={[styles.header, { paddingTop: insets.top + 6 }]}>
         <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} activeOpacity={0.6}>
           <Ionicons name="chevron-back" size={26} color={ios.accent} />
-          <Text style={styles.backText}>Rebanho</Text>
+          <Text style={styles.backText}>Herd</Text>
         </TouchableOpacity>
       </View>
 
@@ -41,7 +41,7 @@ export default function AnimalDetailScreen() {
           <Text style={styles.title}>{animal.name}</Text>
           <View style={styles.cloudTag}>
             <Ionicons name="cloud-done-outline" size={13} color={ios.accent} />
-            <Text style={styles.cloudTagText}>Sincronizado</Text>
+            <Text style={styles.cloudTagText}>Synced</Text>
           </View>
         </View>
 
@@ -49,14 +49,14 @@ export default function AnimalDetailScreen() {
         <View style={styles.group}>
           <View style={styles.card}>
             <View style={styles.hero}>
-              <Text style={styles.eyebrow}>Peso estimado</Text>
+              <Text style={styles.eyebrow}>Estimated weight</Text>
               <View style={styles.valueRow}>
                 <Text style={styles.value}>
                   {animal.weightKg != null ? animal.weightKg.toFixed(1) : '—'}
                 </Text>
                 <Text style={styles.valueUnit}>kg</Text>
               </View>
-              <Text style={styles.heroMeta}>Estimativa do modelo PondiFarm</Text>
+              <Text style={styles.heroMeta}>PondiFarm model estimate</Text>
             </View>
           </View>
         </View>
@@ -64,7 +64,7 @@ export default function AnimalDetailScreen() {
         {/* Medidas morfométricas */}
         {measures.length > 0 && (
           <>
-            <Text style={styles.sectionHeader}>Medidas</Text>
+            <Text style={styles.sectionHeader}>Measurements</Text>
             <View style={styles.card}>
               {measures.map((m, i) => (
                 <View key={m.label}>
@@ -82,7 +82,7 @@ export default function AnimalDetailScreen() {
         {/* Notas */}
         {animal.notes ? (
           <>
-            <Text style={styles.sectionHeader}>Notas</Text>
+            <Text style={styles.sectionHeader}>Notes</Text>
             <View style={styles.card}>
               <Text style={styles.notes}>{animal.notes}</Text>
             </View>
