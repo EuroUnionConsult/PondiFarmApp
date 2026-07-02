@@ -21,6 +21,7 @@ from api.v1.organizations_members.organizations_members_routes import (
 from api.v1.predictions.prediction_routes import predictions_router
 from api.v1.auth.auth_routes import auth_router
 from core.database import get_db, initialize_database
+from core.deps import CurrentUser, get_current_user
 from core.errors import register_exception_handlers
 
 
@@ -63,6 +64,7 @@ def create_app() -> FastAPI:
         file: UploadFile = File(...),
         animal_id: str = Form(default="DEMO-001"),
         breed: str = Form(default="default"),
+        current: CurrentUser = Depends(get_current_user),
     ):
         import cv2
         import numpy as np

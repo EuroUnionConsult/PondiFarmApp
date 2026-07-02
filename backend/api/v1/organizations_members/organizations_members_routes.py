@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.deps import CurrentUser, get_current_user
 from schemas.organization_member_schemas import (
     OrganizationMemberCreate,
     OrganizationMemberResponse,
@@ -18,11 +19,22 @@ organizations_member_router = APIRouter(
 )
 
 
+def _ensure_own_org(current: CurrentUser, organization_id: UUID) -> None:
+    # Só a própria org — sem isto, qualquer um se adiciona a qualquer tenant.
+    if organization_id != current.organization_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+
+
 @organizations_member_router.get(
     "/{organization_id}/members",
     response_model=list[OrganizationMemberResponse],
 )
-def list_members(organization_id: UUID, db: Session = Depends(get_db)):
+def list_members(
+    organization_id: UUID,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+):
+    _ensure_own_org(current, organization_id)
     return organization_member_service.list_members(db, organization_id)
 
 
@@ -35,7 +47,9 @@ def create_member(
     organization_id: UUID,
     payload: OrganizationMemberCreate,
     db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
 ):
+    _ensure_own_org(current, organization_id)
     return organization_member_service.create_member(db, organization_id, payload)
 
 
@@ -48,7 +62,9 @@ def update_member(
     member_id: UUID,
     payload: OrganizationMemberUpdate,
     db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
 ):
+    _ensure_own_org(current, organization_id)
     return organization_member_service.update_member(
         db,
         organization_id,
@@ -65,6 +81,8 @@ def delete_member(
     organization_id: UUID,
     member_id: UUID,
     db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
 ):
+    _ensure_own_org(current, organization_id)
     organization_member_service.delete_member(db, organization_id, member_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
