@@ -81,6 +81,7 @@ export const glass = {
     tint: 'light' as const,
     intensity: 40,
     fill: 'rgba(255,255,255,0.55)',
+    fillStrong: 'rgba(255,255,255,0.70)',   // superfícies densas em texto (hero/cards)
     border: 'rgba(255,255,255,0.65)',
   },
   // Vidro escuro/navy (sobre câmera/AR/foto): overlays do scanner, resultado 3D.
