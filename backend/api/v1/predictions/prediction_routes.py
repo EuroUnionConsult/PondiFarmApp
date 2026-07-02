@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 
+from core.deps import CurrentUser, get_current_user
 from prediction.model_registry import get_model_registry
 from prediction.schemas import WeightEstimationRequest, WeightEstimationResponse
 
@@ -63,6 +64,7 @@ def estimate_weight(
             },
         },
     ),
+    current: CurrentUser = Depends(get_current_user),
 ) -> WeightEstimationResponse:
     try:
         return weight_estimation_predictor.predict(payload)
