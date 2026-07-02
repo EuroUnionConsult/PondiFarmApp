@@ -15,6 +15,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import ScanScreen from '../screens/ScanScreen';
 import ObjectCaptureScreen from '../screens/ObjectCaptureScreen';
 import ResultScreen from '../screens/ResultScreen';
+import AnimalDetailScreen from '../screens/AnimalDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
 
 import type { RootStackParamList, TabParamList } from './types';
@@ -94,6 +95,11 @@ function RootNavigator() {
         <Stack.Screen
           name="Result"
           component={ResultScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="AnimalDetail"
+          component={AnimalDetailScreen}
           options={{ animation: 'slide_from_right' }}
         />
       </Stack.Navigator>

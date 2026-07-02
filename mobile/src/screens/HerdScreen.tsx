@@ -71,17 +71,6 @@ export default function HerdScreen() {
     [cloud, query]
   );
 
-  const showCloudDetail = (c: CloudAnimal) => {
-    const lines = [
-      c.weightKg != null ? `Peso estimado: ${c.weightKg.toFixed(1)} kg` : 'Peso: —',
-      c.bodyLengthCm != null ? `Comprimento: ${c.bodyLengthCm.toFixed(0)} cm` : null,
-      c.withersHeightCm != null ? `Altura à cernelha: ${c.withersHeightCm.toFixed(0)} cm` : null,
-      c.tagCode ? `Tag: ${c.tagCode}` : null,
-      c.breed ? `Raça: ${c.breed}` : null,
-    ].filter(Boolean).join('\n');
-    Alert.alert(c.name, c.notes ? `${lines}\n\n${c.notes}` : lines);
-  };
-
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const filtered = useMemo(
@@ -120,11 +109,15 @@ export default function HerdScreen() {
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Herd</Text>
+          <Text style={styles.title}>Rebanho</Text>
           <Text style={styles.subtitle}>
-            {filtered.length === records.length
-              ? `${records.length} scan${records.length !== 1 ? 's' : ''}`
-              : `${filtered.length} of ${records.length}`}
+            {(() => {
+              const total = records.length + cloud.length;
+              const shown = filtered.length + cloudFiltered.length;
+              return shown === total
+                ? `${total} ${total === 1 ? 'registo' : 'registos'}`
+                : `${shown} de ${total}`;
+            })()}
           </Text>
         </View>
         <TouchableOpacity style={styles.headerAction} onPress={() => nav.navigate('Scan')} activeOpacity={0.6}>
@@ -155,7 +148,7 @@ export default function HerdScreen() {
           <View style={styles.card}>
             {cloudFiltered.map((c, i, arr) => (
               <View key={c.id}>
-                <TouchableOpacity style={styles.row} onPress={() => showCloudDetail(c)} activeOpacity={0.6}>
+                <TouchableOpacity style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} activeOpacity={0.6}>
                   <View style={[styles.rowIcon, { backgroundColor: ios.accentLight }]}>
                     <Ionicons name="cloud-outline" size={16} color={ios.accent} />
                   </View>
