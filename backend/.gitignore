@@ -57,6 +57,18 @@ local_settings.py
 # Model artefacts (handled via Git LFS — see root .gitattributes)
 # *.pt, *.pkl, *.onnx, *.mlpackage are LFS-tracked
 
+# ML weight-training pipeline (EURODEV-89)
+# Never commit real external datasets or generated artifacts.
+# Keep the placeholder directories (via .gitkeep) but ignore their contents.
+ml/datasets/external/*
+!ml/datasets/external/.gitkeep
+ml/datasets/processed/*
+!ml/datasets/processed/.gitkeep
+ml/models/weight/*
+!ml/models/weight/.gitkeep
+*.joblib
+*.metadata.json
+
 # Logs / temp
 *.log
 tmp/

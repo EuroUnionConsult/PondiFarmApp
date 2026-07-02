@@ -82,6 +82,16 @@ def get_scan(
     return AnimalScanResponse.model_validate(scan)
 
 
+@scans_router.post(
+    "/scans/{scan_id}/estimate-weight",
+    response_model=AnimalScanResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Estimate and persist weight for an existing scan",
+)
+def estimate_scan_weight(scan_id: UUID, db: Session = Depends(get_db)):
+    return scan_service.estimate_scan_weight(db, scan_id)
+
+
 @scans_router.patch("/scans/{scan_id}", response_model=AnimalScanResponse)
 def update_scan(
     scan_id: UUID,
