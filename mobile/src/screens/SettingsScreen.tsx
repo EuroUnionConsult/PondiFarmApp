@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ios } from '../lib/theme';
 import { clearAll } from '../lib/storage';
+import { useAuth } from '../lib/AuthContext';
 import { checkHealth } from '../lib/api';
 import { APP_VERSION } from '../lib/version';
 
@@ -62,6 +63,19 @@ export default function SettingsScreen() {
       ok ? 'Connected' : 'No connection',
       ok ? 'Backend API responded successfully.'
          : 'Make sure the server is running and the URL is correct.',
+    );
+  };
+
+  const { user, logout } = useAuth();
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sair da conta',
+      user ? `Terminar sessão de ${user.email}?` : 'Terminar sessão?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Sair', style: 'destructive', onPress: () => { logout(); } },
+      ],
     );
   };
 
@@ -190,6 +204,28 @@ export default function SettingsScreen() {
       <Text style={styles.sectionFooter}>
         PondiFarm — Euro Union Consult, Lda. Phase 0 demo build.
       </Text>
+
+      {/* ACCOUNT ========================================================= */}
+      <Text style={styles.sectionHeader}>Account</Text>
+      <View style={styles.card}>
+        {user && (
+          <>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Signed in</Text>
+              <Text style={styles.rowValue} numberOfLines={1}>{user.email}</Text>
+            </View>
+            <View style={styles.rowDivider} />
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>Organization</Text>
+              <Text style={styles.rowValue} numberOfLines={1}>{user.organizationName}</Text>
+            </View>
+            <View style={styles.rowDivider} />
+          </>
+        )}
+        <TouchableOpacity style={styles.row} onPress={handleLogout} activeOpacity={0.6}>
+          <Text style={[styles.rowLabel, { color: ios.systemRed }]}>Sair da conta</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* DESTRUCTIVE ====================================================== */}
       <View style={styles.destructiveSpacer} />

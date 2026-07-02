@@ -9,6 +9,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
 import { listRecords, deleteRecord, type ScanRecord } from '../lib/storage';
+import { fetchCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -47,11 +48,39 @@ export default function HerdScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
     setRecords(await listRecords());
+    try {
+      setCloud(await fetchCloudAnimals());
+    } catch {
+      setCloud([]); // backend offline → mostra só os scans locais
+    }
   }, []);
+
+  const cloudFiltered = useMemo(
+    () => cloud.filter(c => {
+      const q = query.toLowerCase().trim();
+      if (!q) return true;
+      return c.name.toLowerCase().includes(q)
+          || c.breed.toLowerCase().includes(q)
+          || (c.tagCode ?? '').toLowerCase().includes(q);
+    }),
+    [cloud, query]
+  );
+
+  const showCloudDetail = (c: CloudAnimal) => {
+    const lines = [
+      c.weightKg != null ? `Peso estimado: ${c.weightKg.toFixed(1)} kg` : 'Peso: —',
+      c.bodyLengthCm != null ? `Comprimento: ${c.bodyLengthCm.toFixed(0)} cm` : null,
+      c.withersHeightCm != null ? `Altura à cernelha: ${c.withersHeightCm.toFixed(0)} cm` : null,
+      c.tagCode ? `Tag: ${c.tagCode}` : null,
+      c.breed ? `Raça: ${c.breed}` : null,
+    ].filter(Boolean).join('\n');
+    Alert.alert(c.name, c.notes ? `${lines}\n\n${c.notes}` : lines);
+  };
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -120,7 +149,38 @@ export default function HerdScreen() {
         </View>
       </View>
 
-      {sections.length === 0 ? (
+      {cloudFiltered.length > 0 && (
+        <View>
+          <Text style={styles.sectionHeader}>☁ Nuvem · backend</Text>
+          <View style={styles.card}>
+            {cloudFiltered.map((c, i, arr) => (
+              <View key={c.id}>
+                <TouchableOpacity style={styles.row} onPress={() => showCloudDetail(c)} activeOpacity={0.6}>
+                  <View style={[styles.rowIcon, { backgroundColor: ios.accentLight }]}>
+                    <Ionicons name="cloud-outline" size={16} color={ios.accent} />
+                  </View>
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
+                    <Text style={styles.rowMeta} numberOfLines={1}>
+                      {c.breed || 'Raça n/d'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.rowMetric}>
+                    <Text style={styles.rowMetricValue}>
+                      {c.weightKg != null ? c.weightKg.toFixed(0) : '—'}
+                    </Text>
+                    <Text style={styles.rowMetricUnit}>kg</Text>
+                  </View>
+                  <Text style={styles.rowChev}>›</Text>
+                </TouchableOpacity>
+                {i < arr.length - 1 && <View style={styles.rowDivider} />}
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {sections.length === 0 && cloudFiltered.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="paw-outline" size={36} color={ios.tertiaryLabel} />
           <Text style={styles.emptyTitle}>

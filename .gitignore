@@ -123,6 +123,9 @@ coverage/
 .parcel-cache/
 .next/
 
+# Claude Code (worktrees de agentes, settings locais — nunca versionar)
+.claude/
+
 # OS / archives
 *.zip
 *.tar

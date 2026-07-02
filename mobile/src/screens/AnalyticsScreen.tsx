@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ios } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
+import { fetchCloudAnimals, type CloudAnimal } from '../lib/api';
 
 const CHART_H = 140;
 const CHART_PAD_X = 16;
@@ -22,9 +23,11 @@ function prettyBreed(b: string): string {
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [cloud, setCloud] = useState<CloudAnimal[]>([]);
 
   useFocusEffect(useCallback(() => {
     listRecords().then(setRecords);
+    fetchCloudAnimals().then(setCloud).catch(() => setCloud([]));
   }, []));
 
   const totalScans = records.length;
@@ -61,6 +64,12 @@ export default function AnalyticsScreen() {
   const last7Max = Math.max(...last7, 1);
   const last7Total = last7.reduce((a, b) => a + b, 0);
 
+  const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);
+  const cloudCount = cloud.length;
+  const cloudMeanKg = cloudWeights.length ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length) : 0;
+  const cloudMinKg = cloudWeights.length ? Math.round(Math.min(...cloudWeights)) : 0;
+  const cloudMaxKg = cloudWeights.length ? Math.round(Math.max(...cloudWeights)) : 0;
+
   return (
     <ScrollView
       style={styles.scroll}
@@ -77,7 +86,7 @@ export default function AnalyticsScreen() {
         </View>
       </View>
 
-      {totalScans === 0 ? (
+      {totalScans === 0 && cloudCount === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No data to show</Text>
           <Text style={styles.emptySub}>
