@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { ios } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
-import { fetchCloudAnimals, type CloudAnimal } from '../lib/api';
+import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 
 const CHART_H = 140;
 const CHART_PAD_X = 16;
@@ -27,7 +27,8 @@ export default function AnalyticsScreen() {
 
   useFocusEffect(useCallback(() => {
     listRecords().then(setRecords);
-    fetchCloudAnimals().then(setCloud).catch(() => setCloud([]));
+    getCachedCloudAnimals().then(c => { if (c.length) setCloud(c); });  // instantâneo
+    fetchCloudAnimals().then(setCloud).catch(() => { /* mantém cache */ });
   }, []));
 
   const totalScans = records.length;

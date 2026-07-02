@@ -10,7 +10,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
-import { checkHealth, fetchCloudAnimals, type CloudAnimal } from '../lib/api';
+import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -27,10 +27,13 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
+    // Cache primeiro (instantâneo), depois atualiza em 2º plano.
+    const cached = await getCachedCloudAnimals();
+    if (cached.length) setCloud(cached);
     const [recs, health] = await Promise.all([listRecords(), checkHealth()]);
     setRecords(recs);
     setBackendOk(health);
-    try { setCloud(await fetchCloudAnimals()); } catch { setCloud([]); }
+    try { setCloud(await fetchCloudAnimals()); } catch { /* mantém o cache em falha de rede */ }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
