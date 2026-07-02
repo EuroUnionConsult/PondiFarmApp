@@ -13,3 +13,5 @@ export const LEGACY_CFG_KEY = '@boviscan:config';
 export const DEV_SERVER_KEY = '@pondifarm:devServerUrl';
 // Preferência do usuário: sincronizar com a nuvem (default: ligado).
 export const CLOUD_SYNC_KEY = '@pondifarm:cloudSync';
+// Cache dos animais da nuvem (mostra instantâneo; atualiza em 2º plano).
+export const CLOUD_CACHE_KEY = '@pondifarm:cloudCache';

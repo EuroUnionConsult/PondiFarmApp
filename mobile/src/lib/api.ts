@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authHeaders, getOrganizationId } from './auth';
-import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY } from './config';
+import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY, CLOUD_CACHE_KEY } from './config';
 
 const DEFAULT_HEADERS = { 'bypass-tunnel-reminder': 'true' } as const;
 
@@ -96,7 +96,7 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
   if (!res.ok) throw new Error(`animals HTTP ${res.status}`);
   const animals = (await res.json()) as any[];
 
-  return Promise.all(
+  const result = await Promise.all(
     animals.map(async (a) => {
       let weightKg: number | null = null;
       let bodyLengthCm: number | null = null;
@@ -126,4 +126,25 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
       } as CloudAnimal;
     }),
   );
+  // Cacheia por org (mostra instantâneo na próxima navegação).
+  try { await AsyncStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({ orgId, at: Date.now(), animals: result })); } catch {}
+  return result;
+}
+
+/**
+ * Animais da nuvem do CACHE local (instantâneo, sem rede). Vazio se não houver
+ * cache da org atual. Use para pintar a tela na hora e chamar fetchCloudAnimals()
+ * em 2º plano para atualizar.
+ */
+export async function getCachedCloudAnimals(): Promise<CloudAnimal[]> {
+  if (!(await isCloudSyncEnabled())) return [];
+  try {
+    const orgId = await getOrganizationId();
+    const raw = await AsyncStorage.getItem(CLOUD_CACHE_KEY);
+    if (!raw || !orgId) return [];
+    const c = JSON.parse(raw);
+    return c.orgId === orgId && Array.isArray(c.animals) ? (c.animals as CloudAnimal[]) : [];
+  } catch {
+    return [];
+  }
 }

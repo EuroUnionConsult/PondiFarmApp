@@ -9,7 +9,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
 import { listRecords, deleteRecord, type ScanRecord } from '../lib/storage';
-import { fetchCloudAnimals, type CloudAnimal } from '../lib/api';
+import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -52,11 +52,13 @@ export default function HerdScreen() {
   const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
+    const cached = await getCachedCloudAnimals();
+    if (cached.length) setCloud(cached);   // instantâneo
     setRecords(await listRecords());
     try {
-      setCloud(await fetchCloudAnimals());
+      setCloud(await fetchCloudAnimals());  // atualiza em 2º plano
     } catch {
-      setCloud([]); // backend offline → mostra só os scans locais
+      /* backend offline → mantém o cache (não zera a lista) */
     }
   }, []);
 
