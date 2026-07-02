@@ -91,25 +91,34 @@ def create_scan(
     animal_id: UUID,
     payload: AnimalScanCreate,
 ) -> AnimalScanResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
     animal = animal_service.get_animal_entity(db, animal_id)
-    existing = scan_repository.get_active_unfinished_scan_by_animal_id(
-        db,
-        animal.id,
-        ACTIVE_UNFINISHED_SCAN_STATUSES,
-    )
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Animal already has an active unfinished scan",
+    # Só barra se o NOVO scan for "ativo não terminado" (ex.: upload em curso).
+    # Scans do app já vêm `completed` (processados no device) → múltiplos por animal OK.
+    if payload.scan_status in ACTIVE_UNFINISHED_SCAN_STATUSES:
+        existing = scan_repository.get_active_unfinished_scan_by_animal_id(
+            db,
+            animal.id,
+            ACTIVE_UNFINISHED_SCAN_STATUSES,
         )
+        if existing is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Animal already has an active unfinished scan",
+            )
 
     scan = AnimalScan(
         animal_id=animal.id,
         organization_id=animal.organization_id,
-        scan_status="pending_upload",
+        scan_status=payload.scan_status,
         scan_source=payload.scan_source,
         scanned_at=_normalize_scanned_at(payload.scanned_at),
+        estimated_weight=payload.estimated_weight,
+        confidence_score=payload.confidence_score,
+        body_length=payload.body_length,
+        withers_height=payload.withers_height,
+        chest_circumference=payload.chest_circumference,
+        hip_width=payload.hip_width,
+        raw_result_json=payload.raw_result_json,
         notes=_normalize_optional_string(payload.notes),
     )
     created = scan_repository.create_scan(db, scan)

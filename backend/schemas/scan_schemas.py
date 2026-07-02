@@ -18,7 +18,9 @@ ScanStatus = Literal[
     "failed",
     "archived",
 ]
-ScanSource = Literal["polycam", "manual", "imported"]
+# Alinhado ao CHECK do DB (dbo.animal_scans): {other, manual, photogrammetry, lidar}.
+# O scan do app é LiDAR; polycam/imported foram removidos (o DB nunca os aceitou).
+ScanSource = Literal["lidar", "manual", "photogrammetry", "other"]
 
 
 def _normalize_optional_string(value: str | None) -> str | None:
@@ -48,8 +50,18 @@ def _ensure_scanned_at_not_future(value: datetime | None) -> datetime | None:
 class AnimalScanCreate(APIModel):
     model_config = ConfigDict(extra="forbid")
 
-    scan_source: ScanSource = "polycam"
+    scan_source: ScanSource = "lidar"
+    # Processamento é feito no device → o scan já nasce concluído por padrão.
+    scan_status: ScanStatus = "completed"
     scanned_at: datetime | None = None
+    # Medidas morfométricas + peso estimado (vêm prontos do device).
+    estimated_weight: float | None = None
+    confidence_score: float | None = None
+    body_length: float | None = None
+    withers_height: float | None = None
+    chest_circumference: float | None = None
+    hip_width: float | None = None
+    raw_result_json: dict[str, Any] | list[Any] | None = None
     notes: str | None = None
 
     @field_validator("notes", mode="before")
