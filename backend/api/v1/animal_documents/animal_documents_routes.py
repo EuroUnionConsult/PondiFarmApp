@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from core.database import get_db
+from core.deps import CurrentUser, get_current_user
 from schemas.animal_document_schemas import (
     AnimalDocumentResponse,
     AnimalDocumentUpdate,
@@ -25,9 +26,27 @@ from schemas.animal_document_schemas import (
     DocumentStatus,
     DocumentType,
 )
-from services import animal_document_service
+from services import animal_document_service, animal_service
 
 animal_documents_router = APIRouter(prefix="/api/v1", tags=["animal-documents"])
+
+
+# Isolamento multi-tenant: barra acesso se o recurso não for da org do token.
+def _ensure_animal_in_org(db: Session, current: CurrentUser, animal_id: UUID) -> None:
+    animal = animal_service.get_animal_entity(db, animal_id)
+    if animal.organization_id != current.organization_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+
+
+def _ensure_document_in_org(db: Session, current: CurrentUser, document_id: UUID) -> None:
+    document = animal_document_service.get_document_entity(db, document_id)
+    if document.organization_id != current.organization_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+
+
+def _ensure_own_org(current: CurrentUser, organization_id: UUID) -> None:
+    if organization_id != current.organization_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
 
 
 @animal_documents_router.post(
@@ -43,7 +62,9 @@ async def upload_animal_document(
     issued_at: date | None = Form(default=None, alias="issuedAt"),
     expires_at: date | None = Form(default=None, alias="expiresAt"),
     db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
 ):
+    _ensure_animal_in_org(db, current, animal_id)
     form = await request.form()
     allowed_fields = {"file", "documentType", "issuedAt", "expiresAt"}
     forbidden_fields = sorted(set(form.keys()) - allowed_fields)
@@ -80,7 +101,9 @@ def list_animal_documents(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
 ):
+    _ensure_animal_in_org(db, current, animal_id)
     return animal_document_service.list_documents_for_animal(
         db,
         animal_id,
@@ -117,7 +140,9 @@ def list_organization_documents(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
 ):
+    _ensure_own_org(current, organization_id)
     return animal_document_service.list_documents_for_organization(
         db,
         organization_id,
@@ -138,12 +163,22 @@ def list_organization_documents(
     "/documents/{document_id}",
     response_model=AnimalDocumentResponse,
 )
-def get_animal_document(document_id: UUID, db: Session = Depends(get_db)):
+def get_animal_document(
+    document_id: UUID,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+):
+    _ensure_document_in_org(db, current, document_id)
     return animal_document_service.get_document(db, document_id)
 
 
 @animal_documents_router.get("/documents/{document_id}/download")
-def download_animal_document(document_id: UUID, db: Session = Depends(get_db)):
+def download_animal_document(
+    document_id: UUID,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+):
+    _ensure_document_in_org(db, current, document_id)
     download = animal_document_service.download_document(db, document_id)
     headers = {
         "Content-Disposition": f'attachment; filename="{download.file_name}"',
@@ -165,7 +200,9 @@ def update_animal_document(
     document_id: UUID,
     payload: AnimalDocumentUpdate,
     db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
 ):
+    _ensure_document_in_org(db, current, document_id)
     return animal_document_service.update_document(db, document_id, payload)
 
 
@@ -173,7 +210,12 @@ def update_animal_document(
     "/documents/{document_id}/archive",
     response_model=AnimalDocumentResponse,
 )
-def archive_animal_document(document_id: UUID, db: Session = Depends(get_db)):
+def archive_animal_document(
+    document_id: UUID,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+):
+    _ensure_document_in_org(db, current, document_id)
     return animal_document_service.archive_document(db, document_id)
 
 
@@ -181,6 +223,11 @@ def archive_animal_document(document_id: UUID, db: Session = Depends(get_db)):
     "/documents/{document_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def delete_animal_document(document_id: UUID, db: Session = Depends(get_db)):
+def delete_animal_document(
+    document_id: UUID,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+):
+    _ensure_document_in_org(db, current, document_id)
     animal_document_service.delete_document(db, document_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

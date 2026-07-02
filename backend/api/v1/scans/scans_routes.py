@@ -88,7 +88,13 @@ def get_scan(
     status_code=status.HTTP_200_OK,
     summary="Estimate and persist weight for an existing scan",
 )
-def estimate_scan_weight(scan_id: UUID, db: Session = Depends(get_db)):
+def estimate_scan_weight(
+    scan_id: UUID,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+):
+    scan = scan_service.get_scan_entity(db, scan_id)
+    _ensure_animal_in_org(db, current, scan.animal_id)
     return scan_service.estimate_scan_weight(db, scan_id)
 
 
