@@ -4,11 +4,9 @@ import {
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ios } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
-
-const CFG_KEY = '@pondifarm:config';
+import { getDevServerUrl, setDevServerUrl } from '../lib/api';
 
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
@@ -24,21 +22,13 @@ export default function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(CFG_KEY);
-        if (raw) setServerUrl(JSON.parse(raw).backendUrl ?? '');
-      } catch {}
-    })();
+    if (!__DEV__) return;
+    (async () => { setServerUrl(await getDevServerUrl()); })();
   }, []);
 
   const saveServer = async (url: string) => {
     setServerUrl(url);
-    try {
-      const raw = await AsyncStorage.getItem(CFG_KEY);
-      const cfg = raw ? JSON.parse(raw) : {};
-      await AsyncStorage.setItem(CFG_KEY, JSON.stringify({ ...cfg, backendUrl: url.trim() }));
-    } catch {}
+    await setDevServerUrl(url);
   };
 
   const submit = async () => {
@@ -100,18 +90,20 @@ export default function LoginScreen() {
           )}
         </TouchableOpacity>
 
-        <View style={styles.serverBox}>
-          <Text style={styles.serverLabel}>Servidor</Text>
-          <TextInput
-            style={styles.serverInput}
-            value={serverUrl}
-            onChangeText={saveServer}
-            placeholder="https://…"
-            placeholderTextColor={ios.tertiaryLabel}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-        </View>
+        {__DEV__ && (
+          <View style={styles.serverBox}>
+            <Text style={styles.serverLabel}>Servidor (dev)</Text>
+            <TextInput
+              style={styles.serverInput}
+              value={serverUrl}
+              onChangeText={saveServer}
+              placeholder="usar padrão do app"
+              placeholderTextColor={ios.tertiaryLabel}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );

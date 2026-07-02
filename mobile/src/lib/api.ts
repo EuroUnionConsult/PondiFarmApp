@@ -1,13 +1,34 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authHeaders } from './auth';
-
-const CFG_KEY_NEW = '@pondifarm:config';
-const CFG_KEY_LEGACY = '@boviscan:config';
+import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY } from './config';
 
 // Org piloto PondiFarm (Fase 0). Ideal: derivar do login/config quando houver auth.
 const PONDIFARM_ORG_ID = 'afa19bc8-1528-4802-95fa-24ad30305adb';
 
 const DEFAULT_HEADERS = { 'bypass-tunnel-reminder': 'true' } as const;
+
+/** Sincronização com a nuvem ligada? (default: sim). Preferência do usuário. */
+export async function isCloudSyncEnabled(): Promise<boolean> {
+  try {
+    const v = await AsyncStorage.getItem(CLOUD_SYNC_KEY);
+    return v === null ? true : v === '1';
+  } catch {
+    return true;
+  }
+}
+
+export async function setCloudSyncEnabled(enabled: boolean): Promise<void> {
+  try { await AsyncStorage.setItem(CLOUD_SYNC_KEY, enabled ? '1' : '0'); } catch {}
+}
+
+/** Override de URL só para dev (__DEV__). Vazio => usa a URL padrão do app. */
+export async function getDevServerUrl(): Promise<string> {
+  try { return (await AsyncStorage.getItem(DEV_SERVER_KEY)) ?? ''; } catch { return ''; }
+}
+
+export async function setDevServerUrl(url: string): Promise<void> {
+  try { await AsyncStorage.setItem(DEV_SERVER_KEY, url.trim()); } catch {}
+}
 
 /**
  * fetch com timeout via AbortController.
@@ -26,15 +47,13 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
 }
 
 export async function getBackendUrl(): Promise<string> {
-  try {
-    const raw = (await AsyncStorage.getItem(CFG_KEY_NEW)) ?? (await AsyncStorage.getItem(CFG_KEY_LEGACY));
-    if (raw) {
-      const cfg = JSON.parse(raw);
-      if (cfg.backendUrl) return cfg.backendUrl.trim().replace(/\/+$/, '');
-    }
-  } catch {}
-  // Fallback: configure o IP/URL do servidor nas Configurações do app
-  return 'http://localhost:8000';
+  // A URL do backend NÃO é digitada pelo usuário: vem da config do app (fonte única).
+  // Em builds de dev, um override opcional permite trocar o IP sem recompilar.
+  if (__DEV__) {
+    const dev = (await getDevServerUrl()).trim();
+    if (dev) return dev.replace(/\/+$/, '');
+  }
+  return DEFAULT_BACKEND_URL.trim().replace(/\/+$/, '');
 }
 
 export async function checkHealth(urlOverride?: string): Promise<boolean> {
@@ -66,6 +85,8 @@ function numOrNull(v: unknown): number | null {
 
 /** Busca os animais da org no backend + o peso do scan mais recente de cada um. */
 export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
+  // Sync desligado pelo usuário => opera 100% local, não toca no backend.
+  if (!(await isCloudSyncEnabled())) return [];
   const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
 
   const res = await fetchWithTimeout(

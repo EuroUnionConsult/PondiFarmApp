@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Platform,
-  TextInput, TouchableOpacity, Alert, Switch,
+  TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,20 +9,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ios } from '../lib/theme';
 import { clearAll } from '../lib/storage';
 import { useAuth } from '../lib/AuthContext';
-import { checkHealth } from '../lib/api';
+import {
+  checkHealth, isCloudSyncEnabled, setCloudSyncEnabled,
+  getDevServerUrl, setDevServerUrl,
+} from '../lib/api';
 import { APP_VERSION } from '../lib/version';
-
-const CFG_KEY = '@pondifarm:config';
-const LEGACY_CFG_KEY = '@boviscan:config';
+import { CFG_KEY, LEGACY_CFG_KEY } from '../lib/config';
 
 interface Config {
-  backendUrl: string;
   defaultBreed: 'default' | 'minhota' | 'alentejana';
   vibration: boolean;
 }
 
 const DEFAULT: Config = {
-  backendUrl: 'http://localhost:8000',
   defaultBreed: 'default',
   vibration: true,
 };
@@ -36,16 +35,28 @@ const BREEDS: { key: Config['defaultBreed']; label: string }[] = [
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const [cfg, setCfg] = useState<Config>(DEFAULT);
-  const [ping, setPing] = useState<boolean | null>(null);
-  const [testing, setTesting] = useState(false);
+  const [cloudSync, setCloudSync] = useState(true);
+  const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  const [devUrl, setDevUrl] = useState('');
 
   useEffect(() => {
     (async () => {
       const raw = await AsyncStorage.getItem(CFG_KEY)
         ?? await AsyncStorage.getItem(LEGACY_CFG_KEY);
       if (raw) setCfg({ ...DEFAULT, ...JSON.parse(raw) });
+      setCloudSync(await isCloudSyncEnabled());
+      if (__DEV__) setDevUrl(await getDevServerUrl());
     })();
   }, []);
+
+  // Conecta sozinho: com o sync ligado, verifica a ligação ao abrir a tela.
+  const refreshStatus = useCallback(async (enabled: boolean) => {
+    if (!enabled) { setStatus('offline'); return; }
+    setStatus('checking');
+    setStatus((await checkHealth()) ? 'online' : 'offline');
+  }, []);
+
+  useEffect(() => { refreshStatus(cloudSync); }, [cloudSync, refreshStatus]);
 
   const save = async (next: Partial<Config>) => {
     const updated = { ...cfg, ...next };
@@ -53,17 +64,16 @@ export default function SettingsScreen() {
     await AsyncStorage.setItem(CFG_KEY, JSON.stringify(updated));
   };
 
-  const testConnection = async () => {
-    setTesting(true);
-    setPing(null);
-    const ok = await checkHealth(cfg.backendUrl);
-    setPing(ok);
-    setTesting(false);
-    Alert.alert(
-      ok ? 'Connected' : 'No connection',
-      ok ? 'Backend API responded successfully.'
-         : 'Make sure the server is running and the URL is correct.',
-    );
+  const toggleCloudSync = async (v: boolean) => {
+    setCloudSync(v);
+    await setCloudSyncEnabled(v);
+    refreshStatus(v);
+  };
+
+  const saveDevUrl = async (v: string) => {
+    setDevUrl(v);
+    await setDevServerUrl(v);
+    if (cloudSync) refreshStatus(true);
   };
 
   const { user, logout } = useAuth();
@@ -93,12 +103,18 @@ export default function SettingsScreen() {
     );
   };
 
-  const pingColor =
-    ping === null ? ios.secondaryLabel :
-    ping ? ios.accent : ios.systemRed;
-  const pingIcon: keyof typeof Ionicons.glyphMap =
-    ping === null ? 'pulse-outline' :
-    ping ? 'checkmark-circle' : 'close-circle';
+  const statusColor =
+    !cloudSync ? ios.secondaryLabel :
+    status === 'online' ? ios.accent :
+    status === 'offline' ? ios.systemRed : ios.secondaryLabel;
+  const statusLabel =
+    !cloudSync ? 'Desligada' :
+    status === 'checking' ? 'A ligar…' :
+    status === 'online' ? 'Conectado' : 'Sem ligação';
+  const statusIcon: keyof typeof Ionicons.glyphMap =
+    !cloudSync ? 'cloud-offline-outline' :
+    status === 'online' ? 'checkmark-circle' :
+    status === 'offline' ? 'cloud-offline-outline' : 'ellipse-outline';
 
   return (
     <ScrollView
@@ -109,40 +125,63 @@ export default function SettingsScreen() {
         <Text style={styles.title}>Settings</Text>
       </View>
 
-      {/* API ============================================================== */}
-      <Text style={styles.sectionHeader}>API</Text>
+      {/* NUVEM ============================================================ */}
+      <Text style={styles.sectionHeader}>Nuvem</Text>
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>URL</Text>
-          <TextInput
-            style={styles.rowInput}
-            value={cfg.backendUrl}
-            onChangeText={v => save({ backendUrl: v })}
-            placeholder="http://192.168.x.x:8000"
-            placeholderTextColor={ios.tertiaryLabel}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="url"
+          <View style={styles.rowMain}>
+            <Text style={styles.rowLabel}>Sincronização com a nuvem</Text>
+            <Text style={styles.rowSubLabel}>
+              Sincroniza os scans automaticamente quando há internet
+            </Text>
+          </View>
+          <Switch
+            value={cloudSync}
+            onValueChange={toggleCloudSync}
+            trackColor={{ true: ios.accent, false: '#E5E5EA' }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor="#E5E5EA"
           />
         </View>
         <View style={styles.rowDivider} />
-        <TouchableOpacity
-          style={styles.row}
-          onPress={testConnection}
-          disabled={testing}
-          activeOpacity={0.6}
-        >
-          <Text style={[styles.rowLabel, { color: ios.accent }]}>
-            {testing ? 'Testing…' : 'Test connection'}
-          </Text>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Estado</Text>
           <View style={styles.rowAccessoryGroup}>
-            <Ionicons name={pingIcon} size={17} color={pingColor} />
+            {cloudSync && status === 'checking'
+              ? <ActivityIndicator size="small" color={ios.secondaryLabel} />
+              : <Ionicons name={statusIcon} size={17} color={statusColor} />}
+            <Text style={[styles.rowValue, { color: statusColor }]}>{statusLabel}</Text>
           </View>
-        </TouchableOpacity>
+        </View>
       </View>
       <Text style={styles.sectionFooter}>
-        Use the local network IP or a tunnel URL. The API runs on port 8000 by default.
+        Com a sincronização ligada, os dados ficam guardados na tua conta e disponíveis
+        noutros dispositivos. Desligada, a app funciona só com os scans locais.
       </Text>
+
+      {__DEV__ && (
+        <>
+          <Text style={styles.sectionHeader}>Servidor (dev)</Text>
+          <View style={styles.card}>
+            <View style={styles.row}>
+              <Text style={styles.rowLabel}>URL</Text>
+              <TextInput
+                style={styles.rowInput}
+                value={devUrl}
+                onChangeText={saveDevUrl}
+                placeholder="usar padrão do app"
+                placeholderTextColor={ios.tertiaryLabel}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="url"
+              />
+            </View>
+          </View>
+          <Text style={styles.sectionFooter}>
+            Só em build de desenvolvimento. Vazio = URL padrão do app. Invisível ao usuário final.
+          </Text>
+        </>
+      )}
 
       {/* SCAN ============================================================= */}
       <Text style={styles.sectionHeader}>Scan</Text>
