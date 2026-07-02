@@ -17,6 +17,11 @@ class LidarScannerView: ExpoView {
   private var boxWorldTransform: simd_float4x4 = matrix_identity_float4x4
   private let boxBaseSize = SIMD3<Float>(1.1, 1.7, 2.6)   // largura, altura, comprimento (m) — bovino
   private var boxScale: Float = 1.0
+  // Memória do piso: último Y de um raycast horizontal confiável (abaixo da câmera).
+  // A base da caixa é sempre assentada aqui, evitando afundar/flutuar.
+  private var floorY: Float?
+  // O arrasto atual está a "agarrar" a caixa? (só move se o toque começou perto dela)
+  private var boxPanActive = false
 
   // --- Cor por-vértice acumulada durante o scan (EURODEV-80, Tarefa 4) ---
   // Mapa voxel (2 cm) → cor RGB 0–1. Amostrado da câmera ao longo do scan.
@@ -84,6 +89,9 @@ class LidarScannerView: ExpoView {
     }
     config.environmentTexturing = .none
     arView.session.run(config, options: [.resetTracking, .removeExistingAnchors])
+    // Oclusão pela malha da cena: as arestas da caixa atrás do alvo (vaca/pessoa/carro)
+    // deixam de desenhar por cima — sem isto o arame verde "atravessa" e parece bugado.
+    arView.environment.sceneUnderstanding.options.insert(.occlusion)
   }
 
   func startScan() {
@@ -119,16 +127,22 @@ class LidarScannerView: ExpoView {
     let yaw = atan2(fwd.x, fwd.z)
     let halfH = boxBaseSize.y * boxScale * 0.5
 
-    // Fallback: à frente, na altura da câmera.
-    var center = camPos + fwd * 1.4
-    // Assenta no chão (estilo Polycam): raycast do centro da tela p/ plano horizontal;
-    // se houver, coloca a BASE da caixa no piso detectado.
+    // X/Z do alvo: à frente da câmera por padrão.
+    var cx = camPos.x + fwd.x * 1.4
+    var cz = camPos.z + fwd.z * 1.4
+    // Raycast do centro da tela p/ plano horizontal: usa o X/Z do acerto e,
+    // se o acerto estiver claramente ABAIXO da câmera (é chão, não o dorso do
+    // animal/capô do carro), memoriza como piso.
     let mid = CGPoint(x: arView.bounds.midX, y: arView.bounds.midY)
     if let query = arView.makeRaycastQuery(from: mid, allowing: .estimatedPlane, alignment: .horizontal),
        let result = arView.session.raycast(query).first {
       let hp = result.worldTransform.columns.3
-      center = SIMD3<Float>(hp.x, hp.y + halfH, hp.z)
+      cx = hp.x; cz = hp.z
+      if hp.y < camPos.y - 0.2 { floorY = hp.y }
     }
+    // Base sempre no piso: memorizado, ou estimado a ~1,4 m abaixo do aparelho.
+    let baseY = floorY ?? (camPos.y - 1.4)
+    let center = SIMD3<Float>(cx, baseY + halfH, cz)
     var t = simd_float4x4(simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0)))
     t.columns.3 = SIMD4<Float>(center.x, center.y, center.z, 1)
     boxWorldTransform = t
@@ -156,10 +170,8 @@ class LidarScannerView: ExpoView {
   private static func makeBoxCage(size: SIMD3<Float>) -> Entity {
     let cage = Entity()
     let t: Float = 0.015  // espessura das arestas (m)
-    let mat = SimpleMaterial(
-      color: .init(red: 0.20, green: 0.95, blue: 0.45, alpha: 1.0),
-      isMetallic: false
-    )
+    // Unlit: cor verde constante (gizmo de UI), não reage à luz do ambiente.
+    let mat = UnlitMaterial(color: UIColor(red: 0.20, green: 0.95, blue: 0.45, alpha: 1.0))
     let hx = size.x / 2, hy = size.y / 2, hz = size.z / 2
 
     func edge(_ dims: SIMD3<Float>, _ pos: SIMD3<Float>) {
@@ -185,17 +197,63 @@ class LidarScannerView: ExpoView {
   @objc private func handleBoxPan(_ g: UIPanGestureRecognizer) {
     guard let anchor = boxAnchor else { return }
     let loc = g.location(in: arView)
-    guard let query = arView.makeRaycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any),
-          let result = arView.session.raycast(query).first else { return }
-    let hit = result.worldTransform
-    var t = boxWorldTransform
-    t.columns.3 = SIMD4<Float>(hit.columns.3.x, hit.columns.3.y, hit.columns.3.z, 1)
-    boxWorldTransform = t
-    anchor.setTransformMatrix(t, relativeTo: nil)
+
+    switch g.state {
+    case .began:
+      // Só agarra a caixa se o toque começar perto dela (projeção do centro na tela).
+      boxPanActive = false
+      let center = SIMD3<Float>(boxWorldTransform.columns.3.x,
+                                boxWorldTransform.columns.3.y,
+                                boxWorldTransform.columns.3.z)
+      if let sp = arView.project(center) {
+        let dx = Float(sp.x - loc.x), dy = Float(sp.y - loc.y)
+        if dx * dx + dy * dy <= 120 * 120 { boxPanActive = true }
+      }
+
+    case .changed:
+      guard boxPanActive else { return }
+      // Prefere plano horizontal; só cai no .any se não houver horizontal.
+      let q = arView.makeRaycastQuery(from: loc, allowing: .estimatedPlane, alignment: .horizontal)
+            ?? arView.makeRaycastQuery(from: loc, allowing: .estimatedPlane, alignment: .any)
+      guard let query = q, let result = arView.session.raycast(query).first else { return }
+      let hp = result.worldTransform.columns.3
+      let camPos = arView.session.currentFrame.map {
+        SIMD3<Float>($0.camera.transform.columns.3.x,
+                     $0.camera.transform.columns.3.y,
+                     $0.camera.transform.columns.3.z)
+      }
+      // Descarta acertos muito longe (ruído de plano estimado a metros de distância).
+      if let cp = camPos, simd_distance(cp, SIMD3<Float>(hp.x, hp.y, hp.z)) > 6 { return }
+      // Se o acerto for chão (abaixo da câmera), atualiza a memória de piso.
+      if let cp = camPos, hp.y < cp.y - 0.2 { floorY = hp.y }
+
+      let halfH = boxBaseSize.y * boxScale * 0.5
+      let baseY = floorY ?? hp.y
+      let target = SIMD3<Float>(hp.x, baseY + halfH, hp.z)
+      // Só X/Z seguem o dedo; Y fica preso ao piso. Suaviza p/ matar o tremor.
+      let cur = SIMD3<Float>(boxWorldTransform.columns.3.x,
+                             boxWorldTransform.columns.3.y,
+                             boxWorldTransform.columns.3.z)
+      let next = cur + (target - cur) * 0.25
+      var t = boxWorldTransform
+      t.columns.3 = SIMD4<Float>(next.x, next.y, next.z, 1)
+      boxWorldTransform = t
+      anchor.setTransformMatrix(t, relativeTo: nil)
+
+    default:
+      boxPanActive = false
+    }
   }
 
   func setBoxScale(_ s: Float) {
-    boxScale = min(2.0, max(0.5, s))
+    let clamped = min(2.0, max(0.5, s))
+    let oldHalfH = boxBaseSize.y * boxScale * 0.5
+    let newHalfH = boxBaseSize.y * clamped * 0.5
+    boxScale = clamped
+    // Mantém a base fixa no piso: novo centro Y = base + novaMeiaAltura.
+    let baseY = boxWorldTransform.columns.3.y - oldHalfH
+    boxWorldTransform.columns.3.y = baseY + newHalfH
+    boxAnchor?.setTransformMatrix(boxWorldTransform, relativeTo: nil)
     updateBoxMesh()
   }
 

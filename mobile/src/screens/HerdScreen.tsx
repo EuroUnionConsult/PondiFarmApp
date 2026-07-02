@@ -8,7 +8,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios } from '../lib/theme';
-import { listRecords, deleteRecord, type ScanRecord } from '../lib/storage';
+import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
+import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
+import { syncPending } from '../lib/sync';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -47,11 +49,37 @@ export default function HerdScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
+  const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [query, setQuery] = useState('');
 
   const load = useCallback(async () => {
+    const cached = await getCachedCloudAnimals();
+    if (cached.length) setCloud(cached);   // instantâneo
     setRecords(await listRecords());
+    try {
+      setCloud(await fetchCloudAnimals());  // atualiza em 2º plano
+    } catch {
+      /* backend offline → mantém o cache (não zera a lista) */
+    }
+    // Reprocessa a fila de scans pendentes; se subiu algo, atualiza lista + nuvem.
+    syncPending().then(async (r) => {
+      if (r.synced > 0) {
+        setRecords(await listRecords());
+        fetchCloudAnimals().then(setCloud).catch(() => {});
+      }
+    }).catch(() => {});
   }, []);
+
+  const cloudFiltered = useMemo(
+    () => cloud.filter(c => {
+      const q = query.toLowerCase().trim();
+      if (!q) return true;
+      return c.name.toLowerCase().includes(q)
+          || c.breed.toLowerCase().includes(q)
+          || (c.tagCode ?? '').toLowerCase().includes(q);
+    }),
+    [cloud, query]
+  );
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -66,7 +94,12 @@ export default function HerdScreen() {
     [records, query]
   );
 
-  const sections = useMemo(() => groupRecords(filtered), [filtered]);
+  // I9: scans sincronizados aparecem na seção Nuvem — não repetir na lista local.
+  const localForList = useMemo(
+    () => filtered.filter(r => effectiveSyncState(r) !== 'synced'),
+    [filtered],
+  );
+  const sections = useMemo(() => groupRecords(localForList), [localForList]);
 
   const handleLongPress = (rec: ScanRecord) => {
     const name = rec.category === 'cow' ? (rec.animalId ?? 'bovino') : 'extra';
@@ -93,9 +126,15 @@ export default function HerdScreen() {
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Herd</Text>
           <Text style={styles.subtitle}>
-            {filtered.length === records.length
-              ? `${records.length} scan${records.length !== 1 ? 's' : ''}`
-              : `${filtered.length} of ${records.length}`}
+            {(() => {
+              // Dedup: scans sincronizados contam só na nuvem (não em dobro).
+              const localVisible = records.filter(r => effectiveSyncState(r) !== 'synced').length;
+              const total = localVisible + cloud.length;
+              const shown = localForList.length + cloudFiltered.length;
+              return shown === total
+                ? `${total} ${total === 1 ? 'record' : 'records'}`
+                : `${shown} of ${total}`;
+            })()}
           </Text>
         </View>
         <TouchableOpacity style={styles.headerAction} onPress={() => nav.navigate('Scan')} activeOpacity={0.6}>
@@ -120,7 +159,38 @@ export default function HerdScreen() {
         </View>
       </View>
 
-      {sections.length === 0 ? (
+      {cloudFiltered.length > 0 && (
+        <View>
+          <Text style={styles.sectionHeader}>☁ Cloud · synced</Text>
+          <View style={styles.card}>
+            {cloudFiltered.map((c, i, arr) => (
+              <View key={c.id}>
+                <TouchableOpacity style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} activeOpacity={0.6}>
+                  <View style={[styles.rowIcon, { backgroundColor: ios.accentLight }]}>
+                    <Ionicons name="cloud-outline" size={16} color={ios.accent} />
+                  </View>
+                  <View style={styles.rowInfo}>
+                    <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
+                    <Text style={styles.rowMeta} numberOfLines={1}>
+                      {c.breed || 'Raça n/d'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.rowMetric}>
+                    <Text style={styles.rowMetricValue}>
+                      {c.weightKg != null ? c.weightKg.toFixed(0) : '—'}
+                    </Text>
+                    <Text style={styles.rowMetricUnit}>kg</Text>
+                  </View>
+                  <Text style={styles.rowChev}>›</Text>
+                </TouchableOpacity>
+                {i < arr.length - 1 && <View style={styles.rowDivider} />}
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+
+      {sections.length === 0 && cloudFiltered.length === 0 ? (
         <View style={styles.empty}>
           <Ionicons name="paw-outline" size={36} color={ios.tertiaryLabel} />
           <Text style={styles.emptyTitle}>
@@ -180,6 +250,13 @@ export default function HerdScreen() {
                       </Text>
                       <Text style={styles.rowMetricUnit}>cm girth</Text>
                     </View>
+                    {isCow && effectiveSyncState(rec) !== 'synced' && (
+                      <Ionicons
+                        name={effectiveSyncState(rec) === 'error' ? 'alert-circle' : 'time-outline'}
+                        size={15}
+                        color={effectiveSyncState(rec) === 'error' ? ios.systemRed : ios.orange}
+                      />
+                    )}
                     <Text style={styles.rowChev}>›</Text>
                   </TouchableOpacity>
                   {i < section.data.length - 1 && <View style={styles.rowDivider} />}
