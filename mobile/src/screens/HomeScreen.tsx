@@ -46,16 +46,24 @@ export default function HomeScreen() {
   const avgGirth = records.length
     ? Math.round(records.reduce((s, r) => s + r.measurements.chest_girth_cm, 0) / records.length)
     : 0;
-  // Ring shows share of scans that are cows (vs extras) — a real proportion.
   const cowPct = records.length ? Math.round((cows.length / records.length) * 100) : 0;
-  const ringPct = Math.min(100, Math.max(0, cowPct));
-  const ringOffset = RING_CIRC - (ringPct / 100) * RING_CIRC;
 
   const cloudCount = cloud.length;
   const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);
   const cloudMeanKg = cloudWeights.length
     ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length)
     : 0;
+
+  // Métrica-título: peso (produto) quando há animais na nuvem; senão, perímetro local.
+  const hasCloud = cloudCount > 0;
+  const heroLabel = hasCloud ? 'Peso médio' : 'Perímetro torácico médio';
+  const heroValue = hasCloud ? (cloudMeanKg > 0 ? String(cloudMeanKg) : '—')
+                             : (avgGirth > 0 ? String(avgGirth) : '—');
+  const heroUnit = hasCloud ? 'kg' : 'cm';
+  // Rosca: % de animais com peso estimado (nuvem) ou % de vacas (local).
+  const ringPct = Math.min(100, Math.max(0,
+    hasCloud ? (cloudCount ? Math.round((cloudWeights.length / cloudCount) * 100) : 0) : cowPct));
+  const ringOffset = RING_CIRC - (ringPct / 100) * RING_CIRC;
 
   const today = records.slice(0, 5);
 
@@ -87,16 +95,18 @@ export default function HomeScreen() {
             <View style={styles.heroLeft}>
               <View style={styles.eyebrow}>
                 <Ionicons name="layers-outline" size={14} color={ios.accent} />
-                <Text style={styles.eyebrowText}>Mean chest girth</Text>
+                <Text style={styles.eyebrowText}>{heroLabel}</Text>
               </View>
               <View style={styles.valueRow}>
-                <Text style={styles.value}>{avgGirth > 0 ? avgGirth : '—'}</Text>
-                <Text style={styles.valueUnit}>cm</Text>
+                <Text style={styles.value}>{heroValue}</Text>
+                <Text style={styles.valueUnit}>{heroUnit}</Text>
               </View>
               <Text style={styles.delta}>
-                {records.length > 0
-                  ? `${records.length} scan${records.length !== 1 ? 's' : ''} stored locally`
-                  : 'No scans yet · capture one to begin'}
+                {hasCloud
+                  ? `${cloudCount} ${cloudCount === 1 ? 'animal' : 'animais'} no rebanho`
+                  : records.length > 0
+                    ? `${records.length} scan${records.length !== 1 ? 's' : ''} locais`
+                    : 'Sem scans ainda · capture um para começar'}
               </Text>
             </View>
             <View style={styles.ringWrap}>
@@ -119,16 +129,16 @@ export default function HomeScreen() {
 
           <View style={styles.tiles}>
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{records.length}</Text>
-              <Text style={styles.tileLabel}>scans</Text>
+              <Text style={styles.tileValue}>{totalAnimals + cloudCount}</Text>
+              <Text style={styles.tileLabel}>animais</Text>
             </View>
             <View style={[styles.tile, styles.tileDivider]}>
-              <Text style={styles.tileValue}>{totalAnimals + cloudCount}</Text>
-              <Text style={styles.tileLabel}>animals</Text>
+              <Text style={styles.tileValue}>{records.length}</Text>
+              <Text style={styles.tileLabel}>scans locais</Text>
             </View>
             <View style={styles.tile}>
-              <Text style={styles.tileValue}>{ringPct > 0 ? `${ringPct}%` : '—'}</Text>
-              <Text style={styles.tileLabel}>cows</Text>
+              <Text style={styles.tileValue}>{hasCloud && cloudMeanKg > 0 ? cloudMeanKg : '—'}</Text>
+              <Text style={styles.tileLabel}>peso méd (kg)</Text>
             </View>
           </View>
 
