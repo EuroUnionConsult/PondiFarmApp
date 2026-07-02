@@ -111,14 +111,14 @@ export default function HerdScreen() {
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Rebanho</Text>
+          <Text style={styles.title}>Herd</Text>
           <Text style={styles.subtitle}>
             {(() => {
               const total = records.length + cloud.length;
               const shown = filtered.length + cloudFiltered.length;
               return shown === total
-                ? `${total} ${total === 1 ? 'registo' : 'registos'}`
-                : `${shown} de ${total}`;
+                ? `${total} ${total === 1 ? 'record' : 'records'}`
+                : `${shown} of ${total}`;
             })()}
           </Text>
         </View>
@@ -146,7 +146,7 @@ export default function HerdScreen() {
 
       {cloudFiltered.length > 0 && (
         <View>
-          <Text style={styles.sectionHeader}>☁ Nuvem · backend</Text>
+          <Text style={styles.sectionHeader}>☁ Cloud · synced</Text>
           <View style={styles.card}>
             {cloudFiltered.map((c, i, arr) => (
               <View key={c.id}>

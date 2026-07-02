@@ -24,6 +24,21 @@ export interface ScanRecord {
   meshPlyUri?: string;          // PLY colorido (EURODEV-80) — preferido pelo viewer 3D
   meshTexturedUri?: string;     // OBJ+MTL+PNG texturizado (bake UV) — preferido se existir
   keyframesDir?: string;        // pasta de keyframes para "Render texture" sob demanda
+  // --- Sincronização com a nuvem (M3-B) ---
+  syncState?: 'pending' | 'synced' | 'error';  // ausente = pending (registros antigos)
+  remoteId?: string;            // id do scan no backend
+  remoteAnimalId?: string;      // id do animal no backend
+  syncError?: string;           // mensagem se syncState === 'error'
+}
+
+/** Estado de sync efetivo (registros sem o campo contam como pendentes). */
+export function effectiveSyncState(r: ScanRecord): 'pending' | 'synced' | 'error' {
+  return r.syncState ?? 'pending';
+}
+
+/** Quantos scans locais ainda NÃO estão sincronizados (pending + error). */
+export function countPendingSync(records: ScanRecord[]): number {
+  return records.filter(r => effectiveSyncState(r) !== 'synced').length;
 }
 
 const KEY = '@boviscan:scans';
@@ -41,6 +56,13 @@ export async function listRecords(): Promise<ScanRecord[]> {
   } catch {
     return [];
   }
+}
+
+/** Atualiza campos de um scan local (ex.: estado de sync após o push). */
+export async function updateRecord(id: string, patch: Partial<ScanRecord>): Promise<void> {
+  const all = await listRecords();
+  const next = all.map(r => (r.id === id ? { ...r, ...patch } : r));
+  await AsyncStorage.setItem(KEY, JSON.stringify(next));
 }
 
 export async function deleteRecord(id: string): Promise<void> {

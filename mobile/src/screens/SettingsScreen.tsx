@@ -108,9 +108,9 @@ export default function SettingsScreen() {
     status === 'online' ? ios.accent :
     status === 'offline' ? ios.systemRed : ios.secondaryLabel;
   const statusLabel =
-    !cloudSync ? 'Desligada' :
-    status === 'checking' ? 'A ligar…' :
-    status === 'online' ? 'Conectado' : 'Sem ligação';
+    !cloudSync ? 'Off' :
+    status === 'checking' ? 'Connecting…' :
+    status === 'online' ? 'Connected' : 'No connection';
   const statusIcon: keyof typeof Ionicons.glyphMap =
     !cloudSync ? 'cloud-offline-outline' :
     status === 'online' ? 'checkmark-circle' :
@@ -125,14 +125,14 @@ export default function SettingsScreen() {
         <Text style={styles.title}>Settings</Text>
       </View>
 
-      {/* NUVEM ============================================================ */}
-      <Text style={styles.sectionHeader}>Nuvem</Text>
+      {/* CLOUD ============================================================ */}
+      <Text style={styles.sectionHeader}>Cloud</Text>
       <View style={styles.card}>
         <View style={styles.row}>
           <View style={styles.rowMain}>
-            <Text style={styles.rowLabel}>Sincronização com a nuvem</Text>
+            <Text style={styles.rowLabel}>Cloud sync</Text>
             <Text style={styles.rowSubLabel}>
-              Sincroniza os scans automaticamente quando há internet
+              Sync scans automatically when online
             </Text>
           </View>
           <Switch
@@ -145,7 +145,7 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.rowDivider} />
         <View style={styles.row}>
-          <Text style={styles.rowLabel}>Estado</Text>
+          <Text style={styles.rowLabel}>Status</Text>
           <View style={styles.rowAccessoryGroup}>
             {cloudSync && status === 'checking'
               ? <ActivityIndicator size="small" color={ios.secondaryLabel} />
@@ -155,13 +155,13 @@ export default function SettingsScreen() {
         </View>
       </View>
       <Text style={styles.sectionFooter}>
-        Com a sincronização ligada, os dados ficam guardados na tua conta e disponíveis
-        noutros dispositivos. Desligada, a app funciona só com os scans locais.
+        With sync on, your data is stored in your account and available on other devices.
+        Off, the app works with local scans only.
       </Text>
 
       {__DEV__ && (
         <>
-          <Text style={styles.sectionHeader}>Servidor (dev)</Text>
+          <Text style={styles.sectionHeader}>Server (dev)</Text>
           <View style={styles.card}>
             <View style={styles.row}>
               <Text style={styles.rowLabel}>URL</Text>
@@ -169,7 +169,7 @@ export default function SettingsScreen() {
                 style={styles.rowInput}
                 value={devUrl}
                 onChangeText={saveDevUrl}
-                placeholder="usar padrão do app"
+                placeholder="use app default"
                 placeholderTextColor={ios.tertiaryLabel}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -178,7 +178,7 @@ export default function SettingsScreen() {
             </View>
           </View>
           <Text style={styles.sectionFooter}>
-            Só em build de desenvolvimento. Vazio = URL padrão do app. Invisível ao usuário final.
+            Development build only. Empty = app default URL. Hidden from end users.
           </Text>
         </>
       )}
