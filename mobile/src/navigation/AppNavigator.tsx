@@ -2,12 +2,10 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons } from '@expo/vector-icons';
-import { Platform, View, ActivityIndicator, StyleSheet } from 'react-native';
-
-import { colors, font, ios } from '../lib/theme';
+import { View, ActivityIndicator } from 'react-native';
+import { colors } from '../lib/theme';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
-import LiquidGlass from '../components/LiquidGlass';
+import GlassTabBar from '../components/GlassTabBar';
 
 import HomeScreen from '../screens/HomeScreen';
 import HerdScreen from '../screens/HerdScreen';
@@ -27,42 +25,13 @@ const Tab = createBottomTabNavigator<TabParamList>();
 function TabNavigator() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        // Tab bar de vidro (Liquid Glass claro): flutua sobre o conteúdo que rola por baixo.
-        tabBarStyle: {
-          position: 'absolute',
-          backgroundColor: 'transparent',
-          borderTopWidth: 0,
-          elevation: 0,
-          height: Platform.OS === 'ios' ? 84 : 62,
-          paddingBottom: Platform.OS === 'ios' ? 26 : 8,
-        },
-        tabBarBackground: () => (
-          <View style={StyleSheet.absoluteFill}>
-            <LiquidGlass tone="light" radius={0} style={StyleSheet.absoluteFill} />
-            <View style={styles.tabHairline} />
-          </View>
-        ),
-        tabBarActiveTintColor: ios.accent,
-        tabBarInactiveTintColor: 'rgba(60,60,67,0.6)',
-        tabBarLabelStyle: { fontSize: font.xs, fontWeight: '600', marginTop: 2 },
-        tabBarIcon: ({ focused, color, size }) => {
-          const icons: Record<string, [string, string]> = {
-            Home:      ['home',         'home-outline'],
-            Herd:      ['paw',          'paw-outline'],
-            Analytics: ['bar-chart',    'bar-chart-outline'],
-            Settings:  ['settings',     'settings-outline'],
-          };
-          const [active, inactive] = icons[route.name] ?? ['ellipse', 'ellipse-outline'];
-          return <Ionicons name={(focused ? active : inactive) as any} size={size} color={color} />;
-        },
-      })}
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <GlassTabBar {...props} />}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ tabBarLabel: 'Início' }} />
-      <Tab.Screen name="Herd" component={HerdScreen} options={{ tabBarLabel: 'Rebanho' }} />
-      <Tab.Screen name="Analytics" component={AnalyticsScreen} options={{ tabBarLabel: 'Análises' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ tabBarLabel: 'Config' }} />
+      <Tab.Screen name="Home" component={HomeScreen} />
+      <Tab.Screen name="Herd" component={HerdScreen} />
+      <Tab.Screen name="Analytics" component={AnalyticsScreen} />
+      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }
@@ -110,13 +79,6 @@ function RootNavigator() {
     </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  tabHairline: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    height: StyleSheet.hairlineWidth, backgroundColor: ios.separator,
-  },
-});
 
 export default function AppNavigator() {
   return (

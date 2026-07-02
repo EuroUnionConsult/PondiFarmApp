@@ -175,7 +175,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowId}>
-                    {isCow ? (rec.animalId ?? 'Bovino') : 'Extra'}
+                    {isCow ? (rec.animalId ?? 'Cattle') : 'Extra'}
                   </Text>
                   <Text style={styles.rowMeta}>
                     {new Date(rec.scannedAt).toLocaleString('pt-PT', {
@@ -286,7 +286,7 @@ const styles = StyleSheet.create({
   },
   eyebrowText: {
     fontSize: 13, fontWeight: '600',
-    color: ios.accent, letterSpacing: -0.05,
+    color: ios.accentDark, letterSpacing: -0.05,
   },
   valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   value: {
@@ -403,12 +403,13 @@ const styles = StyleSheet.create({
     textAlign: 'center', paddingHorizontal: 40,
   },
 
-  // Primary CTA
+  // Primary CTA — verde sólido (padrão único de ação primária no app; Fable)
   cta: {
     marginTop: 22, marginHorizontal: 16,
-    backgroundColor: ios.label,
+    backgroundColor: ios.accent,
     borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    shadowColor: ios.accent, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
   },
   ctaText: {
     color: '#FFFFFF',
