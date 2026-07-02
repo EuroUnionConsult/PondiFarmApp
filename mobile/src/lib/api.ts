@@ -1,9 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authHeaders } from './auth';
+import { authHeaders, getOrganizationId } from './auth';
 import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY } from './config';
-
-// Org piloto PondiFarm (Fase 0). Ideal: derivar do login/config quando houver auth.
-const PONDIFARM_ORG_ID = 'afa19bc8-1528-4802-95fa-24ad30305adb';
 
 const DEFAULT_HEADERS = { 'bypass-tunnel-reminder': 'true' } as const;
 
@@ -87,10 +84,13 @@ function numOrNull(v: unknown): number | null {
 export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
   // Sync desligado pelo usuário => opera 100% local, não toca no backend.
   if (!(await isCloudSyncEnabled())) return [];
+  // Org do usuário logado (do token) — isolamento multi-tenant.
+  const orgId = await getOrganizationId();
+  if (!orgId) return [];
   const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
 
   const res = await fetchWithTimeout(
-    `${base}/api/v1/organizations/${PONDIFARM_ORG_ID}/animals`,
+    `${base}/api/v1/organizations/${orgId}/animals`,
     20000,
   );
   if (!res.ok) throw new Error(`animals HTTP ${res.status}`);
