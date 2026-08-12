@@ -8,6 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { ios } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
+import ScreenBackground from '../components/ScreenBackground';
 
 const CHART_H = 140;
 const CHART_PAD_X = 16;
@@ -76,8 +77,10 @@ export default function AnalyticsScreen() {
   const hasCloud = cloudCount > 0;
 
   return (
+    <View style={{ flex: 1 }}>
+      <ScreenBackground />
     <ScrollView
-      style={styles.scroll}
+      style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
@@ -208,6 +211,7 @@ export default function AnalyticsScreen() {
         </>
       )}
     </ScrollView>
+    </View>
   );
 }
 
