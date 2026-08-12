@@ -186,7 +186,7 @@ export default function ObjectCaptureScreen() {
       {error && (
         <View style={styles.overlay}>
           <Ionicons name="alert-circle-outline" size={40} color="#FFF" />
-          <Text style={styles.overlayText}>Couldn't build the model</Text>
+          <Text style={styles.overlayText}>Couldn&apos;t build the model</Text>
           <Text style={styles.overlayHint}>
             More light, a textured object on a textured surface, and do a full slow
             orbit. Point at the surface first so the plane is detected.
