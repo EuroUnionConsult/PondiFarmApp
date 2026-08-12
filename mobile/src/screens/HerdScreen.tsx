@@ -11,6 +11,7 @@ import { ios } from '../lib/theme';
 import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
+import ScreenBackground from '../components/ScreenBackground';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -117,8 +118,10 @@ export default function HerdScreen() {
   };
 
   return (
+    <View style={{ flex: 1 }}>
+      <ScreenBackground />
     <ScrollView
-      style={styles.scroll}
+      style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
       keyboardShouldPersistTaps="handled"
     >
@@ -274,6 +277,7 @@ export default function HerdScreen() {
         </Text>
       )}
     </ScrollView>
+    </View>
   );
 }
 

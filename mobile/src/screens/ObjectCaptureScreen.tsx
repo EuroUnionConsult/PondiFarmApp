@@ -284,7 +284,7 @@ const styles = StyleSheet.create({
 
   primaryBtn: {
     marginHorizontal: 16,
-    backgroundColor: ios.label, borderRadius: 14, paddingVertical: 16,
+    backgroundColor: ios.accent, borderRadius: 14, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },
   primaryBtnText: { color: '#FFF', fontSize: 17, fontWeight: '600', letterSpacing: -0.3 },
