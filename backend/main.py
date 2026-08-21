@@ -30,7 +30,10 @@ def create_app() -> FastAPI:
     # CORS configurável por env (D.6): restringir em produção via CORS_ORIGINS
     # (lista separada por vírgula). O app nativo não usa CORS; isto é só p/ docs/ferramentas.
     import os
-    cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+
+    cors_origins = [
+        o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
