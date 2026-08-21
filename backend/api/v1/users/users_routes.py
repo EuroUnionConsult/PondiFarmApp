@@ -17,7 +17,9 @@ users_router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
 def _ensure_self(current: CurrentUser, user_id: UUID) -> None:
     if user_id != current.user.id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Só é possível acessar a própria conta")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Só é possível acessar a própria conta"
+        )
 
 
 @users_router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

@@ -37,7 +37,13 @@ jobs:
           cache-dependency-path: backend/requirements.txt
 
       - name: Install ruff
-        run: pip install ruff
+        # Versão FIXADA de propósito. Com "pip install ruff" a CI apanha sempre
+        # a mais recente, e uma versão nova do formatador reprova ficheiros que
+        # ninguém tocou -- foi o que aconteceu a 21/08/2026, com seis ficheiros
+        # idênticos aos da main a passarem lá e a falharem aqui. Um linter sem
+        # versão fixada torna a build não determinística: o mesmo commit passa
+        # hoje e falha amanhã, sem ninguém ter mudado nada.
+        run: pip install ruff==0.16.4
 
       - name: Ruff check
         run: ruff check .

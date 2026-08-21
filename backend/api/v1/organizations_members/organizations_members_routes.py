@@ -22,7 +22,9 @@ organizations_member_router = APIRouter(
 def _ensure_own_org(current: CurrentUser, organization_id: UUID) -> None:
     # Só a própria org — sem isto, qualquer um se adiciona a qualquer tenant.
     if organization_id != current.organization_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização"
+        )
 
 
 @organizations_member_router.get(
