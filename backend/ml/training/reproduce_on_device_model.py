@@ -12,6 +12,7 @@ sem alterar o outro lado, isto denuncia.
 Sem dependências além do numpy — a regressão é resolvida por mínimos quadrados
 diretos, o mesmo que o LinearRegression do scikit-learn faz.
 """
+
 from __future__ import annotations
 
 import csv
@@ -25,7 +26,12 @@ PROCESSADOS = RAIZ / "backend" / "ml" / "datasets" / "processed"
 
 VERSAO = "external-trained-v0.2.0"
 # A ordem TEM de coincidir com o COEF de mobile/src/lib/weightModel.ts
-VARIAVEIS = ["withers_height_cm", "thoracic_depth_cm", "rump_width_cm", "chest_girth_cm"]
+VARIAVEIS = [
+    "withers_height_cm",
+    "thoracic_depth_cm",
+    "rump_width_cm",
+    "chest_girth_cm",
+]
 
 # O que está no dispositivo, copiado à letra.
 COEF_NO_DISPOSITIVO = [
@@ -89,8 +95,10 @@ def main() -> int:
 
     previsto = loocv(X, y)
     nulo = np.array([float(np.mean(np.delete(y, i))) for i in range(len(y))])
-    print(f"\n  LOOCV  MAPE {mape(y, previsto):.2f}%   MAE {np.mean(np.abs(previsto - y)):.1f} kg"
-          f"   r {np.corrcoef(previsto, y)[0, 1]:.3f}")
+    print(
+        f"\n  LOOCV  MAPE {mape(y, previsto):.2f}%   MAE {np.mean(np.abs(previsto - y)):.1f} kg"
+        f"   r {np.corrcoef(previsto, y)[0, 1]:.3f}"
+    )
     print(f"  NULO   MAPE {mape(y, nulo):.2f}%   <- a comparação obrigatória")
 
     # Fator Limousine sobre esta base, com imputação pelas medianas de treino
@@ -112,9 +120,13 @@ def main() -> int:
         corrigido[i] = base[i] * float(np.mean(real[m] / base[m]))
     nulo_acl = np.array([float(np.mean(np.delete(real, i))) for i in range(len(real))])
     print(f"\n  Limousine ACL (n={len(real)}): fator x{fator:.4f}")
-    print(f"    sem correção {mape(real, base):.2f}%  ->  com fator {mape(real, corrigido):.2f}% (LOOCV)")
-    print(f"    NULO {mape(real, nulo_acl):.2f}%  -> ganho {mape(real, nulo_acl) - mape(real, corrigido):+.2f} pp, "
-          "que a n=15 é ruído e nunca deve ser citado como validação")
+    print(
+        f"    sem correção {mape(real, base):.2f}%  ->  com fator {mape(real, corrigido):.2f}% (LOOCV)"
+    )
+    print(
+        f"    NULO {mape(real, nulo_acl):.2f}%  -> ganho {mape(real, nulo_acl) - mape(real, corrigido):+.2f} pp, "
+        "que a n=15 é ruído e nunca deve ser citado como validação"
+    )
 
     print("\nConferência com mobile/src/lib/weightModel.ts")
     erros = []
