@@ -186,8 +186,8 @@ export default function ResultScreen() {
 
         <Text style={styles.sectionFooter}>
           On-device trained model ({WEIGHT_MODEL_VERSION}), running offline from the 3D
-          measurements. Base model trained on public Hereford data (MAPE 3.96% on its own
-          held-out set).{' '}
+          measurements. Base model fitted on 103 public Hereford: MAPE 4.62%, MAE 19.5 kg,
+          leave-one-out, against 13.84% for predicting the cohort mean.{' '}
           {calibration
             ? `Calibrated for ${prettyBreed(record.breed)} using a factor measured on ` +
               `${calibration.sampleSize} animals (${calibration.measuredOn}); ` +
