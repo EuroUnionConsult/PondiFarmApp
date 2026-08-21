@@ -29,6 +29,11 @@ ACTIVE_UNFINISHED_SCAN_STATUSES: tuple[ScanStatus, ...] = (
     "processing",
 )
 
+# ⚠️ Esta máquina de estados descreve o que o modelo declarava, não o que a base
+# de dados aceita. A base só conhece 'pending', 'processing', 'completed' e
+# 'failed'; os outros cinco nunca lá puderam ser escritos. Mantém-se aqui porque
+# descreve o fluxo pretendido e serve de especificação para a migração, mas
+# qualquer transição para um estado ausente falha na escrita.
 ALLOWED_SCAN_STATUS_TRANSITIONS: dict[ScanStatus, set[ScanStatus]] = {
     "pending_upload": {"uploaded", "archived"},
     "uploaded": {"validating", "failed"},
@@ -351,12 +356,15 @@ def delete_scan(db: Session, scan_id: UUID) -> None:
             detail="Cannot delete a scan while it is processing",
         )
 
-    if scan.scan_status == "completed":
-        scan.scan_status = "archived"
-        scan.updated_at = datetime.utcnow()
-        db.commit()
-        return
-
+    # Um scan concluído era marcado 'archived' em vez de apagado, para preservar
+    # o registo. A base de dados RECUSA esse valor: a restrição real é
+    # chk_animal_scans_status IN ('pending','processing','completed','failed'),
+    # verificada em produção a 21/08/2026. Como todos os scans reais estão
+    # 'completed', esta linha fazia com que apagar QUALQUER scan devolvesse 500.
+    #
+    # Até a base de dados aprender os oito estados que o modelo declarava, o
+    # apagamento suave é o mecanismo disponível — e cumpre a mesma intenção: a
+    # linha fica, com deleted_at preenchido, e sai de todas as consultas.
     scan.deleted_at = datetime.utcnow()
     scan.updated_at = datetime.utcnow()
     db.commit()
