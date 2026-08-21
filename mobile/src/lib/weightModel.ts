@@ -1,32 +1,47 @@
 // On-device weight model — embedded coefficients of the trained regressor.
 //
-// Model: Linear Regression (scikit-learn), trained offline on the public
-// CowDatabase (Ruchay et al. — 102 Hereford cattle, morphometrics + scale weight).
-// Performance on held-out test set: MAPE 3.96% · R² 0.93 · MAE 16.9 kg.
-// Version: external-trained-v0.1.0.
+// Model: ordinary least squares over four morphometric measurements, fitted on
+// the public CowDatabase (Ruchay et al. — 103 Hereford, tape morphometrics
+// paired with scale weight). Version: external-trained-v0.2.0.
 //
-// Why embedded: the model is a simple linear combination of the five 3D
-// measurements the scanner already produces, so we ship the coefficients and run
-// it fully on-device — no backend, works offline in the field. The backend
-// pipeline (backend/ml) can retrain and produce updated coefficients; when it
-// does, replace COEF/INTERCEPT below (see the retrain runbook in the vault).
+// Leave-one-out over the whole cohort: MAPE 4.62% · MAE 19.5 kg · r 0.932,
+// against a null (cohort-mean) predictor at 13.84%. LOOCV is quoted rather than
+// a single held-out split because at n=103 a split is itself a coin toss.
+//
+// WHY BODY LENGTH WAS DROPPED (v0.1.0 → v0.2.0)
+// v0.1.0 used five features, oblique body length among them. Measured on the
+// same cohort under the same protocol, that feature is not merely useless but
+// harmful: on its own it scores 16.96% MAPE, worse than predicting the mean,
+// and the training column carries an outlier of 452 cm against a median of 149.
+// Removing it moves the model from 5.01% to 4.62% and lifts r from 0.897 to
+// 0.932. The scanner still measures body length and the app still displays it;
+// it simply no longer feeds the weight estimate.
+//
+// Why embedded: four coefficients and an intercept run fully on-device — no
+// backend, works offline in the field. The backend pipeline (backend/ml) can
+// retrain and produce updated coefficients; when it does, replace COEF and
+// INTERCEPT below (see the retrain runbook in the vault).
 //
 // HONEST CAVEAT: the base model is trained on Hereford cattle and on manual
-// measurements. Breed calibration factors (below) correct the base prediction
-// for a specific breed AND animal category; they are measured, not assumed.
+// tape measurements. The device computes geometrically analogous but not
+// identical quantities, and that gap costs accuracy — measured on 102 public
+// point clouds, the fully automatic chain scores 10.23% against 4.88% for the
+// same model fed manual measurements. Breed calibrations below correct the base
+// prediction for a specific breed AND category; they are measured, not assumed.
 
 import type { AnimalCategory, Measurements } from './storage';
 
 export type { AnimalCategory };
 
-export const WEIGHT_MODEL_VERSION = 'external-trained-v0.1.0';
+export const WEIGHT_MODEL_VERSION = 'external-trained-v0.2.0';
 
-// Feature order MUST match training: [body_length, withers_height, thoracic_depth, rump_width, chest_girth] (cm)
-const COEF = [0.46760772, 1.07406652, -0.02892046, 3.74264559, 4.16840859] as const;
-const INTERCEPT = -670.7474458915931;
+// Feature order MUST match training: [withers_height, thoracic_depth, rump_width, chest_girth] (cm).
+// rump_width is the ilium width column of CowDatabase (training median 44 cm).
+const COEF = [1.6451018341024197, 0.3620137862529025, 5.488782242499486, 3.7381253276099202] as const;
+const INTERCEPT = -691.191945913401;
 // Median of each feature in the training set — used as a fallback if a
 // measurement is missing/invalid (mirrors the training imputer).
-const MEDIAN = [149, 120, 62, 44, 181] as const;
+const MEDIAN = [120, 62, 44, 180] as const;
 
 interface BreedCalibration {
   /** Multiply the base (Hereford-trained) prediction by this. */
@@ -42,24 +57,35 @@ interface BreedCalibration {
 /**
  * Measured breed×category calibrations, keyed `breed|category` (lowercase breed).
  *
- * Limousine young bulls: base model under-predicts by ~27%. That is not model
- * error — it is the breed. Limousine is the most heavily conformed beef breed
- * there is, and these were entire males on an intensive station diet, whereas
- * the base model learned from Hereford cows.
+ * Limousine young bulls: the base model under-predicts by ~20%. That is not
+ * model error — it is the breed. Limousine is the most heavily conformed beef
+ * breed there is, and these were entire males on an intensive station diet,
+ * whereas the base model learned from Hereford cows.
  *
  * Derivation: 15 bulls from the ACL (Associação Portuguesa de Criadores da Raça
  * Bovina Limousine) performance test, series 03/2022 — official station scale
- * weights and body measurements taken at exit of the test. A single
- * multiplicative parameter takes MAPE from 21.01% to 6.93% under leave-one-out
- * validation. An affine fit (two parameters) scored 6.78% — not worth the
- * second parameter at n=15, where every extra degree of freedom is a chance to
- * memorise rather than learn.
+ * weights and body measurements taken at exit of the test. Refitted for the
+ * v0.2.0 base: a single multiplicative parameter takes MAPE from 20.20% to
+ * 6.83% under leave-one-out.
+ *
+ * WHAT THIS FACTOR DOES AND DOES NOT DO. It corrects systematic bias. It does
+ * not demonstrate that the model can tell one Limousine from another: on this
+ * cohort the null (mean) predictor scores 7.10% against the corrected model's
+ * 6.83%, a gain of 0.27 pp that is noise at n=15. The cohort's weight CV is
+ * only 8.26% — too homogeneous for morphometry to explain anything. Never quote
+ * the 6.83% as validation of the model on Limousine.
+ *
+ * WHY MULTIPLICATIVE AND NOT A PER-BREED INTERCEPT. Both were measured on this
+ * cohort under leave-one-out: multiplicative 6.81%, additive 6.51%, affine
+ * 6.70%. At n=15 those are indistinguishable, so the single-parameter form
+ * stays — fewer degrees of freedom, less chance to memorise. Revisit when a
+ * breed has enough animals AND enough weight spread to separate the two.
  */
 const BREED_CALIBRATIONS: Readonly<Record<string, BreedCalibration>> = {
   'limousine|young_bull': {
-    factor: 1.2705,
+    factor: 1.2608,
     measuredOn: 'entire males, 14-16 months, station performance test',
-    mapePercent: 6.93,
+    mapePercent: 6.83,
     sampleSize: 15,
     source: 'ACL performance test 03/2022',
   },
@@ -98,7 +124,6 @@ export function estimateWeightKg(
   category: AnimalCategory = 'unknown',
 ): number {
   const feats = [
-    m.body_length_cm,
     m.withers_height_cm,
     m.thoracic_depth_cm,
     m.rump_width_cm,
