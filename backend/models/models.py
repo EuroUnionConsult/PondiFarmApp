@@ -330,9 +330,15 @@ class AnimalScan(Base):
     withers_height: Mapped[float | None] = mapped_column(Float, nullable=True)
     chest_circumference: Mapped[float | None] = mapped_column(Float, nullable=True)
     hip_width: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # 5ª feature do modelo de peso. O device já a calcula (MeshMeasurer.thoracicDepth)
+    # e o weightModel.ts já a usa; até agora só viajava dentro de raw_result_json,
+    # o que a tornava inconsultável em SQL e inutilizável para treino.
+    thoracic_depth: Mapped[float | None] = mapped_column(Float, nullable=True)
     # none_as_null: Python None → SQL NULL (não a string JSON 'null', que viola
     # o CHECK chk_animal_scans_raw_json). Dict/list válidos passam por ISJSON.
-    raw_result_json: Mapped[dict | list | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+    raw_result_json: Mapped[dict | list | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     # Idempotência do push (C4): id do scan no device. UNIQUE filtrado no DB.
     client_scan_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)

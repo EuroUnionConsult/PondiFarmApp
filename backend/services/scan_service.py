@@ -231,12 +231,18 @@ REQUIRED_ESTIMATION_COLUMNS: tuple[str, ...] = (
 OPTIONAL_ESTIMATION_COLUMNS: tuple[str, ...] = (
     "withers_height",
     "hip_width",
+    "thoracic_depth",
 )
 
-# Plausible bovine fallbacks (in centimetres) for measurements that the current
-# scan schema does not persist or that were left blank. They sit comfortably
-# inside the predictor's plausible ranges and never affect the estimated weight,
-# which depends only on chest circumference and body length.
+# Plausible bovine fallbacks (in centimetres) for measurements that were left
+# blank by the client or that predate the column existing. They sit comfortably
+# inside the predictor's plausible ranges.
+#
+# NOTE: ``thoracic_depth`` is now a real column and is passed through verbatim
+# when the scan carries it. The fallback below only applies to scans captured
+# before the column existed, whose depth was never persisted as a queryable
+# value. Such scans MUST NOT be used as training rows — a constant standing in
+# for a measurement would teach the model that depth carries no information.
 _MEASUREMENT_FALLBACKS: dict[str, float] = {
     "withers_height_cm": 130.0,
     "thoracic_depth_cm": 65.0,
@@ -320,7 +326,8 @@ def _build_prediction_request(scan: AnimalScan) -> WeightEstimationRequest:
             "withers_height_cm": scan.withers_height
             or _MEASUREMENT_FALLBACKS["withers_height_cm"],
             "rump_width_cm": scan.hip_width or _MEASUREMENT_FALLBACKS["rump_width_cm"],
-            "thoracic_depth_cm": _MEASUREMENT_FALLBACKS["thoracic_depth_cm"],
+            "thoracic_depth_cm": scan.thoracic_depth
+            or _MEASUREMENT_FALLBACKS["thoracic_depth_cm"],
         },
     )
 

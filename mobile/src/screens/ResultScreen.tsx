@@ -10,7 +10,9 @@ import type { RouteProp } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
 import { MeshPreviewView, renderTexture } from '../../modules/lidar-scanner';
 import { ios } from '../lib/theme';
-import { estimateWeightKg, WEIGHT_MODEL_VERSION } from '../lib/weightModel';
+import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from '../lib/weightModel';
+import { updateRecord } from '../lib/storage';
+import type { AnimalCategory } from '../lib/storage';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -20,6 +22,14 @@ function prettyBreed(b?: string): string {
   if (!b || b === 'default') return 'Unspecified';
   return b.charAt(0).toUpperCase() + b.slice(1);
 }
+
+// 'unknown' é a opção honesta e o padrão: sem categoria não se aplica calibração
+// nenhuma, em vez de se assumir uma que talvez não sirva a este animal.
+const CATEGORY_OPTIONS: { value: AnimalCategory; label: string }[] = [
+  { value: 'young_bull', label: 'Young bull' },
+  { value: 'adult_cow', label: 'Adult cow' },
+  { value: 'unknown', label: 'Not sure' },
+];
 
 // Peso preliminar pela fórmula de fita (offline, sem backend) — mesma do baseline #46:
 // peso(lb) = (cinta_torácica_in² × comprimento_in) / 300 → kg.
@@ -32,13 +42,26 @@ export default function ResultScreen() {
   const { measurements } = record;
   const isCow = record.category === 'cow';
 
+  // Categoria do animal: escolhe a calibração de raça. Persiste no registo para
+  // que o push ao backend leve a mesma estimativa que o ecrã mostrou.
+  const [animalCategory, setAnimalCategory] = useState<AnimalCategory>(
+    record.animalCategory ?? 'unknown',
+  );
+  const calibration = getBreedCalibration(record.breed, animalCategory);
+
+  const handleCategoryChange = (value: AnimalCategory) => {
+    setAnimalCategory(value);
+    void updateRecord(record.id, { animalCategory: value });
+  };
+
   // Render de textura sob demanda. Começa com o que já existir (se já texturizado).
   const [texturedUri, setTexturedUri] = useState<string | null>(record.meshTexturedUri ?? null);
   const [rendering, setRendering] = useState(false);
   const viewerSource = texturedUri ?? record.meshPlyUri ?? record.meshUri;
   // "Render texture" desativado: o bake por-triângulo (TextureBaker) tem teto de qualidade
   // baixo (mosaico/emendas). O caminho de textura fotorrealista é o Object Capture (USDZ).
-  const canRender = false && !texturedUri && !!record.keyframesDir;
+  // Para reativar: const canRender = !texturedUri && !!record.keyframesDir;
+  const canRender = false;
 
   const handleRender = async () => {
     if (!record.keyframesDir) return;
@@ -131,13 +154,48 @@ export default function ResultScreen() {
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.rowKey}>Model estimate</Text>
-            <Text style={styles.rowMeasure}>≈ {estimateWeightKg(measurements).toFixed(0)} kg</Text>
+            <Text style={styles.rowMeasure}>
+              ≈ {estimateWeightKg(measurements, record.breed, animalCategory).toFixed(0)} kg
+            </Text>
           </View>
         </View>
+
+        {isCow && (
+          <>
+            <Text style={styles.sectionHeader}>Animal category</Text>
+            <View style={styles.segment}>
+              {CATEGORY_OPTIONS.map((option) => {
+                const selected = option.value === animalCategory;
+                return (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => handleCategoryChange(option.value)}
+                    style={[styles.segmentItem, selected && styles.segmentItemActive]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                  >
+                    <Text style={[styles.segmentText, selected && styles.segmentTextActive]}>
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </>
+        )}
+
         <Text style={styles.sectionFooter}>
-          On-device trained model ({WEIGHT_MODEL_VERSION}, MAPE 3.96%), running offline from
-          the 3D measurements. Base model trained on public beef-cattle data; being
-          recalibrated with PondiFarm Limousine ground-truth.
+          On-device trained model ({WEIGHT_MODEL_VERSION}), running offline from the 3D
+          measurements. Base model trained on public Hereford data (MAPE 3.96% on its own
+          held-out set).{' '}
+          {calibration
+            ? `Calibrated for ${prettyBreed(record.breed)} using a factor measured on ` +
+              `${calibration.sampleSize} animals (${calibration.measuredOn}); ` +
+              `MAPE ${calibration.mapePercent}% on that cohort, leave-one-out. ` +
+              `Source: ${calibration.source}.`
+            : 'No breed calibration applies to this category, so the base estimate is shown ' +
+              'unchanged — a measured correction exists only for Limousine young bulls, and ' +
+              'extrapolating it to other categories is not supported by data.'}
         </Text>
 
         {/* Measurements — main card */}
@@ -256,6 +314,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   renderBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: -0.3 },
+
+  // Animal-category segmented control (drives the breed calibration)
+  segment: {
+    flexDirection: 'row',
+    marginHorizontal: 16,
+    padding: 3,
+    borderRadius: 12,
+    backgroundColor: '#EFEFF4',
+    gap: 3,
+  },
+  segmentItem: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  segmentItemActive: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 2,
+  },
+  segmentText: {
+    fontSize: 13, fontWeight: '500', letterSpacing: -0.1,
+    color: ios.secondaryLabel,
+  },
+  segmentTextActive: { color: ios.label, fontWeight: '600' },
 
   // Category badge
   badgeRow: {
