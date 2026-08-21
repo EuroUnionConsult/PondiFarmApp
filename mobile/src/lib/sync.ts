@@ -4,7 +4,7 @@
 import { AppState } from 'react-native';
 import { getBackendUrl, isCloudSyncEnabled } from './api';
 import { authHeaders, getOrganizationId } from './auth';
-import { estimateWeightKg, WEIGHT_MODEL_VERSION } from './weightModel';
+import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from './weightModel';
 import {
   listRecords, updateRecord, effectiveSyncState, type ScanRecord,
 } from './storage';
@@ -122,11 +122,15 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
         scanStatus: 'completed',
         clientScanId: record.id,          // C4: idempotência (UNIQUE no backend)
         scannedAt: new Date(record.scannedAt).toISOString(),
-        estimatedWeight: estimateWeightKg(m),
+        // Raça + categoria decidem a calibração. Tem de ser a MESMA combinação
+        // que o ResultScreen usou, senão o backend guarda um peso diferente do
+        // que o utilizador viu.
+        estimatedWeight: estimateWeightKg(m, record.breed, record.animalCategory ?? 'unknown'),
         bodyLength: m.body_length_cm,
         withersHeight: m.withers_height_cm,
         chestCircumference: m.chest_girth_cm,
         hipWidth: m.rump_width_cm,
+        thoracicDepth: m.thoracic_depth_cm,   // M1: coluna própria, já não só no rawResultJson
         rawResultJson: {
           clientScanId: record.id,          // C4: chave de idempotência (dedup futuro)
           modelVersion: WEIGHT_MODEL_VERSION, // M6: rastrear a calibração usada
@@ -134,6 +138,11 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
           faceCount: record.faceCount,
           category: record.category,
           thoracicDepthCm: m.thoracic_depth_cm,
+          // Qual calibração foi (ou não foi) aplicada a este peso. Sem isto, uma
+          // linha da base de dados não diz se o valor é o do modelo base ou o
+          // corrigido por raça — e os dois não são comparáveis entre si.
+          animalCategory: record.animalCategory ?? 'unknown',
+          breedCalibration: getBreedCalibration(record.breed, record.animalCategory ?? 'unknown'),
         },
       }),
     });
