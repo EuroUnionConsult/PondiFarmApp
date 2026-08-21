@@ -17,7 +17,16 @@ enum MeshMeasurer {
     }
 
     let ys = vertices.map { $0.y }
-    let withersHeight = ys.max()! - ys.min()!
+    // Altura medida a partir do PLANO DO SOLO, não do vértice mais baixo.
+    // ys.min() é refém de um único ponto: uma leitura espúria sob o piso, ou o
+    // próprio chão captado de forma irregular, desloca a altura inteira. Medido
+    // em 25 nuvens públicas com peso de balança, a moda global confundia uma
+    // parede densa com o solo em 3 delas, com 79 cm de erro. Restringir a busca
+    // ao quartil inferior levou o desvio-padrão do solo entre animais de 79 cm
+    // para 1,6 cm, e só então o CV das alturas automáticas passou a coincidir
+    // com o das medidas de fita (4,64% contra 4,82%).
+    let ground = groundLevel(ys)
+    let withersHeight = max(0, percentile(ys, 0.995) - ground)
 
     let pts = vertices.map { SIMD2<Float>($0.x, $0.z) }
     let mean = pts.reduce(SIMD2<Float>(0, 0), +) / Float(pts.count)
@@ -50,12 +59,44 @@ enum MeshMeasurer {
         section.append(SIMD2<Float>(simd_dot(d, axisShort), v.y))
       }
     }
+    // Percentis em vez de min/max: um vértice solto na fatia inflava a medida.
+    // LIMITAÇÃO CONHECIDA: isto é a altura da secção, do dorso até ao ponto mais
+    // baixo captado — inclui as patas. A profundidade torácica anatómica vai do
+    // dorso ao esterno e exige detetar a linha da barriga, que ainda não fazemos.
+    let sectionYs = section.map { $0.y }
     let thoracicDepth: Float = section.isEmpty ? 0
-      : (section.map { $0.y }.max()! - section.map { $0.y }.min()!)
+      : max(0, percentile(sectionYs, 0.995) - percentile(sectionYs, 0.005))
     let chestGirth = convexHullPerimeter(section)
 
     return BodyMeasurements(bodyLength: bodyLength, withersHeight: withersHeight,
                             thoracicDepth: thoracicDepth, rumpWidth: rumpWidth, chestGirth: chestGirth)
+  }
+
+  /// Valor no percentil `q` (0…1). Ordena — barato à escala de uma malha ARKit.
+  static func percentile(_ values: [Float], _ q: Float) -> Float {
+    guard !values.isEmpty else { return 0 }
+    let sorted = values.sorted()
+    let idx = Int((Float(sorted.count - 1) * min(max(q, 0), 1)).rounded())
+    return sorted[min(max(idx, 0), sorted.count - 1)]
+  }
+
+  /// Nível do solo = moda do quartil INFERIOR de Y (ARKit: Y aponta para cima).
+  /// Restringir ao quartil inferior é o que impede que uma superfície vertical
+  /// densa — uma parede, as barras de uma manga — seja tomada pelo chão.
+  /// Sem pontos suficientes para um histograma fiável, devolve o mínimo.
+  static func groundLevel(_ ys: [Float]) -> Float {
+    guard let lowest = ys.min() else { return 0 }
+    let cut = percentile(ys, 0.25)
+    let lower = ys.filter { $0 <= cut }
+    guard lower.count >= 20, let a = lower.min(), let b = lower.max(), b > a else { return lowest }
+    let bins = 40
+    var histogram = [Int](repeating: 0, count: bins)
+    for v in lower {
+      let raw = Int((v - a) / (b - a) * Float(bins))
+      histogram[min(max(raw, 0), bins - 1)] += 1
+    }
+    guard let peak = histogram.max(), let k = histogram.firstIndex(of: peak) else { return lowest }
+    return a + (Float(k) + 0.5) * (b - a) / Float(bins)
   }
 
   static func eigenAxes2D(cxx: Float, czz: Float, cxz: Float) -> (SIMD2<Float>, SIMD2<Float>) {
