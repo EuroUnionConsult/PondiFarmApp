@@ -90,6 +90,35 @@ function latestUsableScan(list: any[]): any | undefined {
   return list.find((s) => !HIDDEN_SCAN_STATUSES.has(String(s?.scanStatus ?? s?.scan_status ?? '')));
 }
 
+/** Máximo aceite pelo endpoint. Pedir mais devolve 422. */
+const ANIMALS_PER_PAGE = 100;
+/** Guarda contra um ciclo infinito se o backend deixar de encurtar a última página. */
+const MAX_ANIMAL_PAGES = 50;
+/** Pedidos de scan em voo ao mesmo tempo. */
+const SCAN_FETCH_CONCURRENCY = 8;
+
+/**
+ * `Promise.all` com um tecto de tarefas simultâneas. Preserva a ordem de entrada.
+ */
+async function mapComLimite<T, R>(
+  items: T[],
+  limite: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const out = new Array<R>(items.length);
+  let proximo = 0;
+  const trabalhador = async () => {
+    while (proximo < items.length) {
+      const i = proximo++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(limite, items.length) }, trabalhador),
+  );
+  return out;
+}
+
 /** Busca os animais da org no backend + o peso do scan mais recente de cada um. */
 export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
   // Sync desligado pelo usuário => opera 100% local, não toca no backend.
@@ -99,15 +128,27 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
   if (!orgId) return [];
   const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
 
-  const res = await fetchWithTimeout(
-    `${base}/api/v1/organizations/${orgId}/animals?limit=100`,
-    20000,
-  );
-  if (!res.ok) throw new Error(`animals HTTP ${res.status}`);
-  const animals = (await res.json()) as any[];
+  // PAGINAÇÃO. O endpoint devolve 20 por omissão e no máximo 100 por página, e
+  // não havia nada aqui a pedir a página seguinte. Com 19 animais nunca se notou;
+  // ao vigésimo primeiro a app deixaria de os mostrar todos, sem erro nenhum.
+  const animals: any[] = [];
+  for (let page = 1; page <= MAX_ANIMAL_PAGES; page++) {
+    const res = await fetchWithTimeout(
+      `${base}/api/v1/organizations/${orgId}/animals?page=${page}&limit=${ANIMALS_PER_PAGE}`,
+      20000,
+    );
+    if (!res.ok) throw new Error(`animals HTTP ${res.status}`);
+    const body = await res.json();
+    const lote: any[] = Array.isArray(body) ? body : (body.items ?? body.data ?? []);
+    animals.push(...lote);
+    if (lote.length < ANIMALS_PER_PAGE) break;
+  }
 
-  const result = await Promise.all(
-    animals.map(async (a) => {
+  // CONCORRÊNCIA LIMITADA. Cada animal exige um pedido para o seu scan mais
+  // recente. Um Promise.all sobre a lista inteira dispara tantos pedidos
+  // simultâneos quantos os animais — com 19 passa despercebido, com centenas é
+  // uma estampida que esgota o servidor e faz expirar os próprios pedidos.
+  const result = await mapComLimite(animals, SCAN_FETCH_CONCURRENCY, async (a) => {
       let weightKg: number | null = null;
       let bodyLengthCm: number | null = null;
       let withersHeightCm: number | null = null;
@@ -134,8 +175,7 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
         withersHeightCm,
         notes: a.notes ?? null,
       } as CloudAnimal;
-    }),
-  );
+  });
   // Cacheia por org (mostra instantâneo na próxima navegação).
   try { await AsyncStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({ orgId, at: Date.now(), animals: result })); } catch {}
   return result;
