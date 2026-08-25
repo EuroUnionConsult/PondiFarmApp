@@ -31,8 +31,17 @@ export async function setDevServerUrl(url: string): Promise<void> {
  * fetch com timeout via AbortController.
  * `AbortSignal.timeout()` não existe no runtime Hermes desta versão do RN,
  * então usamos AbortController + setTimeout (compatível).
+ *
+ * ARRANQUE A FRIO. A base de dados é serverless e adormece ao fim de 60 minutos
+ * sem uso. O primeiro pedido depois disso espera que ela acorde, o que leva
+ * dezenas de segundos — mais do que qualquer timeout razoável para uso normal.
+ * Um utilizador que abra a app de manhã cairia sempre nesse caso e veria uma
+ * falha de rede, quando o servidor estava apenas a levantar-se.
+ *
+ * Por isso, um pedido que expire é repetido uma vez com um prazo largo. Só a
+ * segunda falha é uma falha.
  */
-async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+async function fetchUmaVez(url: string, ms: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
@@ -40,6 +49,20 @@ async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
     return await fetch(url, { headers: { ...DEFAULT_HEADERS, ...auth }, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** Prazo da segunda tentativa, dimensionado para acordar a base serverless. */
+const COLD_START_TIMEOUT_MS = 60000;
+
+async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  try {
+    return await fetchUmaVez(url, ms);
+  } catch (e: any) {
+    // Só o timeout justifica repetir. Um erro de DNS ou de TLS repetido dá o
+    // mesmo erro mais devagar.
+    if (e?.name !== 'AbortError') throw e;
+    return await fetchUmaVez(url, COLD_START_TIMEOUT_MS);
   }
 }
 

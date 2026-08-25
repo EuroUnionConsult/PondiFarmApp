@@ -101,7 +101,11 @@ async def upload_document(
     metadata: AnimalDocumentUploadMetadata,
     authenticated_user_id: UUID | None = None,
 ) -> AnimalDocumentResponse:
-    # TODO: enforce organization membership when authenticated user context is wired.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     animal = animal_service.get_animal_entity(db, animal_id)
     if authenticated_user_id is not None:
         user_service.get_user_entity(db, authenticated_user_id)
@@ -157,7 +161,11 @@ def list_documents_for_animal(
     limit: int,
     authenticated_user_id: UUID | None = None,
 ) -> list[AnimalDocumentResponse]:
-    # TODO: enforce organization membership when authenticated user context is wired.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     animal_service.get_animal_entity(db, animal_id)
     _validate_expiration_filters(expires_before, expires_after)
     documents = animal_document_repository.list_documents(
@@ -192,7 +200,11 @@ def list_documents_for_organization(
     limit: int,
     authenticated_user_id: UUID | None = None,
 ) -> list[AnimalDocumentResponse]:
-    # TODO: enforce organization membership when authenticated user context is wired.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     organization_service.get_organization_entity(db, organization_id)
     _validate_expiration_filters(expires_before, expires_after)
     if animal_id is not None:
@@ -250,7 +262,11 @@ def get_document(
     document_id: UUID,
     authenticated_user_id: UUID | None = None,
 ) -> AnimalDocumentResponse:
-    # TODO: enforce organization membership when authenticated user context is wired.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     return AnimalDocumentResponse.model_validate(get_document_entity(db, document_id))
 
 
@@ -259,7 +275,11 @@ def download_document(
     document_id: UUID,
     authenticated_user_id: UUID | None = None,
 ) -> DocumentDownload:
-    # TODO: enforce organization membership before reading private storage.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     document = get_document_entity(db, document_id)
     if document.status == "archived":
         raise HTTPException(
@@ -288,7 +308,11 @@ def update_document(
     payload: AnimalDocumentUpdate,
     authenticated_user_id: UUID | None = None,
 ) -> AnimalDocumentResponse:
-    # TODO: enforce organization membership when authenticated user context is wired.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     document = get_document_entity(db, document_id)
     if document.status == "archived":
         raise HTTPException(
@@ -322,7 +346,11 @@ def archive_document(
     document_id: UUID,
     authenticated_user_id: UUID | None = None,
 ) -> AnimalDocumentResponse:
-    # TODO: enforce organization membership when authenticated user context is wired.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     document = animal_document_repository.get_document_by_id(db, document_id)
     if document is None:
         raise HTTPException(
@@ -350,7 +378,11 @@ def delete_document(
     document_id: UUID,
     authenticated_user_id: UUID | None = None,
 ) -> None:
-    # TODO: enforce organization membership when authenticated user context is wired.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     document = animal_document_repository.get_document_by_id(db, document_id)
     if document is None:
         raise HTTPException(

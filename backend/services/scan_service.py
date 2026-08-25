@@ -159,7 +159,11 @@ def list_scans(
     page: int,
     limit: int,
 ) -> list[AnimalScanResponse]:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     animal_service.get_animal_entity(db, animal_id)
 
     if date_from is not None and date_to is not None and date_from > date_to:
@@ -201,7 +205,11 @@ def update_scan(
     scan_id: UUID,
     payload: AnimalScanUpdate,
 ) -> AnimalScanResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     scan = get_scan_entity(db, scan_id)
     update_data = payload.model_dump(exclude_unset=True)
 
@@ -256,7 +264,11 @@ _MEASUREMENT_FALLBACKS: dict[str, float] = {
 
 
 def estimate_scan_weight(db: Session, scan_id: UUID) -> AnimalScanResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     scan = get_scan_entity(db, scan_id)
     _validate_estimation_measurements(scan)
 
@@ -347,7 +359,11 @@ def _mark_scan_failed(db: Session, scan_id: UUID) -> None:
 
 
 def delete_scan(db: Session, scan_id: UUID) -> None:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     scan = get_scan_entity(db, scan_id)
 
     if scan.scan_status == "processing":
