@@ -82,7 +82,23 @@ enum MeshMeasurer {
     let bodyLength = maxL - minL
     let maxBodyWidth = maxS - minS
 
-    let chestL = minL + bodyLength * 0.33
+    // A fatia torácica conta-se a partir da DIANTEIRA do animal. A análise de
+    // componentes principais devolve o eixo do corpo mas não o seu sentido, por
+    // isso `minL` tanto pode ser o pescoço como a garupa. Sem esta correcção, a
+    // fatia caía a 33% de trás em metade das capturas, e o perímetro torácico
+    // era medido no pescoço.
+    //
+    // ALCANCE: só scans NOVOS. Nenhum registo já guardado ou já sincronizado é
+    // recalculado — nem no dispositivo, nem no backend. Um scan anterior a esta
+    // correcção mantém o perímetro, a profundidade e o peso com que foi criado.
+    // Isso é deliberado: recalcular em massa apagaria o valor que o utilizador
+    // viu e aprovou no momento da medição. A consequência é que registos
+    // antigos e novos do mesmo animal podem divergir, e a comparação entre eles
+    // tem de passar pelo `modelVersion` guardado em `rawResultJson`.
+    let headAtMinL = frontIsAtMinL(vertices, mean: mean, axisLong: axisLong,
+                                   axisShort: axisShort, minL: minL, bodyLength: bodyLength)
+    let chestFraction: Float = headAtMinL ? 0.33 : 1 - 0.33
+    let chestL = minL + bodyLength * chestFraction
     let slabHalf = max(bodyLength * 0.04, 0.01)
     var section: [SIMD2<Float>] = []
     for v in vertices {
@@ -100,12 +116,7 @@ enum MeshMeasurer {
       : max(0, percentile(sectionYs, 0.995) - percentile(sectionYs, 0.005))
     let chestGirth = convexHullPerimeter(section)
 
-    // ─── Descritores anatómicos, orientados ────────────────────────────────
-    // Tudo a partir daqui é ADITIVO: nenhuma das medidas acima é recalculada,
-    // por isso o peso estimado hoje não muda em um único bit.
-    let headAtMinL = frontIsAtMinL(vertices, mean: mean, axisLong: axisLong,
-                                   axisShort: axisShort, minL: minL, bodyLength: bodyLength)
-
+    // ─── Descritores anatómicos ────────────────────────────────────────────
     let chestWidth = widthAtFraction(vertices, mean: mean, axisLong: axisLong,
                                      axisShort: axisShort, minL: minL, bodyLength: bodyLength,
                                      fraction: 0.33, headAtMinL: headAtMinL)
