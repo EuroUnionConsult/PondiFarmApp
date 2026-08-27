@@ -13,8 +13,16 @@ export interface Measurements {
   body_length_cm: number;
   withers_height_cm: number;
   thoracic_depth_cm: number;
+  /** Largura máxima do animal, não a da garupa — ver LidarScanner.types.ts. */
   rump_width_cm: number;
   chest_girth_cm: number;
+
+  /** Descritores da base Limousine v5. Opcionais: só existem em scans novos,
+   *  e nenhum alimenta o modelo de peso. */
+  chest_width_cm?: number;
+  rump_width_ilium_cm?: number;
+  tail_height_cm?: number;
+  orientation_head_at_min_axis?: boolean;
 }
 
 export interface ScanRecord {
