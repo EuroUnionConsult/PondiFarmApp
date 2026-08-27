@@ -118,13 +118,45 @@ check(Set(orientacoes).count == 2, "a dianteira é detectada em ambos os extremo
 check(MeshMeasurer.measure(cube).headAtMinL, "corpo simétrico → orientação por omissão")
 
 // ─── 6) Guarda de regressão sobre as medidas de PRODUÇÃO ────────────────────
-// Estas quatro alimentam o modelo de peso embarcado. Os valores foram fixados
-// com o comportamento anterior à introdução dos descritores anatómicos: se
-// alguma se mexer, o peso mostrado ao utilizador mexeu-se também.
+// Estas quatro alimentam o modelo de peso embarcado. Se alguma se mexer, o peso
+// mostrado ao utilizador mexeu-se também.
+//
+// Os valores estão fixados a 0°, mas fixá-los SÓ a 0° foi um erro enquanto
+// durou: 0° é precisamente a orientação em que a fatia torácica já caía no
+// sítio certo, por isso a guarda não conseguia ver a única mudança de
+// comportamento que devia vigiar. É a razão de existir o bloco 7.
 let prod = MeshMeasurer.measure(cunha(0))
 check(abs(prod.bodyLength    - 2.0006533) < 1e-4, "regressão: comprimento inalterado")
 check(abs(prod.chestGirth    - 3.5347977) < 1e-4, "regressão: perímetro torácico inalterado")
 check(abs(prod.thoracicDepth - 1.2499999) < 1e-4, "regressão: profundidade torácica inalterada")
 check(abs(prod.maxBodyWidth  - 0.9999995) < 1e-4, "regressão: largura máxima inalterada")
+
+// ─── 7) Invariância à rotação das medidas de PRODUÇÃO ───────────────────────
+// O mesmo animal, virado para outro lado, tem de dar as mesmas medidas. Antes
+// da correcção da orientação não dava: a fatia torácica contava-se sempre a
+// partir de minL, que a análise de componentes principais tanto punha no
+// pescoço como na garupa, e o perímetro oscilava entre 3,53 m e 4,13 m —
+// 60 cm, ou 226 kg aos coeficientes do weightModel.
+//
+// Esta é a guarda que faltava. Falha sem a correcção, em cinco das nove
+// orientações.
+let referencia = MeshMeasurer.measure(cunha(0))
+for rot in [Float(45), 90, 120, 135, 180, 225, 270, 315] {
+  let r = MeshMeasurer.measure(cunha(rot))
+  check(abs(r.chestGirth - referencia.chestGirth) < 0.01,
+        "perímetro torácico invariante a \(rot)° (deu \(r.chestGirth), esperado \(referencia.chestGirth))")
+  check(abs(r.thoracicDepth - referencia.thoracicDepth) < 0.01,
+        "profundidade torácica invariante a \(rot)° (deu \(r.thoracicDepth))")
+  check(abs(r.bodyLength - referencia.bodyLength) < 0.01,
+        "comprimento invariante a \(rot)°")
+  check(abs(r.maxBodyWidth - referencia.maxBodyWidth) < 0.01,
+        "largura máxima invariante a \(rot)°")
+}
+
+// A orientação invertida fixada em valor absoluto, não só por comparação: se
+// ambas derivarem juntas, a comparação acima continuaria a passar.
+let invertido = MeshMeasurer.measure(cunha(180))
+check(abs(invertido.chestGirth    - 3.5347977) < 1e-2, "regressão a 180°: perímetro torácico")
+check(abs(invertido.thoracicDepth - 1.2499999) < 1e-2, "regressão a 180°: profundidade torácica")
 
 print("Todos os testes passaram.")
