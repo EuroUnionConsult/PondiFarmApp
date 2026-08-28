@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, marginBottom: 16,
   },
   permBtn: {
-    backgroundColor: ios.label, borderRadius: 14,
+    backgroundColor: ios.accent, borderRadius: 14,
     paddingHorizontal: 32, paddingVertical: 14, minWidth: 240,
     alignItems: 'center',
   },
@@ -654,7 +654,7 @@ const styles = StyleSheet.create({
 
   confirmBtn: {
     marginTop: 22, marginHorizontal: 16,
-    backgroundColor: ios.label,
+    backgroundColor: ios.accent,
     borderRadius: 14, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },

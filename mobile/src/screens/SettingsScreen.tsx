@@ -14,7 +14,9 @@ import {
   getDevServerUrl, setDevServerUrl,
 } from '../lib/api';
 import { APP_VERSION } from '../lib/version';
+import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import { CFG_KEY, LEGACY_CFG_KEY } from '../lib/config';
+import ScreenBackground from '../components/ScreenBackground';
 
 interface Config {
   defaultBreed: 'default' | 'minhota' | 'alentejana';
@@ -117,8 +119,10 @@ export default function SettingsScreen() {
     status === 'offline' ? 'cloud-offline-outline' : 'ellipse-outline';
 
   return (
+    <View style={{ flex: 1 }}>
+      <ScreenBackground />
     <ScrollView
-      style={styles.scroll}
+      style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
@@ -228,7 +232,8 @@ export default function SettingsScreen() {
         {[
           { k: 'Application', v: 'PondiFarm Mobile' },
           { k: 'Version',     v: APP_VERSION },
-          { k: 'AI engine',   v: 'PCA morphometrics — ML pending' },
+          { k: 'AI engine',   v: 'Linear regression, 5 morphometrics — on-device' },
+          { k: 'Weight model', v: `${WEIGHT_MODEL_VERSION} · Hereford base` },
           { k: 'Protocol',    v: 'LiDAR (ARKit scene reconstruction)' },
         ].map(({ k, v }, i, arr) => (
           <View key={k}>
@@ -277,6 +282,7 @@ export default function SettingsScreen() {
         This deletes locally saved scans. It does not affect data on the backend.
       </Text>
     </ScrollView>
+    </View>
   );
 }
 
