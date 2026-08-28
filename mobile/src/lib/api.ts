@@ -80,6 +80,16 @@ function numOrNull(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// Estados cujo peso NÃO deve representar o animal na listagem: arquivado (retirado
+// de circulação pelo utilizador) e os que falharam validação. O backend devolve a
+// lista ordenada por scanned_at desc, então basta descartar estes e ficar com o
+// primeiro que sobra — o scan válido mais recente.
+const HIDDEN_SCAN_STATUSES = new Set(['archived', 'failed', 'validation_failed']);
+
+function latestUsableScan(list: any[]): any | undefined {
+  return list.find((s) => !HIDDEN_SCAN_STATUSES.has(String(s?.scanStatus ?? s?.scan_status ?? '')));
+}
+
 /** Busca os animais da org no backend + o peso do scan mais recente de cada um. */
 export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
   // Sync desligado pelo usuário => opera 100% local, não toca no backend.
@@ -106,7 +116,7 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
         if (sr.ok) {
           const body = await sr.json();
           const list: any[] = Array.isArray(body) ? body : (body.items ?? body.data ?? []);
-          const s = list[0];
+          const s = latestUsableScan(list);
           if (s) {
             weightKg = numOrNull(s.estimatedWeight);
             bodyLengthCm = numOrNull(s.bodyLength);
@@ -129,6 +139,15 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
   // Cacheia por org (mostra instantâneo na próxima navegação).
   try { await AsyncStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({ orgId, at: Date.now(), animals: result })); } catch {}
   return result;
+}
+
+/**
+ * Apaga o cache de animais da nuvem. Chamar no LOGOUT: o `getCachedCloudAnimals`
+ * já filtra por org, mas os dados do utilizador anterior não devem continuar em
+ * disco depois de ele sair da conta.
+ */
+export async function clearCloudCache(): Promise<void> {
+  try { await AsyncStorage.removeItem(CLOUD_CACHE_KEY); } catch {}
 }
 
 /**

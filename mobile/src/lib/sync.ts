@@ -1,6 +1,7 @@
 // Motor de sincronização offline-first (M3-B).
 // O scan é salvo local primeiro; este módulo o envia ao backend quando há rede,
 // deixa na fila (pending) quando não há, e marca erro só em falhas PERMANENTES.
+import { AppState } from 'react-native';
 import { getBackendUrl, isCloudSyncEnabled } from './api';
 import { authHeaders, getOrganizationId } from './auth';
 import { estimateWeightKg, WEIGHT_MODEL_VERSION } from './weightModel';
@@ -147,8 +148,9 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
       await updateRecord(record.id, { syncState: 'error', syncError: String(e.message) });
       return 'error';
     }
-    // transitório (rede/5xx/401/timeout) → mantém na fila
+    // transitório (rede/5xx/401/timeout) → mantém na fila e garante nova tentativa
     await updateRecord(record.id, { syncState: 'pending', syncError: undefined });
+    scheduleRetry();
     return 'pending';
   } finally {
     inFlight.delete(record.id);
@@ -178,4 +180,82 @@ export async function syncPending(): Promise<{ synced: number; pending: number; 
     syncing = false;
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// Auto-retry com backoff exponencial
+//
+// O projeto não usa NetInfo (dependência nativa a mais para o ganho), portanto
+// em vez de "ouvir a rede" fazemos duas coisas: tentamos em intervalos
+// crescentes, e forçamos uma tentativa imediata quando o app volta ao 1º plano
+// — que é, na prática, quando a rede costuma ter voltado.
+//
+// O ciclo PÁRA quando a fila esvazia (não queima bateria à toa) e é re-armado
+// por `scheduleRetry()` assim que um push volta a ficar pending.
+// ---------------------------------------------------------------------------
+
+const RETRY_BASE_MS = 15_000;         // 1ª nova tentativa: 15 s
+const RETRY_MAX_MS = 10 * 60_000;     // teto: 10 min
+const RETRY_FACTOR = 2;
+
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryDelay = RETRY_BASE_MS;
+let appStateSub: { remove(): void } | null = null;
+
+function clearRetryTimer(): void {
+  if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+}
+
+/** Agenda a próxima tentativa, se o auto-sync estiver ligado e não houver uma já agendada. */
+function scheduleRetry(): void {
+  if (retryTimer || !appStateSub) return;
+  retryTimer = setTimeout(() => { void autoSyncTick(); }, retryDelay);
+  retryDelay = Math.min(retryDelay * RETRY_FACTOR, RETRY_MAX_MS);
+}
+
+async function autoSyncTick(): Promise<void> {
+  clearRetryTimer();
+  let left = 0;
+  let progressed = false;
+  try {
+    const out = await syncPending();
+    left = out.pending;
+    progressed = out.synced > 0;
+  } catch {
+    left = 1;   // falha inesperada: continua a tentar em vez de desistir em silêncio
+  }
+  // Um push transitório a meio do ciclo já pode ter agendado a próxima tentativa.
+  // Se ENTRETANTO houve progresso, esse agendamento ficou com um backoff longo a
+  // mais — a rede voltou, queremos reagir depressa. Descartar e reagendar do zero.
+  if (progressed) {
+    clearRetryTimer();
+    retryDelay = RETRY_BASE_MS;
+  }
+  if (left > 0) {
+    scheduleRetry();
+  } else {
+    clearRetryTimer();                // fila limpa: nada agendado fica pendurado
+    retryDelay = RETRY_BASE_MS;       // próximo ciclo começa do início
+  }
+}
+
+/** Liga o auto-sync. Idempotente. Chamar quando há sessão iniciada. */
+export function startAutoSync(): void {
+  if (appStateSub) return;
+  appStateSub = AppState.addEventListener('change', (state) => {
+    if (state === 'active') {
+      retryDelay = RETRY_BASE_MS;
+      clearRetryTimer();
+      void autoSyncTick();
+    }
+  });
+  void autoSyncTick();
+}
+
+/** Desliga o auto-sync e limpa o estado. Chamar no logout. */
+export function stopAutoSync(): void {
+  clearRetryTimer();
+  appStateSub?.remove();
+  appStateSub = null;
+  retryDelay = RETRY_BASE_MS;
 }

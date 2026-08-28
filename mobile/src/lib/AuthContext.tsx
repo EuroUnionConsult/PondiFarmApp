@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import * as auth from './auth';
+import { clearCloudCache } from './api';
+import { startAutoSync, stopAutoSync } from './sync';
 
 interface AuthState {
   token: string | null;
@@ -28,6 +30,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  // O auto-sync só faz sentido com sessão iniciada: sem token não há org nem
+  // headers de autenticação, e cada tentativa seria um 401 garantido.
+  useEffect(() => {
+    if (token) startAutoSync();
+    else stopAutoSync();
+    return () => stopAutoSync();
+  }, [token]);
+
   const login = useCallback(async (email: string, password: string) => {
     await auth.login(email, password);
     setToken(await auth.getToken());
@@ -45,6 +55,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     await auth.clearToken();
+    // O cache da nuvem é por organização, mas não deve sobreviver ao logout:
+    // parar o auto-sync antes evita que um push em curso o volte a escrever.
+    stopAutoSync();
+    await clearCloudCache();
     setToken(null);
     setUser(null);
   }, []);

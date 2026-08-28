@@ -7,9 +7,9 @@
 # Syntax reference:
 # https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
 #
-# TODO: replace the @PLACEHOLDER handles below with the actual GitHub
-# usernames of Filipa Barros and Nicole once they have been added to the
-# EuroUnionConsult organisation.
+# TODO: replace the @FILIPA-PLACEHOLDER handle below with the actual GitHub
+# username of Filipa Barros once she has been added to the EuroUnionConsult
+# organisation.
 
 # Default owner for everything not matched by a more specific rule.
 *                       @Tcordeir0
@@ -18,7 +18,7 @@
 /mobile/                @Tcordeir0 @FILIPA-PLACEHOLDER
 
 # Backend sub-project
-/backend/               @Tcordeir0 @NICOLE-PLACEHOLDER
+/backend/               @Tcordeir0
 
 # CI / release / governance — coordinator + lead engineer
 /.github/               @Tcordeir0
