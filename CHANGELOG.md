@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.6.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.6.0...v0.6.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **mobile:** escape apostrophe flagged by react/no-unescaped-entities ([9f5103e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/9f5103eb52ea3c9ed858296d87a2b970b58c9e55))
+* **mobile:** v0.6.1 — UI contrast, About accuracy, sync retry, scan filtering ([b10ada1](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b10ada1dd3a39885cb8a40b7fe967312036b4eb7))
+* **mobile:** v0.6.1 UI contrast, About accuracy, sync retry and scan filtering ([541391f](https://github.com/EuroUnionConsult/PondiFarmApp/commit/541391f4f1fbcabeed1f667758d931bd51f3938b))
+
+
+### Miscellaneous Chores
+
+* **repo:** drop Nicole from backend code owners ([a7a6d95](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a7a6d9507d97ddf9d82b16a2005fe7876ca1b74e))
+
 ## [0.6.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.5.1...v0.6.0) (2026-07-02)
 
 
