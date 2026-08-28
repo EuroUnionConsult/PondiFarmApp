@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Platform,
-  Alert, ActivityIndicator, Dimensions,
+  Alert, ActivityIndicator,
   Modal, TextInput, KeyboardAvoidingView, ScrollView,
 } from 'react-native';
 import { useCameraPermissions } from 'expo-camera';
@@ -22,8 +22,6 @@ import type { RootStackParamList } from '../navigation/types';
 import GlassSurface from '../components/GlassSurface';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-const { width } = Dimensions.get('window');
 
 const MIN_VERTICES = 100;
 

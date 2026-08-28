@@ -51,7 +51,6 @@ export default function HomeScreen() {
   const avgGirth = records.length
     ? Math.round(records.reduce((s, r) => s + r.measurements.chest_girth_cm, 0) / records.length)
     : 0;
-  const cowPct = records.length ? Math.round((cows.length / records.length) * 100) : 0;
 
   const cloudCount = cloud.length;
   const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);

@@ -1,3 +1,21 @@
+# ⚠️ LEGADO — NÃO FAZ PARTE DO CAMINHO DE PRODUÇÃO
+#
+# Detetor YOLOv8 herdado da fase de FOTOGRAFIA 2D, anterior ao LiDAR. Nessa
+# arquitetura era necessário: sem profundidade, era preciso uma rede para achar
+# o animal na imagem e uma caixa delimitadora para inferir dimensões.
+#
+# Com o LiDAR essa necessidade desapareceu. A malha já vem em metros e o animal
+# isola-se por geometria (plano do solo, componentes conexas, PCA) — ver
+# MeshMeasurer.swift. Nenhuma rede neural participa no cálculo do peso.
+#
+# NÃO ESTÁ EM PRODUÇÃO: o Dockerfile instala requirements-api.txt, que não
+# inclui ultralytics nem opencv. A rota POST /api/v1/scan que depende deste
+# ficheiro falharia no import se fosse chamada no servidor implantado.
+#
+# Mantido para arqueologia e para o caso de voltarmos a precisar de deteção em
+# imagem 2D. Ao descrever a tecnologia do PondiFarm, este ficheiro NÃO conta:
+# dizer "usamos YOLO" seria incorreto.
+
 from ultralytics import YOLO
 from typing import Optional
 import numpy as np

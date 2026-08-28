@@ -35,18 +35,26 @@ animal_documents_router = APIRouter(prefix="/api/v1", tags=["animal-documents"])
 def _ensure_animal_in_org(db: Session, current: CurrentUser, animal_id: UUID) -> None:
     animal = animal_service.get_animal_entity(db, animal_id)
     if animal.organization_id != current.organization_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização"
+        )
 
 
-def _ensure_document_in_org(db: Session, current: CurrentUser, document_id: UUID) -> None:
+def _ensure_document_in_org(
+    db: Session, current: CurrentUser, document_id: UUID
+) -> None:
     document = animal_document_service.get_document_entity(db, document_id)
     if document.organization_id != current.organization_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização"
+        )
 
 
 def _ensure_own_org(current: CurrentUser, organization_id: UUID) -> None:
     if organization_id != current.organization_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização"
+        )
 
 
 @animal_documents_router.post(

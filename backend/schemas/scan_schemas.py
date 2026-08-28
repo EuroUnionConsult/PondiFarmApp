@@ -63,6 +63,7 @@ class AnimalScanCreate(APIModel):
     withers_height: float | None = None
     chest_circumference: float | None = None
     hip_width: float | None = None
+    thoracic_depth: float | None = None  # 5ª feature do modelo (M1)
     raw_result_json: dict[str, Any] | list[Any] | None = None
     client_scan_id: str | None = Field(default=None, max_length=64)  # idempotência (C4)
     notes: str | None = None
@@ -109,6 +110,7 @@ class AnimalScanResponse(APIModel):
     withers_height: float | None = None
     chest_circumference: float | None = None
     hip_width: float | None = None
+    thoracic_depth: float | None = None
     raw_result_json: dict[str, Any] | list[Any] | None = None
     client_scan_id: str | None = None
     notes: str | None = None

@@ -79,6 +79,22 @@ def _ensure_normalized_name_column(
     )
 
 
+def _ensure_thoracic_depth_column(connection: Connection) -> None:
+    """5ª medida morfométrica como COLUNA (M1), não enterrada em raw_result_json.
+
+    Migração aditiva e idempotente: coluna anulável, sem default e sem backfill.
+    Scans antigos ficam NULL — é a representação honesta de "nunca foi persistida",
+    e o predictor trata NULL explicitamente em vez de assumir um valor médio.
+    `FLOAT` é aceite tanto por mssql (Azure SQL) como por sqlite (testes).
+    """
+    inspector = inspect(connection)
+    existing = {column["name"] for column in inspector.get_columns("animal_scans")}
+    if "thoracic_depth" not in existing:
+        connection.execute(
+            text("ALTER TABLE animal_scans ADD thoracic_depth FLOAT NULL"),
+        )
+
+
 def _ensure_client_scan_id_column(connection: Connection) -> None:
     """Idempotência do push (C4): coluna + índice único filtrado em animal_scans.
     Dois pushes do mesmo scan local (retry após timeout) não criam duplicata."""
@@ -115,6 +131,7 @@ def ensure_schema_compatibility(bind: Engine) -> None:
             _ensure_normalized_name_column(connection, "breeds")
         if "animal_scans" in table_names:
             _ensure_client_scan_id_column(connection)
+            _ensure_thoracic_depth_column(connection)
 
 
 def get_engine() -> Engine:
