@@ -1,13 +1,13 @@
-fastapi==0.139.0
-uvicorn[standard]==0.50.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
 python-multipart==0.0.32
 httpx==0.28.1
-SQLAlchemy==2.0.51
+SQLAlchemy==2.0.52
 pyodbc==5.3.0
 passlib==1.7.4
 PyJWT==2.13.0
 email-validator==2.3.0
-ultralytics==8.4.89
+ultralytics==8.4.131
 opencv-python==4.11.0.86
 scikit-learn==1.9.0
 joblib==1.5.3
