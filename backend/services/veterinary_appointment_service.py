@@ -64,7 +64,11 @@ def create_appointment(
     animal_id: UUID,
     payload: VeterinaryAppointmentCreate,
 ) -> VeterinaryAppointmentResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     animal = animal_service.get_animal_entity(db, animal_id)
     _validate_user(db, payload.user_id)
     scheduled_at = _normalize_datetime(payload.scheduled_at)
@@ -115,7 +119,11 @@ def list_appointments_for_animal(
     page: int,
     limit: int,
 ) -> list[VeterinaryAppointmentResponse]:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     animal_service.get_animal_entity(db, animal_id)
     _validate_date_range(date_from, date_to)
     appointments = veterinary_appointment_repository.list_active_appointments(
@@ -143,7 +151,11 @@ def list_appointments_for_organization(
     page: int,
     limit: int,
 ) -> list[VeterinaryAppointmentResponse]:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     organization_service.get_organization_entity(db, organization_id)
     _validate_date_range(date_from, date_to)
     if animal_id is not None:
@@ -196,7 +208,11 @@ def get_appointment(
     db: Session,
     appointment_id: UUID,
 ) -> VeterinaryAppointmentResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     return VeterinaryAppointmentResponse.model_validate(
         get_appointment_entity(db, appointment_id),
     )
@@ -207,7 +223,11 @@ def update_appointment(
     appointment_id: UUID,
     payload: VeterinaryAppointmentUpdate,
 ) -> VeterinaryAppointmentResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     appointment = get_appointment_entity(db, appointment_id)
     if appointment.status != "scheduled":
         raise HTTPException(
@@ -270,7 +290,11 @@ def complete_appointment(
     appointment_id: UUID,
     payload: VeterinaryAppointmentAction,
 ) -> VeterinaryAppointmentResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     appointment = get_appointment_entity(db, appointment_id)
     if appointment.status != "scheduled":
         raise HTTPException(
@@ -290,7 +314,11 @@ def cancel_appointment(
     appointment_id: UUID,
     payload: VeterinaryAppointmentAction,
 ) -> VeterinaryAppointmentResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     appointment = get_appointment_entity(db, appointment_id)
     if appointment.status != "scheduled":
         raise HTTPException(
@@ -309,7 +337,11 @@ def archive_appointment(
     db: Session,
     appointment_id: UUID,
 ) -> VeterinaryAppointmentResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     appointment = get_appointment_entity(db, appointment_id)
     if appointment.status == "archived":
         raise HTTPException(
@@ -323,7 +355,11 @@ def archive_appointment(
 
 
 def delete_appointment(db: Session, appointment_id: UUID) -> None:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     appointment = get_appointment_entity(db, appointment_id)
     if appointment.status == "completed":
         raise HTTPException(

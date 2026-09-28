@@ -52,6 +52,10 @@ export default function HerdScreen() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [query, setQuery] = useState('');
+  // Distingue "não há nada para mostrar" de "não consegui perguntar". Sem isto,
+  // um servidor inacessível e um rebanho vazio são o mesmo ecrã em branco, e o
+  // utilizador conclui que perdeu os animais.
+  const [cloudOffline, setCloudOffline] = useState(false);
 
   const load = useCallback(async () => {
     const cached = await getCachedCloudAnimals();
@@ -59,8 +63,11 @@ export default function HerdScreen() {
     setRecords(await listRecords());
     try {
       setCloud(await fetchCloudAnimals());  // atualiza em 2º plano
+      setCloudOffline(false);
     } catch {
-      /* backend offline → mantém o cache (não zera a lista) */
+      // Backend inacessível: mantém o cache em vez de esvaziar a lista, e
+      // assinala-o, para o ecrã poder dizer que está desactualizado.
+      setCloudOffline(true);
     }
     // Reprocessa a fila de scans pendentes; se subiu algo, atualiza lista + nuvem.
     syncPending().then(async (r) => {
@@ -144,6 +151,15 @@ export default function HerdScreen() {
           <Ionicons name="add" size={26} color={ios.accent} />
         </TouchableOpacity>
       </View>
+
+      {cloudOffline && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline-outline" size={15} color={ios.secondaryLabel} />
+          <Text style={styles.offlineText}>
+            Showing what was last downloaded. The server could not be reached.
+          </Text>
+        </View>
+      )}
 
       <View style={styles.searchWrap}>
         <View style={styles.searchField}>
@@ -306,6 +322,14 @@ const styles = StyleSheet.create({
   },
 
   // Search field iOS HIG
+  offlineBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    marginHorizontal: 16, marginBottom: 10, paddingHorizontal: 12, paddingVertical: 9,
+    backgroundColor: ios.tertiarySystemGroupedBackground, borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: ios.separator,
+  },
+  offlineText: { flex: 1, fontSize: 12.5, color: ios.secondaryLabel, lineHeight: 17 },
+
   searchWrap: { paddingHorizontal: 16, marginTop: 12, marginBottom: 4 },
   searchField: {
     flexDirection: 'row', alignItems: 'center', gap: 6,

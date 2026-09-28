@@ -25,20 +25,28 @@ veterinary_appointments_router = APIRouter(
 def _ensure_animal_in_org(db: Session, current: CurrentUser, animal_id: UUID) -> None:
     animal = animal_service.get_animal_entity(db, animal_id)
     if animal.organization_id != current.organization_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização"
+        )
 
 
 def _ensure_appointment_in_org(
     db: Session, current: CurrentUser, appointment_id: UUID
 ) -> None:
-    appointment = veterinary_appointment_service.get_appointment_entity(db, appointment_id)
+    appointment = veterinary_appointment_service.get_appointment_entity(
+        db, appointment_id
+    )
     if appointment.organization_id != current.organization_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização"
+        )
 
 
 def _ensure_own_org(current: CurrentUser, organization_id: UUID) -> None:
     if organization_id != current.organization_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização")
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "Recurso fora da sua organização"
+        )
 
 
 @veterinary_appointments_router.post(

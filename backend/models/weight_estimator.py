@@ -1,3 +1,16 @@
+# ⚠️ LEGADO — NÃO FAZ PARTE DO CAMINHO DE PRODUÇÃO
+#
+# Random Forest treinado sobre um conjunto SINTÉTICO gerado por np.random.seed(42)
+# a partir de valores da literatura. Não são animais reais e nunca foram.
+# Pertence à mesma fase de fotografia 2D que models/detector.py.
+#
+# O modelo que produz o peso no telemóvel é uma regressão linear de quatro
+# variáveis, treinada em 103 Hereford públicos com peso de balança certificado,
+# com os coeficientes embutidos em mobile/src/lib/weightModel.ts e reproduzíveis
+# por backend/ml/training/reproduce_on_device_model.py.
+#
+# Ao descrever a tecnologia, este ficheiro NÃO conta.
+
 import numpy as np
 import os
 import pickle

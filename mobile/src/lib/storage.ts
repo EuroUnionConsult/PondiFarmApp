@@ -2,6 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export type ScanCategory = 'cow' | 'extra';
 
+/**
+ * Categoria zootécnica do animal. Não é cosmética: decide qual calibração de
+ * raça o modelo de peso pode aplicar (ver weightModel.ts). Um touro inteiro de
+ * estação e uma vaca adulta com a mesma geometria não pesam o mesmo.
+ */
+export type AnimalCategory = 'young_bull' | 'adult_cow' | 'unknown';
+
 export interface Measurements {
   body_length_cm: number;
   withers_height_cm: number;
@@ -17,6 +24,10 @@ export interface ScanRecord {
   source: 'lidar';
   animalId?: string;            // só bovino
   breed?: string;               // só bovino
+  // Categoria do animal — decide QUAL calibração de raça se aplica. O fator
+  // Limousine foi medido em touros jovens de estação; aplicá-lo a uma vaca
+  // adulta inflacionaria-a 27%. Ausente = 'unknown' = sem calibração.
+  animalCategory?: AnimalCategory;
   measurements: Measurements;   // sempre reais (geometria)
   vertexCount: number;          // peso fica de fora até ter modelo treinado (pós-22/06)
   faceCount: number;

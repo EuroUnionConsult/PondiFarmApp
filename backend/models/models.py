@@ -270,25 +270,30 @@ class Animal(Base):
 
 class AnimalScan(Base):
     __tablename__ = "animal_scans"
+    # ⚠️ ESTES VALORES SÃO OS QUE A BASE DE DADOS TEM, não os que gostaríamos.
+    # Verificado em produção a 21/08/2026 com sys.check_constraints: as restrições
+    # reais chamam-se chk_animal_scans_status e chk_animal_scans_source, foram
+    # criadas quando a tabela nasceu, e o SQLAlchemy nunca as substituiu — o
+    # create_all cria tabelas que faltam, não altera as que existem.
+    #
+    # O que o modelo declarava antes divergia em quase tudo:
+    #   scan_status  declarava pending_upload, uploaded, validating,
+    #                validation_failed e archived — a base recusa os cinco
+    #   scan_source  declarava polycam e imported — a base recusa ambos, e
+    #                aceita lidar e photogrammetry, que o modelo não previa
+    # Só 'manual', 'completed', 'processing' e 'failed' existiam dos dois lados.
+    #
+    # CONSEQUÊNCIA VIVA: nada pode ficar 'archived', por isso o filtro de scans
+    # arquivados da v0.6.1 nunca teve efeito em produção. Migrar a base para os
+    # oito estados é uma decisão em aberto; até lá, o modelo diz a verdade.
     __table_args__ = (
         CheckConstraint(
-            (
-                "scan_status IN ("
-                "'pending_upload', "
-                "'uploaded', "
-                "'validating', "
-                "'validation_failed', "
-                "'processing', "
-                "'completed', "
-                "'failed', "
-                "'archived'"
-                ")"
-            ),
-            name="ck_animal_scans_status_values",
+            "scan_status IN ('pending', 'processing', 'completed', 'failed')",
+            name="chk_animal_scans_status",
         ),
         CheckConstraint(
-            "scan_source IN ('polycam', 'manual', 'imported')",
-            name="ck_animal_scans_source_values",
+            "scan_source IN ('lidar', 'manual', 'photogrammetry', 'other')",
+            name="chk_animal_scans_source",
         ),
     )
 
@@ -308,15 +313,15 @@ class AnimalScan(Base):
     scan_status: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="pending_upload",
-        server_default=text("'pending_upload'"),
+        default="completed",
+        server_default=text("'completed'"),
         index=True,
     )
     scan_source: Mapped[str] = mapped_column(
         String(50),
         nullable=False,
-        default="polycam",
-        server_default=text("'polycam'"),
+        default="lidar",
+        server_default=text("'lidar'"),
     )
     scanned_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -330,9 +335,15 @@ class AnimalScan(Base):
     withers_height: Mapped[float | None] = mapped_column(Float, nullable=True)
     chest_circumference: Mapped[float | None] = mapped_column(Float, nullable=True)
     hip_width: Mapped[float | None] = mapped_column(Float, nullable=True)
+    # 5ª feature do modelo de peso. O device já a calcula (MeshMeasurer.thoracicDepth)
+    # e o weightModel.ts já a usa; até agora só viajava dentro de raw_result_json,
+    # o que a tornava inconsultável em SQL e inutilizável para treino.
+    thoracic_depth: Mapped[float | None] = mapped_column(Float, nullable=True)
     # none_as_null: Python None → SQL NULL (não a string JSON 'null', que viola
     # o CHECK chk_animal_scans_raw_json). Dict/list válidos passam por ISJSON.
-    raw_result_json: Mapped[dict | list | None] = mapped_column(JSON(none_as_null=True), nullable=True)
+    raw_result_json: Mapped[dict | list | None] = mapped_column(
+        JSON(none_as_null=True), nullable=True
+    )
     # Idempotência do push (C4): id do scan no device. UNIQUE filtrado no DB.
     client_scan_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
