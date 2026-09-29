@@ -14,11 +14,12 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "pt.eurounionconsult.pondifarm",
+      "bundleIdentifier": "com.eurounionconsult.pondifarm",
       "infoPlist": {
         "NSCameraUsageDescription": "A câmera é usada para escanear o animal e estimar seu peso.",
         "NSPhotoLibraryUsageDescription": "Acesso à galeria para selecionar fotos de animais.",
-        "NSWorldSensingUsageDescription": "O scanner LiDAR usa a reconstrução da cena para medir as dimensões do animal."
+        "NSWorldSensingUsageDescription": "O scanner LiDAR usa a reconstrução da cena para medir as dimensões do animal.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -66,10 +67,10 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "3e0cf932-1fa4-47bc-8dae-860f364c05bb"
+        "projectId": "49b2cdfe-15a4-4872-94ed-1e7d86491541"
       }
     },
-    "owner": "tcord",
+    "owner": "eurounionconsult",
     "runtimeVersion": {
       "policy": "appVersion"
     },
