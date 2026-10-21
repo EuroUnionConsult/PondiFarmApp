@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     JSON,
     String,
     UniqueConstraint,
@@ -108,9 +109,19 @@ class OrganizationMember(Base):
             "user_id",
             name="uq_organization_members_organization_user",
         ),
+        # Papéis aceites pela BD de PRODUÇÃO (chk_organization_members_role, lido a
+        # 21/10/2026). A app usa dois: `owner` = Líder, `viewer` = Membro.
         CheckConstraint(
-            "role = 'viewer'",
-            name="ck_organization_members_role_viewer",
+            "role IN ('viewer', 'manager', 'admin', 'owner')",
+            name="chk_organization_members_role",
+        ),
+        # No máximo um Líder ativo por organização.
+        Index(
+            "ux_organization_members_one_owner",
+            "organization_id",
+            unique=True,
+            sqlite_where=text("role = 'owner' AND deleted_at IS NULL"),
+            mssql_where=text("role = 'owner' AND deleted_at IS NULL"),
         ),
     )
 
@@ -146,6 +157,56 @@ class OrganizationMember(Base):
 
     organization: Mapped[Organization] = relationship(back_populates="members")
     user: Mapped[User] = relationship(back_populates="memberships")
+
+
+ROLE_LEADER = "owner"
+ROLE_MEMBER = "viewer"
+
+JOIN_PENDING = "pending"
+JOIN_APPROVED = "approved"
+JOIN_REJECTED = "rejected"
+JOIN_CANCELLED = "cancelled"
+
+
+class OrganizationJoinRequest(Base):
+    """Pedido para entrar numa organização. Fica FORA de organization_members:
+    quem está pendente nunca é membro e não tem acesso a nenhum dado da
+    organização. O Líder aprova (cria o membro) ou recusa."""
+
+    __tablename__ = "organization_join_requests"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('pending', 'approved', 'rejected', 'cancelled')",
+            name="chk_organization_join_requests_status",
+        ),
+        # Um só pedido pendente por pessoa e organização.
+        Index(
+            "ux_organization_join_requests_pending",
+            "organization_id",
+            "user_id",
+            unique=True,
+            sqlite_where=text("status = 'pending'"),
+            mssql_where=text("status = 'pending'"),
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("organizations.id"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("users.id"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=JOIN_PENDING
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    decided_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id"), nullable=True
+    )
 
 
 class Species(Base):

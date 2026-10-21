@@ -56,7 +56,9 @@ export type BoxFitFailureReason =
   | 'nothingAboveFloor'
   | 'tooSmall'
   | 'tooLarge'
-  | 'touchingStructure';
+  | 'touchingStructure'
+  /** O utilizador mexeu na caixa à mão: o ajuste automático parou. */
+  | 'cancelled';
 
 /** Resultado do ajuste automático da caixa ao animal (tamanhos em metros). */
 export type BoxFitEvent =

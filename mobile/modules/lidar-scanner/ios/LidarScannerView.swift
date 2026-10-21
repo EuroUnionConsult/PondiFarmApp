@@ -168,6 +168,7 @@ class LidarScannerView: ExpoView {
     fwd = simd_normalize(fwd)
     let yaw = atan2(fwd.x, fwd.z)
     boxDims = boxBaseSize          // nova colocação = caixa-padrão; o ajuste vem depois
+    boxScale = 1.0                 // e escala 1.0×, como o ecrã mostra depois de Recenter
     let halfH = boxSize.y * 0.5
 
     // X/Z do alvo: à frente da câmera por padrão.
@@ -253,7 +254,7 @@ class LidarScannerView: ExpoView {
         if dx * dx + dy * dy <= 120 * 120 { boxPanActive = true }
       }
       // Mexer na caixa à mão desliga o ajuste automático (não lhe desfaz o trabalho).
-      if boxPanActive { autoFitActive = false; autoFitRequested = false }
+      if boxPanActive { cancelAutoFit() }
 
     case .changed:
       guard boxPanActive else { return }
@@ -291,6 +292,7 @@ class LidarScannerView: ExpoView {
   }
 
   func setBoxScale(_ s: Float) {
+    cancelAutoFit()   // o manual manda
     let clamped = min(2.0, max(0.5, s))
     let oldHalfH = boxSize.y * 0.5
     boxScale = clamped
@@ -304,8 +306,7 @@ class LidarScannerView: ExpoView {
 
   /// Roda a caixa em torno do próprio centro (graus; positivo = sentido anti-horário visto de cima).
   func rotateBox(_ degrees: Float) {
-    autoFitActive = false
-    autoFitRequested = false
+    cancelAutoFit()   // o manual manda
     let r = simd_float4x4(simd_quatf(angle: degrees * .pi / 180, axis: SIMD3<Float>(0, 1, 0)))
     var t = r * boxWorldTransform
     t.columns.3 = boxWorldTransform.columns.3   // roda no lugar, não à volta da origem
@@ -322,8 +323,11 @@ class LidarScannerView: ExpoView {
 
   /// O utilizador entrou no ajuste manual: o automático deixa de mexer na caixa.
   func cancelAutoFit() {
+    let wasActive = autoFitActive
     autoFitActive = false
     autoFitRequested = false
+    // Avisa o JS, senão o HUD fica preso em «Fitting the box…».
+    if wasActive { onBoxFit(["ok": false, "reason": "cancelled", "final": true]) }
   }
 
   // MARK: - Malha ao vivo, cobertura e ajuste automático

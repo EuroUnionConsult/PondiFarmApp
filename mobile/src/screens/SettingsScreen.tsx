@@ -1,14 +1,16 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator,
+  View, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, Animated,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ios, fonts } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
 import { clearAll } from '../lib/storage';
-import { useAuth } from '../lib/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 import {
   checkHealth, isCloudSyncEnabled, setCloudSyncEnabled,
   getDevServerUrl, setDevServerUrl,
@@ -35,7 +37,10 @@ const BREEDS: { key: Config['defaultBreed']; label: string }[] = [
 ];
 
 export default function SettingsScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useScrollY();
   const [cfg, setCfg] = useState<Config>(DEFAULT);
   const [cloudSync, setCloudSync] = useState(true);
   const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');
@@ -83,18 +88,8 @@ export default function SettingsScreen() {
     if (cloudSync) refreshStatus(true);
   };
 
-  const { user, logout } = useAuth();
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Sign out',
-      user ? `Sign out of ${user.email}?` : 'Sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign out', style: 'destructive', onPress: () => { logout(); } },
-      ],
-    );
-  };
+  // Sair da conta está agora no Perfil.
+  const nav = useNavigation();
 
   const handleClearData = () => {
     Alert.alert(
@@ -126,11 +121,18 @@ export default function SettingsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
+        {/* Desde 21/10/2026 as Settings abrem a partir do Perfil (já não há aba). */}
+        <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} hitSlop={8} accessibilityRole="button">
+          <Ionicons name="chevron-back" size={22} color={ios.accent} />
+          <Text style={styles.backText}>Profile</Text>
+        </TouchableOpacity>
         <Text style={styles.title}>Settings</Text>
       </View>
 
@@ -147,9 +149,9 @@ export default function SettingsScreen() {
           <Switch
             value={cloudSync}
             onValueChange={toggleCloudSync}
-            trackColor={{ true: ios.accent, false: '#E5E5EA' }}
+            trackColor={{ true: ios.accentFill, false: ios.ringTrack }}
             thumbColor="#FFFFFF"
-            ios_backgroundColor="#E5E5EA"
+            ios_backgroundColor={ios.ringTrack}
           />
         </View>
         <View style={styles.rowDivider} />
@@ -224,9 +226,9 @@ export default function SettingsScreen() {
           <Switch
             value={cfg.vibration}
             onValueChange={v => save({ vibration: v })}
-            trackColor={{ true: ios.accent, false: '#E5E5EA' }}
+            trackColor={{ true: ios.accentFill, false: ios.ringTrack }}
             thumbColor="#FFFFFF"
-            ios_backgroundColor="#E5E5EA"
+            ios_backgroundColor={ios.ringTrack}
           />
         </View>
       </View>
@@ -254,28 +256,6 @@ export default function SettingsScreen() {
         PondiFarm · Euro Union Consult, Lda. Pilot build: weight estimates are experimental.
       </Text>
 
-      {/* ACCOUNT ========================================================= */}
-      <Text style={styles.sectionHeader}>Account</Text>
-      <View style={styles.card}>
-        {user && (
-          <>
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Signed in</Text>
-              <Text style={styles.rowValue} numberOfLines={1}>{user.email}</Text>
-            </View>
-            <View style={styles.rowDivider} />
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Organization</Text>
-              <Text style={styles.rowValue} numberOfLines={1}>{user.organizationName}</Text>
-            </View>
-            <View style={styles.rowDivider} />
-          </>
-        )}
-        <TouchableOpacity style={styles.row} onPress={handleLogout} activeOpacity={0.6}>
-          <Text style={[styles.rowLabel, { color: '#DC2626' }]}>Sign out</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* DESTRUCTIVE ====================================================== */}
       <View style={styles.destructiveSpacer} />
       <View style={styles.card}>
@@ -286,17 +266,20 @@ export default function SettingsScreen() {
       <Text style={styles.sectionFooter}>
         This deletes locally saved scans. It does not affect data on the backend.
       </Text>
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="Settings" scrollY={scrollY} />
     </View>
   );
 }
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   largeTitle: { paddingHorizontal: 20, paddingBottom: 8 },
+  back: { flexDirection: 'row', alignItems: 'center', marginLeft: -10, minHeight: 44, alignSelf: 'flex-start' },
+  backText: { color: ios.accent, fontSize: 17 },
   title: {
     fontFamily: displayFont,
     fontSize: 34, fontWeight: '700',
@@ -382,7 +365,7 @@ const styles = StyleSheet.create({
   segmented: {
     flexDirection: 'row',
     marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: '#EFEFF4',
+    backgroundColor: ios.segmentFill,
     borderRadius: 9,
     padding: 2, gap: 2,
   },
@@ -393,7 +376,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   segmentActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ios.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06,

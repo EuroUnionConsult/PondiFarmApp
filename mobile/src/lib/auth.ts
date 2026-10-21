@@ -5,12 +5,40 @@ import { getBackendUrl } from './api';
 // Chave do SecureStore só aceita [A-Za-z0-9._-].
 const TOKEN_KEY = 'pondifarm_auth_token';
 
+export type MembershipStatus = 'active' | 'pending' | 'none';
+export type OrgRole = 'leader' | 'member';
+
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  organizationId: string;
+  /** `active` = membro de uma organização · `pending` = pediu entrada · `none` = ainda não escolheu. */
+  membershipStatus: MembershipStatus;
+  /** null quando não é membro ativo, ou num backend antigo que ainda não devolve o papel. */
+  role: OrgRole | null;
+  organizationId: string | null;
   organizationName: string;
+  pendingOrganizationId: string | null;
+  pendingOrganizationName: string | null;
+}
+
+/** O backend anterior a 21/10/2026 não devolve membershipStatus nem role:
+ * aí, ter organização = membro ativo, papel desconhecido. */
+function normalizeMe(raw: any): AuthUser {
+  const organizationId = raw?.organizationId || null;
+  const status: MembershipStatus =
+    raw?.membershipStatus ?? (organizationId ? 'active' : 'none');
+  return {
+    id: String(raw?.id ?? ''),
+    name: String(raw?.name ?? ''),
+    email: String(raw?.email ?? ''),
+    membershipStatus: status,
+    role: raw?.role === 'leader' || raw?.role === 'member' ? raw.role : null,
+    organizationId,
+    organizationName: String(raw?.organizationName ?? ''),
+    pendingOrganizationId: raw?.pendingOrganizationId ?? null,
+    pendingOrganizationName: raw?.pendingOrganizationName ?? null,
+  };
 }
 
 export async function getToken(): Promise<string | null> {
@@ -84,17 +112,12 @@ export async function login(email: string, password: string): Promise<void> {
   await setToken(data.accessToken);
 }
 
-export async function register(
-  name: string,
-  email: string,
-  password: string,
-  organizationName: string,
-): Promise<void> {
+/** Cria a conta SEM organização: a seguir a pessoa cria uma ou pede entrada. */
+export async function register(name: string, email: string, password: string): Promise<void> {
   const data = await postJson('/api/v1/auth/register', {
     name: name.trim(),
     email: email.trim(),
     password,
-    organizationName: organizationName.trim(),
   });
   if (!data?.accessToken) throw new Error('Resposta sem token');
   await setToken(data.accessToken);
@@ -111,10 +134,24 @@ export async function fetchMe(): Promise<AuthUser | null> {
       signal: controller.signal,
     });
     if (!res.ok) return null;
-    return (await res.json()) as AuthUser;
+    return normalizeMe(await res.json());
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Novo token com a organização atual — depois de criar uma organização ou de
+ * o pedido de entrada ser aprovado (o token antigo não traz a organização). */
+export async function refreshToken(): Promise<void> {
+  const headers = await authHeaders();
+  if (!headers.Authorization) return;
+  const res = await fetch(`${await base()}/api/v1/auth/token/refresh`, {
+    method: 'POST',
+    headers: { ...headers, 'bypass-tunnel-reminder': 'true' },
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data?.accessToken) await setToken(data.accessToken);
 }

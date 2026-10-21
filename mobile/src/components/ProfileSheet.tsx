@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Modal, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../lib/ThemeContext';
 import Text from './Text';
-import { ios, fonts } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
 import { initials, type Profile } from '../lib/profile';
 
 // Folha para definir o nome que aparece no avatar. Abre ao tocar no avatar da Home.
@@ -17,6 +18,8 @@ type Props = {
 };
 
 export default function ProfileSheet({ visible, initial, onSave, onCancel }: Props) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -92,7 +95,7 @@ export default function ProfileSheet({ visible, initial, onSave, onCancel }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: ios.systemGroupedBackground,
@@ -105,7 +108,7 @@ const styles = StyleSheet.create({
   },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 20 },
   avatar: {
-    width: 52, height: 52, borderRadius: 26, backgroundColor: ios.accent,
+    width: 52, height: 52, borderRadius: 26, backgroundColor: ios.accentFill,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: { color: '#FFFFFF', fontSize: 19, fontWeight: '700' },
@@ -119,7 +122,7 @@ const styles = StyleSheet.create({
     fontSize: 17, color: ios.label, marginBottom: 12,
   },
   primary: {
-    backgroundColor: ios.accent, borderRadius: 14, height: 52,
+    backgroundColor: ios.accentFill, borderRadius: 14, height: 52,
     alignItems: 'center', justifyContent: 'center', marginTop: 8,
   },
   primaryDisabled: { opacity: 0.45 },

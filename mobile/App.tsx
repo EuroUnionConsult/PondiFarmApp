@@ -3,6 +3,13 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import AppNavigator from './src/navigation/AppNavigator';
+import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
+
+// Barra de estado conforme o tema (o ecrã do scan põe a sua, clara, por cima).
+function ThemedStatusBar() {
+  const { mode } = useTheme();
+  return <StatusBar style={mode === 'dark' ? 'light' : 'dark'} backgroundColor="transparent" translucent />;
+}
 
 export default function App() {
   // Tipografia da marca (Identidade visual v1.0): Inter 400 e 700, embarcadas na
@@ -12,9 +19,11 @@ export default function App() {
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" backgroundColor="transparent" translucent />
-      <AppNavigator />
-    </SafeAreaProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
+        <ThemedStatusBar />
+        <AppNavigator />
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 }

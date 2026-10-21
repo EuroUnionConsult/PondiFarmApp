@@ -1,12 +1,13 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View, Pressable, StyleSheet, Animated,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { ios, font } from '../lib/theme';
+import { font, type Palette } from '../lib/theme';
 import LiquidGlass from './LiquidGlass';
 
 // Tab bar FLUTUANTE (pill Liquid Glass, estilo iOS 26) com REALCE ANIMADO que desliza
@@ -15,10 +16,11 @@ const TABS: Record<string, { active: string; inactive: string; label: string }> 
   Home:      { active: 'home',      inactive: 'home-outline',      label: 'Home' },
   Herd:      { active: 'paw',       inactive: 'paw-outline',       label: 'Herd' },
   Analytics: { active: 'bar-chart', inactive: 'bar-chart-outline', label: 'Analytics' },
-  Settings:  { active: 'settings',  inactive: 'settings-outline',  label: 'Settings' },
 };
 
 export default function GlassTabBar({ state, navigation }: BottomTabBarProps) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const bottom = insets.bottom > 0 ? insets.bottom : 12;
   const [width, setWidth] = useState(0);
@@ -48,7 +50,7 @@ export default function GlassTabBar({ state, navigation }: BottomTabBarProps) {
         {state.routes.map((route, i) => {
           const focused = state.index === i;
           const t = TABS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline', label: route.name };
-          const color = focused ? ios.accentDark : 'rgba(60,60,67,0.6)';
+          const color = focused ? ios.accentDark : ios.secondaryLabel;
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
             if (!focused && !event.defaultPrevented) navigation.navigate(route.name as never);
@@ -72,7 +74,7 @@ export default function GlassTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   wrap: {
     position: 'absolute', left: 16, right: 16,
     height: 64, borderRadius: 32,

@@ -1,14 +1,16 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, Platform,
+  View, StyleSheet, Platform, Animated,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { breedLabel } from '../lib/breeds';
 import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
-import { ios } from '../lib/theme';
+import { type Palette } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import ScreenBackground from '../components/ScreenBackground';
@@ -22,7 +24,10 @@ const BAR_W = 22;
 const prettyBreed = breedLabel;
 
 export default function AnalyticsScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useScrollY();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
 
@@ -79,7 +84,9 @@ export default function AnalyticsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
     >
@@ -210,12 +217,14 @@ export default function AnalyticsScreen() {
           </Text>
         </>
       )}
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="Analytics" scrollY={scrollY} />
     </View>
   );
 }
 
 function ActivityChart({ values, max, now }: { values: number[]; max: number; now: number }) {
+  const { colors: ios } = useTheme();
   const chartWidthFallback = 320; // recomputed via onLayout in real usage; static fallback for SSR / first paint
   const [width, setWidth] = useState(chartWidthFallback);
 
@@ -253,7 +262,7 @@ function ActivityChart({ values, max, now }: { values: number[]; max: number; no
                 width={BAR_W}
                 height={Math.max(h, 3)}
                 rx={4} ry={4}
-                fill={count > 0 ? ios.accent : '#E5E5EA'}
+                fill={count > 0 ? ios.accent : ios.ringTrack}
               />
               {/* count label above bar */}
               {count > 0 && (
@@ -283,7 +292,7 @@ function ActivityChart({ values, max, now }: { values: number[]; max: number; no
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   largeTitle: { paddingHorizontal: 20, paddingBottom: 6 },
@@ -397,11 +406,11 @@ const styles = StyleSheet.create({
     color: ios.label, letterSpacing: -0.2,
   },
   breedTrack: {
-    height: 6, backgroundColor: '#E5E5EA',
+    height: 6, backgroundColor: ios.ringTrack,
     borderRadius: 3, overflow: 'hidden',
   },
   breedFill: {
-    height: 6, backgroundColor: ios.accent, borderRadius: 3,
+    height: 6, backgroundColor: ios.accentFill, borderRadius: 3,
   },
 
   // Summary rows

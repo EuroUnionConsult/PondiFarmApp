@@ -1,23 +1,25 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Animated, Easing, Image,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import Wordmark from '../components/Wordmark';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ios, fonts } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import { getDevServerUrl, setDevServerUrl } from '../lib/api';
 import LiquidGlass from '../components/LiquidGlass';
 import ScreenBackground from '../components/ScreenBackground';
 
 export default function LoginScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const { login, register } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
-  const [org, setOrg] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [serverUrl, setServerUrl] = useState('');
@@ -52,13 +54,13 @@ export default function LoginScreen() {
   const submit = async () => {
     setError(null);
     if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
-    if (mode === 'register' && (!name.trim() || !org.trim())) {
-      setError('Enter your name and organization.'); return;
+    if (mode === 'register' && !name.trim()) {
+      setError('Enter your name.'); return;
     }
     setBusy(true);
     try {
       if (mode === 'login') await login(email, password);
-      else await register(name, email, password, org);
+      else await register(name, email, password);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -98,10 +100,7 @@ export default function LoginScreen() {
               </View>
 
               {mode === 'register' && (
-                <>
-                  <Field label="Name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
-                  <Field label="Organization" value={org} onChangeText={setOrg} placeholder="e.g. Limousine Farm" autoCapitalize="words" />
-                </>
+                <Field label="Name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
               )}
               <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
               <Field label="Password" value={password} onChangeText={setPassword} placeholder="at least 8 characters" secureTextEntry autoCapitalize="none" />
@@ -143,6 +142,8 @@ export default function LoginScreen() {
 }
 
 function Field(props: React.ComponentProps<typeof TextInput> & { label: string }) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const { label, ...input } = props;
   return (
     <View style={styles.fieldWrap}>
@@ -155,7 +156,7 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
 // Símbolo da marca = o ícone da app (cabeça de bovino).
 const APP_ICON = require('../../assets/icon.png');
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: ios.systemGroupedBackground },
   content: { paddingHorizontal: 24 },
 
@@ -165,29 +166,29 @@ const styles = StyleSheet.create({
   glassCard: { padding: 20 },
 
   segment: {
-    flexDirection: 'row', backgroundColor: 'rgba(120,120,128,0.16)', borderRadius: 12, padding: 3, marginBottom: 18,
+    flexDirection: 'row', backgroundColor: ios.segmentFill, borderRadius: 12, padding: 3, marginBottom: 18,
   },
   segItem: { flex: 1, paddingVertical: 9, borderRadius: 9, alignItems: 'center' },
   segItemActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ios.surface,
     shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 4, shadowOffset: { width: 0, height: 1 },
   },
-  segText: { fontSize: 15, fontWeight: '600', color: 'rgba(60,60,67,0.6)' },
+  segText: { fontSize: 15, fontWeight: '600', color: ios.secondaryLabel },
   segTextActive: { color: ios.label },
 
   fieldWrap: { marginBottom: 14 },
   fieldLabel: { fontSize: 12.5, fontWeight: '600', color: ios.secondaryLabel, marginBottom: 6, marginLeft: 2 },
   input: {
     fontFamily: fonts.regular,
-    backgroundColor: 'rgba(120,120,128,0.12)', borderRadius: 10,
-    borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(60,60,67,0.18)',
+    backgroundColor: ios.segmentFill, borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: ios.separator,
     paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: ios.label,
   },
-  error: { color: '#DC2626', fontSize: 13.5, marginTop: 2, marginBottom: 4, textAlign: 'center' },
+  error: { color: ios.danger, fontSize: 13.5, marginTop: 2, marginBottom: 4, textAlign: 'center' },
 
   // Primary button — SOLID green, white text (contrast AA). Never glass.
   button: {
-    backgroundColor: ios.accent, borderRadius: 12, marginTop: 14, minHeight: 52,
+    backgroundColor: ios.accentFill, borderRadius: 12, marginTop: 14, minHeight: 52,
     alignItems: 'center', justifyContent: 'center', paddingVertical: 15,
     shadowColor: ios.accent, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
   },
