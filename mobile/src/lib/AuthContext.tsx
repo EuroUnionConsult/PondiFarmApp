@@ -8,8 +8,11 @@ interface AuthState {
   user: auth.AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, org: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Relê o /me. Se a conta passou a membro ativo (criou organização ou foi
+   * aprovada), troca primeiro o token por um que já traz a organização. */
+  refreshMe: () => Promise<auth.AuthUser | null>;
 }
 
 const AuthCtx = createContext<AuthState | undefined>(undefined);
@@ -30,13 +33,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  // O auto-sync só faz sentido com sessão iniciada: sem token não há org nem
-  // headers de autenticação, e cada tentativa seria um 401 garantido.
+  // O auto-sync só faz sentido para um membro ATIVO: sem organização (ou à
+  // espera de aprovação) cada tentativa seria um 403 garantido. Offline, sem
+  // /me, mantém-se o comportamento antigo: com token, sincroniza quando puder.
+  const canSync = !!token && (user === null || user.membershipStatus === 'active');
   useEffect(() => {
-    if (token) startAutoSync();
+    if (canSync) startAutoSync();
     else stopAutoSync();
     return () => stopAutoSync();
-  }, [token]);
+  }, [canSync]);
+
+  const refreshMe = useCallback(async () => {
+    let me = await auth.fetchMe();
+    if (me?.membershipStatus === 'active') {
+      const tokenOrg = await auth.getOrganizationId();
+      if (!tokenOrg) {
+        await auth.refreshToken();
+        setToken(await auth.getToken());
+        me = await auth.fetchMe();
+      }
+    }
+    setUser(me);
+    return me;
+  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     await auth.login(email, password);
@@ -45,8 +64,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const register = useCallback(
-    async (name: string, email: string, password: string, org: string) => {
-      await auth.register(name, email, password, org);
+    async (name: string, email: string, password: string) => {
+      await auth.register(name, email, password);
       setToken(await auth.getToken());
       setUser(await auth.fetchMe());
     },
@@ -64,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthCtx.Provider value={{ token, user, loading, login, register, logout }}>
+    <AuthCtx.Provider value={{ token, user, loading, login, register, logout, refreshMe }}>
       {children}
     </AuthCtx.Provider>
   );

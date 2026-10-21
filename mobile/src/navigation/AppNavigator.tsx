@@ -16,6 +16,8 @@ import ObjectCaptureScreen from '../screens/ObjectCaptureScreen';
 import ResultScreen from '../screens/ResultScreen';
 import AnimalDetailScreen from '../screens/AnimalDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import OrganizationGateScreen from '../screens/OrganizationGateScreen';
 
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -31,13 +33,12 @@ function TabNavigator() {
       <Tab.Screen name="Home" component={HomeScreen} />
       <Tab.Screen name="Herd" component={HerdScreen} />
       <Tab.Screen name="Analytics" component={AnalyticsScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
     </Tab.Navigator>
   );
 }
 
 function RootNavigator() {
-  const { token, loading } = useAuth();
+  const { token, user, loading } = useAuth();
 
   if (loading) {
     return (
@@ -49,6 +50,13 @@ function RootNavigator() {
 
   if (!token) {
     return <LoginScreen />;
+  }
+
+  // Com sessão mas sem organização ativa (acabou de se registar, ou espera que
+  // o Líder aprove): escolhe/espera, sem acesso a dados. `user` null = /me
+  // ainda não respondeu ou está offline — segue para a app (offline-first).
+  if (user && user.membershipStatus !== 'active') {
+    return <OrganizationGateScreen />;
   }
 
   return (
@@ -68,6 +76,16 @@ function RootNavigator() {
         <Stack.Screen
           name="Result"
           component={ResultScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen

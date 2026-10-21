@@ -17,7 +17,6 @@ export default function LoginScreen() {
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
-  const [org, setOrg] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [serverUrl, setServerUrl] = useState('');
@@ -52,13 +51,13 @@ export default function LoginScreen() {
   const submit = async () => {
     setError(null);
     if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
-    if (mode === 'register' && (!name.trim() || !org.trim())) {
-      setError('Enter your name and organization.'); return;
+    if (mode === 'register' && !name.trim()) {
+      setError('Enter your name.'); return;
     }
     setBusy(true);
     try {
       if (mode === 'login') await login(email, password);
-      else await register(name, email, password, org);
+      else await register(name, email, password);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -98,10 +97,7 @@ export default function LoginScreen() {
               </View>
 
               {mode === 'register' && (
-                <>
-                  <Field label="Name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
-                  <Field label="Organization" value={org} onChangeText={setOrg} placeholder="e.g. Limousine Farm" autoCapitalize="words" />
-                </>
+                <Field label="Name" value={name} onChangeText={setName} placeholder="Your name" autoCapitalize="words" />
               )}
               <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
               <Field label="Password" value={password} onChangeText={setPassword} placeholder="at least 8 characters" secureTextEntry autoCapitalize="none" />
