@@ -88,7 +88,11 @@ def list_animals(
     page: int,
     limit: int,
 ) -> list[AnimalResponse]:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     organization_service.get_organization_entity(db, organization_id)
     animals = animal_repository.list_active_animals_by_organization(
         db,

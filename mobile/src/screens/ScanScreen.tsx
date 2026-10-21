@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Platform,
-  Alert, ActivityIndicator, Dimensions,
+  Alert, ActivityIndicator,
   Modal, TextInput, KeyboardAvoidingView, ScrollView,
 } from 'react-native';
 import { useCameraPermissions } from 'expo-camera';
@@ -23,8 +23,6 @@ import GlassSurface from '../components/GlassSurface';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const { width } = Dimensions.get('window');
-
 const MIN_VERTICES = 100;
 
 const CATEGORIES: { key: ScanCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
@@ -32,14 +30,17 @@ const CATEGORIES: { key: ScanCategory; label: string; icon: keyof typeof Ionicon
   { key: 'extra', label: 'Extra',  icon: 'cube-outline' },
 ];
 
+// Limousine first and preselected: it is the pilot breed and the only one with a
+// measured (experimental) calibration. 'default' stays available, last.
 const BREEDS = [
-  { key: 'default',    label: 'Unspecified' },
+  { key: 'limousine',  label: 'Limousine' },
   { key: 'minhota',    label: 'Minhota' },
   { key: 'alentejana', label: 'Alentejana' },
   { key: 'barrosã',    label: 'Barrosã' },
   { key: 'maronesa',   label: 'Maronesa' },
   { key: 'cachena',    label: 'Cachena' },
   { key: 'mirandesa',  label: 'Mirandesa' },
+  { key: 'default',    label: 'Other' },
 ];
 
 function PreScanModal({
@@ -52,7 +53,7 @@ function PreScanModal({
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState<ScanCategory>('cow');
   const [animalId, setAnimalId] = useState('');
-  const [breed, setBreed] = useState('default');
+  const [breed, setBreed] = useState('limousine');
 
   const isCow = category === 'cow';
 
@@ -169,7 +170,7 @@ export default function ScanScreen() {
   const [showPreScan, setShowPreScan] = useState(true);
   const [category, setCategory] = useState<ScanCategory>('cow');
   const [animalId, setAnimalId] = useState('');
-  const [breed, setBreed] = useState('default');
+  const [breed, setBreed] = useState('limousine');
   const [boxScale, setBoxScale] = useState(1.0);
   const scannerRef = useRef<LidarScannerViewRef>(null);
 
