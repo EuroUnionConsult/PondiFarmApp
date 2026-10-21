@@ -29,6 +29,11 @@ ACTIVE_UNFINISHED_SCAN_STATUSES: tuple[ScanStatus, ...] = (
     "processing",
 )
 
+# ⚠️ Esta máquina de estados descreve o que o modelo declarava, não o que a base
+# de dados aceita. A base só conhece 'pending', 'processing', 'completed' e
+# 'failed'; os outros cinco nunca lá puderam ser escritos. Mantém-se aqui porque
+# descreve o fluxo pretendido e serve de especificação para a migração, mas
+# qualquer transição para um estado ausente falha na escrita.
 ALLOWED_SCAN_STATUS_TRANSITIONS: dict[ScanStatus, set[ScanStatus]] = {
     "pending_upload": {"uploaded", "archived"},
     "uploaded": {"validating", "failed"},
@@ -154,7 +159,11 @@ def list_scans(
     page: int,
     limit: int,
 ) -> list[AnimalScanResponse]:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     animal_service.get_animal_entity(db, animal_id)
 
     if date_from is not None and date_to is not None and date_from > date_to:
@@ -196,7 +205,11 @@ def update_scan(
     scan_id: UUID,
     payload: AnimalScanUpdate,
 ) -> AnimalScanResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     scan = get_scan_entity(db, scan_id)
     update_data = payload.model_dump(exclude_unset=True)
 
@@ -231,12 +244,18 @@ REQUIRED_ESTIMATION_COLUMNS: tuple[str, ...] = (
 OPTIONAL_ESTIMATION_COLUMNS: tuple[str, ...] = (
     "withers_height",
     "hip_width",
+    "thoracic_depth",
 )
 
-# Plausible bovine fallbacks (in centimetres) for measurements that the current
-# scan schema does not persist or that were left blank. They sit comfortably
-# inside the predictor's plausible ranges and never affect the estimated weight,
-# which depends only on chest circumference and body length.
+# Plausible bovine fallbacks (in centimetres) for measurements that were left
+# blank by the client or that predate the column existing. They sit comfortably
+# inside the predictor's plausible ranges.
+#
+# NOTE: ``thoracic_depth`` is now a real column and is passed through verbatim
+# when the scan carries it. The fallback below only applies to scans captured
+# before the column existed, whose depth was never persisted as a queryable
+# value. Such scans MUST NOT be used as training rows — a constant standing in
+# for a measurement would teach the model that depth carries no information.
 _MEASUREMENT_FALLBACKS: dict[str, float] = {
     "withers_height_cm": 130.0,
     "thoracic_depth_cm": 65.0,
@@ -245,7 +264,11 @@ _MEASUREMENT_FALLBACKS: dict[str, float] = {
 
 
 def estimate_scan_weight(db: Session, scan_id: UUID) -> AnimalScanResponse:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     scan = get_scan_entity(db, scan_id)
     _validate_estimation_measurements(scan)
 
@@ -320,7 +343,8 @@ def _build_prediction_request(scan: AnimalScan) -> WeightEstimationRequest:
             "withers_height_cm": scan.withers_height
             or _MEASUREMENT_FALLBACKS["withers_height_cm"],
             "rump_width_cm": scan.hip_width or _MEASUREMENT_FALLBACKS["rump_width_cm"],
-            "thoracic_depth_cm": _MEASUREMENT_FALLBACKS["thoracic_depth_cm"],
+            "thoracic_depth_cm": scan.thoracic_depth
+            or _MEASUREMENT_FALLBACKS["thoracic_depth_cm"],
         },
     )
 
@@ -335,7 +359,11 @@ def _mark_scan_failed(db: Session, scan_id: UUID) -> None:
 
 
 def delete_scan(db: Session, scan_id: UUID) -> None:
-    # TODO: enforce organization membership and authorization when auth is available.
+    # A verificação de organização é feita na CAMADA DE ROTA, por get_current_user
+    # mais o respectivo _ensure_*_in_org. Verificado em produção a 25/08/2026:
+    # sem token todas as rotas devolvem 401 e uma organização alheia devolve 403.
+    # O TODO que aqui estava dizia 'quando houver auth' e ficou para trás da
+    # auditoria de Julho — quem o lesse concluiria que o serviço está aberto.
     scan = get_scan_entity(db, scan_id)
 
     if scan.scan_status == "processing":
@@ -344,12 +372,15 @@ def delete_scan(db: Session, scan_id: UUID) -> None:
             detail="Cannot delete a scan while it is processing",
         )
 
-    if scan.scan_status == "completed":
-        scan.scan_status = "archived"
-        scan.updated_at = datetime.utcnow()
-        db.commit()
-        return
-
+    # Um scan concluído era marcado 'archived' em vez de apagado, para preservar
+    # o registo. A base de dados RECUSA esse valor: a restrição real é
+    # chk_animal_scans_status IN ('pending','processing','completed','failed'),
+    # verificada em produção a 21/08/2026. Como todos os scans reais estão
+    # 'completed', esta linha fazia com que apagar QUALQUER scan devolvesse 500.
+    #
+    # Até a base de dados aprender os oito estados que o modelo declarava, o
+    # apagamento suave é o mecanismo disponível — e cumpre a mesma intenção: a
+    # linha fica, com deleted_at preenchido, e sai de todas as consultas.
     scan.deleted_at = datetime.utcnow()
     scan.updated_at = datetime.utcnow()
     db.commit()
