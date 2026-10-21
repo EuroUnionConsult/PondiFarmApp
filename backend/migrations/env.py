@@ -32,8 +32,48 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
+def _entra_connect_args() -> dict:
+    """`-x entra=1`: autentica no Azure SQL com a sessão do `az login` (token
+    Entra), sem usar nem copiar a senha SQL da API. O URL passa a ser só
+    servidor + base, por exemplo:
+      alembic -x entra=1 -x url="mssql+pyodbc://@pondifarm.database.windows.net/<base>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes"
+    """
+    import struct
+    import subprocess
+
+    token = subprocess.run(
+        [
+            "az",
+            "account",
+            "get-access-token",
+            "--resource",
+            "https://database.windows.net/",
+            "--query",
+            "accessToken",
+            "-o",
+            "tsv",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    raw = token.encode("utf-16-le")
+    SQL_COPT_SS_ACCESS_TOKEN = 1256  # atributo do driver ODBC da Microsoft
+    return {
+        "attrs_before": {
+            SQL_COPT_SS_ACCESS_TOKEN: struct.pack(f"<I{len(raw)}s", len(raw), raw)
+        }
+    }
+
+
 def run_migrations_online() -> None:
-    engine = create_engine(_url(), poolclass=pool.NullPool, future=True)
+    use_entra = context.get_x_argument(as_dictionary=True).get("entra") == "1"
+    engine = create_engine(
+        _url(),
+        poolclass=pool.NullPool,
+        future=True,
+        connect_args=_entra_connect_args() if use_entra else {},
+    )
     with engine.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
