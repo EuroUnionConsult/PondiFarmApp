@@ -10,6 +10,8 @@ class LidarScannerView: ExpoView {
   // (VIO) inicializar — corrige o "poor slam / vio_initialized(0)".
   private let coachingOverlay = ARCoachingOverlayView()
   private let onScanComplete = EventDispatcher()
+  private let onScanProgress = EventDispatcher()
+  private let onBoxFit = EventDispatcher()
 
   // --- Caixa de enquadramento AR (world-anchored) ---
   private var boxAnchor: AnchorEntity?
@@ -17,6 +19,10 @@ class LidarScannerView: ExpoView {
   private var boxWorldTransform: simd_float4x4 = matrix_identity_float4x4
   private let boxBaseSize = SIMD3<Float>(1.1, 1.7, 2.6)   // largura, altura, comprimento (m) — bovino
   private var boxScale: Float = 1.0
+  /// Tamanho da caixa ANTES da escala do utilizador. Começa no tamanho-padrão de
+  /// bovino e passa a ser o do animal depois do ajuste automático (BoxFitter).
+  private var boxDims = SIMD3<Float>(1.1, 1.7, 2.6)
+  private var boxSize: SIMD3<Float> { boxDims * boxScale }
   // Memória do piso: último Y de um raycast horizontal confiável (abaixo da câmera).
   // A base da caixa é sempre assentada aqui, evitando afundar/flutuar.
   private var floorY: Float?
@@ -44,6 +50,27 @@ class LidarScannerView: ExpoView {
   private static let keyframeWidth = 640      // largura do keyframe reduzido
   private static let keyframeMinMove: Float = 0.06  // m de deslocamento p/ novo keyframe
 
+  // --- Malha ao vivo + cobertura + ajuste automático da caixa ---
+  // A malha recortada à caixa é redesenhada a cada `liveInterval` s, calculada fora
+  // da main; a main só gera o MeshResource. `liveBusy` impede trabalho empilhado.
+  private let liveAnchor = AnchorEntity(world: matrix_identity_float4x4)
+  private var liveFill: ModelEntity?
+  private var liveLines: ModelEntity?
+  private var liveBusy = false
+  private var lastLiveUpdate: CFTimeInterval = 0
+  private static let liveInterval: CFTimeInterval = 0.5
+  private var scanStartTime: CFTimeInterval = 0
+  private var startCamWorld = SIMD3<Float>(0, 0, 0)
+  private var visitedBins = Set<Int>()
+  private var lastPointCount = 0
+  // Ajuste automático: tenta ~2,5 s depois do Start; repete enquanto ainda não houver
+  // malha suficiente; pára num sucesso, numa recusa por estrutura/tamanho, ou quando
+  // o utilizador mexe na caixa à mão (o manual manda sempre).
+  private var autoFitActive = false
+  private var autoFitRequested = false
+  private var autoFitAttempts = 0
+  private var lastAutoFitTry: CFTimeInterval = 0
+
   required init(appContext: AppContext? = nil) {
     super.init(appContext: appContext)
     clipsToBounds = true
@@ -65,8 +92,10 @@ class LidarScannerView: ExpoView {
 
     // RealityKit é dono do ARSession delegate; subscrevemos ao loop de render
     // SEM substituir o delegate. A amostragem de cor roda na main (throttled).
+    arView.scene.addAnchor(liveAnchor)
     sceneUpdateSub = arView.scene.subscribe(to: SceneEvents.Update.self) { [weak self] _ in
       self?.sampleColors()
+      self?.tickLive()
     }
   }
 
@@ -110,6 +139,19 @@ class LidarScannerView: ExpoView {
     keyframes.removeAll()
     lastKeyframePos = nil
     frameTick = 0
+    // Malha ao vivo e cobertura recomeçam do zero; o ajuste automático fica armado.
+    clearLiveMesh()
+    visitedBins.removeAll()
+    lastPointCount = 0
+    scanStartTime = CACurrentMediaTime()
+    lastLiveUpdate = 0
+    if let c = arView.session.currentFrame?.camera.transform.columns.3 {
+      startCamWorld = SIMD3<Float>(c.x, c.y, c.z)
+    }
+    autoFitActive = true
+    autoFitRequested = false
+    autoFitAttempts = 0
+    lastAutoFitTry = 0
     isScanning = true
   }
 
@@ -125,7 +167,9 @@ class LidarScannerView: ExpoView {
     if simd_length(fwd) < 1e-4 { fwd = SIMD3<Float>(0, 0, -1) }
     fwd = simd_normalize(fwd)
     let yaw = atan2(fwd.x, fwd.z)
-    let halfH = boxBaseSize.y * boxScale * 0.5
+    boxDims = boxBaseSize          // nova colocação = caixa-padrão; o ajuste vem depois
+    boxScale = 1.0                 // e escala 1.0×, como o ecrã mostra depois de Recenter
+    let halfH = boxSize.y * 0.5
 
     // X/Z do alvo: à frente da câmera por padrão.
     var cx = camPos.x + fwd.x * 1.4
@@ -149,7 +193,7 @@ class LidarScannerView: ExpoView {
 
     boxAnchor?.removeFromParent()
     let anchor = AnchorEntity(world: t)
-    let cage = LidarScannerView.makeBoxCage(size: boxBaseSize * boxScale)
+    let cage = LidarScannerView.makeBoxCage(size: boxSize)
     anchor.addChild(cage)
     arView.scene.addAnchor(anchor)
     boxAnchor = anchor
@@ -160,7 +204,7 @@ class LidarScannerView: ExpoView {
   private func updateBoxMesh() {
     guard let anchor = boxAnchor else { return }
     boxCage?.removeFromParent()
-    let cage = LidarScannerView.makeBoxCage(size: boxBaseSize * boxScale)
+    let cage = LidarScannerView.makeBoxCage(size: boxSize)
     anchor.addChild(cage)
     boxCage = cage
   }
@@ -209,6 +253,8 @@ class LidarScannerView: ExpoView {
         let dx = Float(sp.x - loc.x), dy = Float(sp.y - loc.y)
         if dx * dx + dy * dy <= 120 * 120 { boxPanActive = true }
       }
+      // Mexer na caixa à mão desliga o ajuste automático (não lhe desfaz o trabalho).
+      if boxPanActive { cancelAutoFit() }
 
     case .changed:
       guard boxPanActive else { return }
@@ -227,7 +273,7 @@ class LidarScannerView: ExpoView {
       // Se o acerto for chão (abaixo da câmera), atualiza a memória de piso.
       if let cp = camPos, hp.y < cp.y - 0.2 { floorY = hp.y }
 
-      let halfH = boxBaseSize.y * boxScale * 0.5
+      let halfH = boxSize.y * 0.5
       let baseY = floorY ?? hp.y
       let target = SIMD3<Float>(hp.x, baseY + halfH, hp.z)
       // Só X/Z seguem o dedo; Y fica preso ao piso. Suaviza p/ matar o tremor.
@@ -246,15 +292,163 @@ class LidarScannerView: ExpoView {
   }
 
   func setBoxScale(_ s: Float) {
+    cancelAutoFit()   // o manual manda
     let clamped = min(2.0, max(0.5, s))
-    let oldHalfH = boxBaseSize.y * boxScale * 0.5
-    let newHalfH = boxBaseSize.y * clamped * 0.5
+    let oldHalfH = boxSize.y * 0.5
     boxScale = clamped
+    let newHalfH = boxSize.y * 0.5
     // Mantém a base fixa no piso: novo centro Y = base + novaMeiaAltura.
     let baseY = boxWorldTransform.columns.3.y - oldHalfH
     boxWorldTransform.columns.3.y = baseY + newHalfH
     boxAnchor?.setTransformMatrix(boxWorldTransform, relativeTo: nil)
     updateBoxMesh()
+  }
+
+  /// Roda a caixa em torno do próprio centro (graus; positivo = sentido anti-horário visto de cima).
+  func rotateBox(_ degrees: Float) {
+    cancelAutoFit()   // o manual manda
+    let r = simd_float4x4(simd_quatf(angle: degrees * .pi / 180, axis: SIMD3<Float>(0, 1, 0)))
+    var t = r * boxWorldTransform
+    t.columns.3 = boxWorldTransform.columns.3   // roda no lugar, não à volta da origem
+    boxWorldTransform = t
+    boxAnchor?.setTransformMatrix(t, relativeTo: nil)
+  }
+
+  /// Pede um novo ajuste automático (botão «Fit to animal»), corrido no próximo tick.
+  func autoFitBox() {
+    autoFitActive = true
+    autoFitRequested = true
+    autoFitAttempts = 0
+  }
+
+  /// O utilizador entrou no ajuste manual: o automático deixa de mexer na caixa.
+  func cancelAutoFit() {
+    let wasActive = autoFitActive
+    autoFitActive = false
+    autoFitRequested = false
+    // Avisa o JS, senão o HUD fica preso em «Fitting the box…».
+    if wasActive { onBoxFit(["ok": false, "reason": "cancelled", "final": true]) }
+  }
+
+  // MARK: - Malha ao vivo, cobertura e ajuste automático
+
+  /// Main, no loop de render. Barato: só decide se é altura de atualizar e tira
+  /// um instantâneo; o recorte, a cobertura e o ajuste correm noutra fila.
+  private func tickLive() {
+    guard isScanning, !liveBusy, boxAnchor != nil else { return }
+    let now = CACurrentMediaTime()
+    guard now - lastLiveUpdate >= LidarScannerView.liveInterval else { return }
+    guard let frame = arView.session.currentFrame, case .normal = frame.camera.trackingState else { return }
+    lastLiveUpdate = now
+
+    // Cobertura: ângulo da câmara à volta do centro da caixa, relativo ao Start.
+    // Só conta quando já há malha do animal dentro da caixa.
+    let c = frame.camera.transform.columns.3
+    let center = SIMD3<Float>(boxWorldTransform.columns.3.x, boxWorldTransform.columns.3.y, boxWorldTransform.columns.3.z)
+    let camRel = SIMD3<Float>(c.x, c.y, c.z) - center
+    let startRel = startCamWorld - center
+    if lastPointCount > 300,
+       let k = ScanCoverage.bin(cameraLocal: camRel, startPhi: ScanCoverage.startPhi(cameraLocal: startRel)) {
+      visitedBins.insert(k)
+    }
+
+    // Ajuste automático: primeiro a ~2,5 s do Start, depois de 2 em 2 s enquanto
+    // faltar malha, no máximo 5 tentativas (ou quando o utilizador o pede).
+    var runFit = false
+    if autoFitActive {
+      let due = autoFitRequested
+        || (autoFitAttempts == 0 && now - scanStartTime >= 2.5)
+        || (autoFitAttempts > 0 && autoFitAttempts < 5 && now - lastAutoFitTry >= 2.0)
+      if due { runFit = true; autoFitRequested = false; autoFitAttempts += 1; lastAutoFitTry = now }
+    }
+
+    let anchors = frame.anchors.compactMap { $0 as? ARMeshAnchor }
+      .filter { simd_distance(SIMD3($0.transform.columns.3.x, $0.transform.columns.3.y, $0.transform.columns.3.z), center) < 6 }
+    let boxInv = simd_inverse(boxWorldTransform)
+    let half = boxSize * 0.5
+    let floor = floorY
+    let searchCenter = SIMD2<Float>(center.x, center.z)
+    liveBusy = true
+
+    DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+      let (v, n, f) = LidarScannerView.consolidateWithNormals(anchors)
+      let live = ScanCoverage.crop(vertices: v, normals: n, faces: f, boxInverse: boxInv, halfExtents: half)
+      let fit: Result<BoxFitter.Fit, BoxFitter.Failure>? =
+        runFit ? BoxFitter.fit(points: v, floorY: floor, searchCenter: searchCenter) : nil
+      DispatchQueue.main.async {
+        guard let self else { return }
+        self.liveBusy = false
+        guard self.isScanning else { return }
+        self.lastPointCount = live.positions.count
+        self.updateLiveMesh(live)
+        if let fit { self.handleFit(fit) }
+        let sides = ScanCoverage.estimate(visitedBins: self.visitedBins, points: live.positions.count)
+        self.onScanProgress([
+          "near": sides.near, "right": sides.right, "far": sides.far, "left": sides.left,
+          "overall": sides.overall, "points": sides.points,
+        ])
+      }
+    }
+  }
+
+  private func handleFit(_ result: Result<BoxFitter.Fit, BoxFitter.Failure>) {
+    // O utilizador começou a mexer na caixa enquanto o ajuste corria: o manual
+    // manda, o resultado é descartado.
+    guard autoFitActive else { return }
+    switch result {
+    case .success(let fit):
+      autoFitActive = false
+      boxDims = fit.size
+      boxScale = 1.0
+      var t = simd_float4x4(simd_quatf(angle: fit.yaw, axis: SIMD3<Float>(0, 1, 0)))
+      t.columns.3 = SIMD4<Float>(fit.baseCenter.x, fit.baseCenter.y + fit.size.y * 0.5, fit.baseCenter.z, 1)
+      boxWorldTransform = t
+      boxAnchor?.setTransformMatrix(t, relativeTo: nil)
+      updateBoxMesh()
+      onBoxFit(["ok": true, "width": fit.size.x, "height": fit.size.y, "length": fit.size.z])
+    case .failure(let reason):
+      // Falta de malha: ainda pode aparecer — volta a tentar sozinho. Estrutura ou
+      // tamanho: não melhora a andar, por isso pára e passa a decisão ao utilizador.
+      let retryable = reason == .notEnoughPoints || reason == .nothingAboveFloor || reason == .tooSmall
+      if !retryable || autoFitAttempts >= 5 { autoFitActive = false }
+      onBoxFit(["ok": false, "reason": reason.rawValue, "final": !autoFitActive])
+    }
+  }
+
+  /// Desenha a malha recortada: preenchimento verde translúcido + arame claro.
+  private func updateLiveMesh(_ live: ScanCoverage.LiveMesh) {
+    guard live.faces.count >= 3 else { clearLiveMesh(); return }
+    var desc = MeshDescriptor(name: "liveScan")
+    desc.positions = MeshBuffers.Positions(live.positions)
+    desc.primitives = .triangles(live.faces)
+    guard let mesh = try? MeshResource.generate(from: [desc]) else { return }
+    if let fill = liveFill {
+      fill.model?.mesh = mesh
+      liveLines?.model?.mesh = mesh
+      return
+    }
+    var fillMat = UnlitMaterial(color: UIColor(red: 0.20, green: 0.95, blue: 0.45, alpha: 1.0))
+    fillMat.blending = .transparent(opacity: .init(floatLiteral: 0.28))
+    let fill = ModelEntity(mesh: mesh, materials: [fillMat])
+    liveAnchor.addChild(fill)
+    liveFill = fill
+    // Arame por cima do preenchimento: `triangleFillMode` só existe no iOS 18+.
+    // Antes disso fica só o preenchimento verde, que já mostra o que foi captado.
+    if #available(iOS 18.0, *) {
+      var lineMat = UnlitMaterial(color: UIColor(red: 0.72, green: 1.0, blue: 0.82, alpha: 1.0))
+      lineMat.blending = .transparent(opacity: .init(floatLiteral: 0.7))
+      lineMat.triangleFillMode = .lines
+      let lines = ModelEntity(mesh: mesh, materials: [lineMat])
+      liveAnchor.addChild(lines)
+      liveLines = lines
+    }
+  }
+
+  private func clearLiveMesh() {
+    liveFill?.removeFromParent()
+    liveLines?.removeFromParent()
+    liveFill = nil
+    liveLines = nil
   }
 
   func stopScan() {
@@ -270,7 +464,8 @@ class LidarScannerView: ExpoView {
       }
       let meshAnchors = frame.anchors.compactMap { $0 as? ARMeshAnchor }
       let boxInv = simd_inverse(self.boxWorldTransform)
-      let half = self.boxBaseSize * self.boxScale * 0.5
+      let half = self.boxSize * 0.5
+      self.clearLiveMesh()
       let colorMap = self.colorByVoxel
       let frames = self.keyframes
 
@@ -514,6 +709,27 @@ class LidarScannerView: ExpoView {
       rgba: buf, width: dw, height: dh, projView: projView, camPos: camPos
     ))
     lastKeyframePos = camPos
+  }
+
+  /// Como `consolidate`, mais as normais de cada vértice em coordenadas de mundo
+  /// (rodadas pela transformação do anchor, que é rígida). Usado pela malha ao vivo.
+  static func consolidateWithNormals(_ anchors: [ARMeshAnchor])
+    -> (vertices: [SIMD3<Float>], normals: [SIMD3<Float>], faces: [UInt32]) {
+    let (vertices, faces) = consolidate(anchors)
+    var normals: [SIMD3<Float>] = []
+    normals.reserveCapacity(vertices.count)
+    for anchor in anchors {
+      let nSrc = anchor.geometry.normals
+      let nBuf = nSrc.buffer.contents()
+      let rot = anchor.transform
+      for i in 0..<nSrc.count {
+        let ptr = nBuf.advanced(by: nSrc.offset + nSrc.stride * i).assumingMemoryBound(to: Float.self)
+        let w = rot * SIMD4<Float>(ptr[0], ptr[1], ptr[2], 0)
+        normals.append(SIMD3<Float>(w.x, w.y, w.z))
+      }
+    }
+    // Se algum anchor vier sem normais, o recorte usa "para cima" em todos.
+    return (vertices, normals.count == vertices.count ? normals : [], faces)
   }
 
   /// Consolida todos os ARMeshAnchor em uma lista de vértices (mundo) e faces (índices 0-based).

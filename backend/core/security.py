@@ -31,11 +31,14 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
-def create_access_token(user_id: uuid.UUID, organization_id: uuid.UUID) -> str:
+def create_access_token(user_id: uuid.UUID, organization_id: uuid.UUID | None) -> str:
+    """`organization_id` None = conta sem organização ativa (acabou de se registar
+    ou está à espera de aprovação): o token só serve para /me, pesquisar
+    organizações, pedir entrada ou criar uma organização."""
     now = datetime.now(timezone.utc)
     payload = {
         "sub": str(user_id),
-        "org": str(organization_id),
+        "org": str(organization_id) if organization_id else "",
         "iat": now,
         "exp": now + timedelta(days=JWT_EXPIRE_DAYS),
     }

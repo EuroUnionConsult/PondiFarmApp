@@ -1,29 +1,66 @@
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Platform,
-  Alert, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, ScrollView,
+  View, StyleSheet, TouchableOpacity, Platform, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, ScrollView,
 } from 'react-native';
+import Text from '../components/Text';
 import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios } from '../lib/theme';
+import { ios, fonts } from '../lib/theme';
 import {
   LidarScannerView,
+  type BoxFitEvent,
+  type BoxFitFailureReason,
   type LidarScannerViewRef,
   type ScanCompleteEvent,
+  type ScanProgressEvent,
 } from '../../modules/lidar-scanner';
 import { saveRecord, type ScanRecord, type ScanCategory } from '../lib/storage';
 import { pushRecord } from '../lib/sync';
 import type { RootStackParamList } from '../navigation/types';
 import GlassSurface from '../components/GlassSurface';
+import CoverageRing from '../components/CoverageRing';
+import { StatusBar } from 'expo-status-bar';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const MIN_VERTICES = 100;
+
+// A partir daqui o scan conta como completo (média dos 4 lados).
+const COVERAGE_DONE = 0.75;
+
+// Porque o ajuste automático não encaixou a caixa — e o que o utilizador pode fazer.
+const FIT_FAILURE_TEXT: Record<BoxFitFailureReason, string> = {
+  touchingStructure:
+    'The animal seems to touch a fence or crush. Adjust the box manually. Loose animals measure better.',
+  tooLarge: 'Found something too big for one animal. Adjust the box manually.',
+  tooSmall: 'Couldn’t find the animal yet. Point at it and tap Fit to animal, or adjust manually.',
+  nothingAboveFloor: 'Couldn’t find the animal yet. Point at it and tap Fit to animal, or adjust manually.',
+  notEnoughPoints: 'Not enough of the animal captured yet. Move closer, then tap Fit to animal.',
+  cancelled: 'Box adjusted by hand.',
+};
+
+type FitState = { state: 'fitting' | 'fitted' | 'failed' | 'manual'; reason?: BoxFitFailureReason };
+
+// Dica para o lado que falta. Os lados são relativos a onde o utilizador começou.
+function coverageHint(p: ScanProgressEvent | null, fit: FitState, manual: boolean): string {
+  if (!p || p.points < 300) return 'Point the camera at the animal';
+  if (!manual && fit.state === 'fitting') return 'Hold on, fitting the box to the animal';
+  if (p.overall >= COVERAGE_DONE) return 'Full coverage. You can finish';
+  const sides: [number, string][] = [
+    [p.near, 'Capture the side where you started'],
+    [p.right, 'Walk slowly to your right'],
+    [p.far, 'Keep going to the far side'],
+    [p.left, 'Now the side on your left'],
+  ];
+  // Aponta o lado com menos cobertura.
+  const missing = sides.filter(([v]) => v < COVERAGE_DONE);
+  missing.sort((a, b) => a[0] - b[0]);
+  return missing[0]?.[1] ?? 'Full coverage. You can finish';
+}
 
 const CATEGORIES: { key: ScanCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { key: 'cow',   label: 'Cattle', icon: 'paw-outline' },
@@ -172,6 +209,9 @@ export default function ScanScreen() {
   const [animalId, setAnimalId] = useState('');
   const [breed, setBreed] = useState('limousine');
   const [boxScale, setBoxScale] = useState(1.0);
+  const [progress, setProgress] = useState<ScanProgressEvent | null>(null);
+  const [fit, setFit] = useState<FitState>({ state: 'fitting' });
+  const [manual, setManual] = useState(false);
   const scannerRef = useRef<LidarScannerViewRef>(null);
 
   const handlePreScanConfirm = (cat: ScanCategory, id: string, b: string) => {
@@ -183,6 +223,10 @@ export default function ScanScreen() {
 
   const startScan = async () => {
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setProgress(null);
+    setFit({ state: 'fitting' });
+    setManual(false);
+    setBoxScale(1.0);
     setScanning(true);
     await scannerRef.current?.startScan?.();
   };
@@ -203,7 +247,44 @@ export default function ScanScreen() {
 
   const recenterBox = async () => {
     await Haptics.selectionAsync();
+    setBoxScale(1.0);
     await scannerRef.current?.recenterBox?.();
+  };
+
+  const rotateBox = async (degrees: number) => {
+    await Haptics.selectionAsync();
+    await scannerRef.current?.rotateBox?.(degrees);
+  };
+
+  const enterManual = async () => {
+    await Haptics.selectionAsync();
+    setManual(true);
+    await scannerRef.current?.cancelAutoFit?.();
+  };
+
+  const refitBox = async () => {
+    await Haptics.selectionAsync();
+    setManual(false);
+    setFit({ state: 'fitting' });
+    await scannerRef.current?.autoFitBox?.();
+  };
+
+  const handleScanProgress = (e: { nativeEvent: ScanProgressEvent }) => {
+    setProgress(e.nativeEvent);
+  };
+
+  const handleBoxFit = (e: { nativeEvent: BoxFitEvent }) => {
+    const r = e.nativeEvent;
+    if (r.ok) {
+      setFit({ state: 'fitted' });
+      setBoxScale(1.0); // o tamanho ajustado passa a ser o novo 1.0×
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (r.reason === 'cancelled') {
+      setFit({ state: 'manual' });
+    } else if (r.final) {
+      setFit({ state: 'failed', reason: r.reason });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    }
   };
 
   const handleScanComplete = async (e: { nativeEvent: ScanCompleteEvent }) => {
@@ -278,6 +359,7 @@ export default function ScanScreen() {
   }
 
   const isCow = category === 'cow';
+  const coverageDone = (progress?.overall ?? 0) >= COVERAGE_DONE;
   const topTitle = isCow ? (animalId || 'New scan') : 'Extra';
   const topSub = isCow
     ? (BREEDS.find(b => b.key === breed)?.label ?? breed)
@@ -285,6 +367,8 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Ecrã escuro (câmara): barra de estado clara. O resto da app é claro. */}
+      <StatusBar style="light" />
       <PreScanModal
         visible={showPreScan}
         onConfirm={handlePreScanConfirm}
@@ -295,6 +379,8 @@ export default function ScanScreen() {
         ref={scannerRef}
         style={StyleSheet.absoluteFill}
         onScanComplete={handleScanComplete}
+        onScanProgress={handleScanProgress}
+        onBoxFit={handleBoxFit}
       />
 
       {/* Top bar */}
@@ -331,57 +417,141 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {/* Box framing controls — only while scanning */}
+      {/* Live scan HUD — coverage, box fit status, manual adjustment */}
       {scanning && (
         <View
           style={[styles.boxControls, { bottom: insets.bottom + 104 }]}
           pointerEvents="box-none"
         >
-          <GlassSurface tone="dark" radius={999} style={styles.boxHintPill}>
-            <Text style={styles.boxHint}>Frame the animal inside the green box</Text>
+          {manual ? (
+            <GlassSurface tone="dark" radius={999} style={styles.boxHintPill}>
+              <Text style={styles.boxHint}>Drag the box with one finger to move it</Text>
+            </GlassSurface>
+          ) : fit.state === 'fitting' ? (
+            <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
+              <ActivityIndicator color="#FFFFFF" size="small" />
+              <Text style={styles.boxHint}>Fitting the box to the animal…</Text>
+            </GlassSurface>
+          ) : fit.state === 'manual' ? (
+            <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
+              <Ionicons name="hand-left-outline" size={16} color={ios.accentOnDark} />
+              <Text style={styles.boxHint}>Box adjusted by hand</Text>
+            </GlassSurface>
+          ) : fit.state === 'fitted' ? (
+            <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
+              <Ionicons name="checkmark-circle" size={16} color={ios.accentOnDark} />
+              <Text style={styles.boxHint}>Box fitted to the animal</Text>
+            </GlassSurface>
+          ) : (
+            <GlassSurface tone="dark" radius={14} style={styles.fitWarn}>
+              <Ionicons name="alert-circle" size={16} color={ios.orange} />
+              <Text style={styles.fitWarnText}>
+                {fit.reason ? FIT_FAILURE_TEXT[fit.reason] : 'Adjust the box manually.'}
+              </Text>
+            </GlassSurface>
+          )}
+
+          <GlassSurface tone="dark" radius={20} style={styles.coverageCard}>
+            <CoverageRing
+              near={progress?.near ?? 0}
+              right={progress?.right ?? 0}
+              far={progress?.far ?? 0}
+              left={progress?.left ?? 0}
+              size={76}
+            />
+            <View style={styles.coverageText}>
+              <Text style={styles.coverageHint}>{coverageHint(progress, fit, manual)}</Text>
+              <Text style={styles.coverageMeta}>
+                {Math.round((progress?.overall ?? 0) * 100)}% covered
+                {'  ·  '}
+                {(progress?.points ?? 0).toLocaleString('en-US')} points
+              </Text>
+            </View>
           </GlassSurface>
-          <View style={styles.boxRow}>
-            <GlassSurface tone="dark" radius={999} style={styles.stepper}>
-              <TouchableOpacity
-                style={styles.stepperBtn}
-                onPress={() => adjustBoxScale(-0.1)}
-                disabled={boxScale <= 0.5}
-                hitSlop={8}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="remove"
-                  size={18}
-                  color={boxScale <= 0.5 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
-                />
-              </TouchableOpacity>
-              <Text style={styles.stepperValue}>{boxScale.toFixed(1)}×</Text>
-              <TouchableOpacity
-                style={styles.stepperBtn}
-                onPress={() => adjustBoxScale(0.1)}
-                disabled={boxScale >= 2.0}
-                hitSlop={8}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="add"
-                  size={18}
-                  color={boxScale >= 2.0 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
-                />
-              </TouchableOpacity>
-            </GlassSurface>
+
+          {manual ? (
+            <>
+              <View style={styles.boxRow}>
+                <GlassSurface tone="dark" radius={999} style={styles.stepper}>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => adjustBoxScale(-0.1)}
+                    disabled={boxScale <= 0.5}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Make the box smaller"
+                  >
+                    <Ionicons
+                      name="remove"
+                      size={18}
+                      color={boxScale <= 0.5 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.stepperValue}>{boxScale.toFixed(1)}×</Text>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => adjustBoxScale(0.1)}
+                    disabled={boxScale >= 2.0}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Make the box bigger"
+                  >
+                    <Ionicons
+                      name="add"
+                      size={18}
+                      color={boxScale >= 2.0 ? 'rgba(255,255,255,0.35)' : '#FFFFFF'}
+                    />
+                  </TouchableOpacity>
+                </GlassSurface>
+                <GlassSurface tone="dark" radius={999} style={styles.stepper}>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => rotateBox(15)}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Rotate the box left"
+                  >
+                    <Ionicons name="return-up-back" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.stepperBtn}
+                    onPress={() => rotateBox(-15)}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Rotate the box right"
+                  >
+                    <Ionicons name="return-up-forward" size={18} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </GlassSurface>
+              </View>
+              <View style={styles.boxRow}>
+                <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+                  <TouchableOpacity style={styles.recenterBtn} onPress={refitBox} hitSlop={8} activeOpacity={0.7}>
+                    <Ionicons name="scan-outline" size={16} color={ios.accentOnDark} />
+                    <Text style={styles.recenterText}>Fit to animal</Text>
+                  </TouchableOpacity>
+                </GlassSurface>
+                <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+                  <TouchableOpacity style={styles.recenterBtn} onPress={recenterBox} hitSlop={8} activeOpacity={0.7}>
+                    <Ionicons name="locate-outline" size={16} color={ios.accentOnDark} />
+                    <Text style={styles.recenterText}>Recenter</Text>
+                  </TouchableOpacity>
+                </GlassSurface>
+                <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
+                  <TouchableOpacity style={styles.recenterBtn} onPress={() => setManual(false)} hitSlop={8} activeOpacity={0.7}>
+                    <Text style={styles.doneText}>Done</Text>
+                  </TouchableOpacity>
+                </GlassSurface>
+              </View>
+            </>
+          ) : (
             <GlassSurface tone="dark" radius={999} style={styles.recenterWrap}>
-              <TouchableOpacity
-                style={styles.recenterBtn}
-                onPress={recenterBox}
-                hitSlop={8}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="locate-outline" size={16} color={ios.accent} />
-                <Text style={styles.recenterText}>Recenter</Text>
+              <TouchableOpacity style={styles.recenterBtn} onPress={enterManual} hitSlop={8} activeOpacity={0.7}>
+                <Ionicons name="hand-left-outline" size={16} color={ios.accentOnDark} />
+                <Text style={styles.recenterText}>Adjust manually</Text>
               </TouchableOpacity>
             </GlassSurface>
-          </View>
+          )}
         </View>
       )}
 
@@ -390,7 +560,7 @@ export default function ScanScreen() {
         <TouchableOpacity
           style={[
             styles.scanBtn,
-            scanning && styles.scanBtnActive,
+            scanning && !coverageDone && styles.scanBtnActive,
             processing && styles.scanBtnDisabled,
           ]}
           onPress={scanning ? stopScan : startScan}
@@ -402,12 +572,12 @@ export default function ScanScreen() {
           ) : (
             <>
               <Ionicons
-                name={scanning ? 'stop' : 'scan'}
+                name={scanning ? (coverageDone ? 'checkmark' : 'stop') : 'scan'}
                 size={18}
                 color="#FFFFFF"
               />
               <Text style={styles.scanBtnText}>
-                {scanning ? 'Stop & export' : 'Start scan'}
+                {scanning ? (coverageDone ? 'Finish scan' : 'Stop & export') : 'Start scan'}
               </Text>
             </>
           )}
@@ -545,7 +715,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, height: 36,
   },
   recenterText: {
-    color: ios.accent, fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
+    color: ios.accentOnDark, fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
+  },
+  doneText: {
+    color: '#FFFFFF', fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
+  },
+  fitPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 14, paddingVertical: 8,
+  },
+  fitWarn: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    marginHorizontal: 16, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  fitWarnText: {
+    flex: 1, color: '#FFFFFF', fontSize: 13, lineHeight: 18, letterSpacing: -0.05,
+  },
+  coverageCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    marginHorizontal: 16, alignSelf: 'stretch',
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  coverageText: { flex: 1, minWidth: 0, gap: 4 },
+  coverageHint: {
+    color: '#FFFFFF', fontSize: 16, fontWeight: '600', lineHeight: 21, letterSpacing: -0.2,
+  },
+  coverageMeta: {
+    color: 'rgba(255,255,255,0.72)', fontSize: 13, letterSpacing: -0.05,
+    fontVariant: ['tabular-nums'],
   },
 
   // Bottom controls
@@ -627,6 +824,7 @@ const styles = StyleSheet.create({
     fontSize: 17, color: ios.label, letterSpacing: -0.3, width: 44,
   },
   rowInput: {
+    fontFamily: fonts.regular,
     flex: 1, fontSize: 17, color: ios.label, letterSpacing: -0.3,
     padding: 0,
   },

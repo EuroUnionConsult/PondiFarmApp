@@ -1,7 +1,11 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useMemo } from 'react';
+import {
+  View, StyleSheet,
+} from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
+import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radius, font, shadow } from '../lib/theme';
+import { colors, spacing, radius, font, shadow, type Palette } from '../lib/theme';
 
 interface Props {
   label: string;
@@ -12,6 +16,8 @@ interface Props {
 }
 
 export default function MetricCard({ label, value, unit, icon, accent = colors.primary }: Props) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   return (
     <View style={styles.card}>
       <View style={[styles.iconWrap, { backgroundColor: `${accent}18` }]}>
@@ -26,7 +32,7 @@ export default function MetricCard({ label, value, unit, icon, accent = colors.p
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   card: {
     flex: 1,
     backgroundColor: colors.surface,
