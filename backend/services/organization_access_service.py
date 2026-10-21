@@ -167,6 +167,7 @@ def list_pending_requests(
         .filter(
             OrganizationJoinRequest.organization_id == organization_id,
             OrganizationJoinRequest.status == JOIN_PENDING,
+            User.deleted_at.is_(None),
         )
         .order_by(OrganizationJoinRequest.created_at)
         .all()
@@ -224,6 +225,7 @@ def list_members(
         .filter(
             OrganizationMember.organization_id == organization_id,
             OrganizationMember.deleted_at.is_(None),
+            User.deleted_at.is_(None),
         )
         .order_by(OrganizationMember.created_at)
         .all()

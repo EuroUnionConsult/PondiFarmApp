@@ -407,6 +407,24 @@ class OrganizationAccessTests(unittest.TestCase):
         self.assertIn(drop.status_code, (404, 405))
         self.assertEqual(self.me(leader)["role"], "leader")
 
+    def test_leader_cannot_delete_own_account(self):
+        leader, org_id = self.leader_and_org()
+        uid = self.me(leader)["id"]
+        r = self.client.delete(f"/api/v1/users/{uid}", headers=self.h(leader))
+        self.assertEqual(r.status_code, 409)
+        self.assertEqual(self.me(leader)["role"], "leader")
+
+    def test_deleted_accounts_disappear_from_lists(self):
+        leader, org_id = self.leader_and_org()
+        member = self.member(leader, org_id)
+        uid = self.me(member)["id"]
+        r = self.client.delete(f"/api/v1/users/{uid}", headers=self.h(member))
+        self.assertEqual(r.status_code, 204)
+        people = self.client.get(
+            f"/api/v1/organizations/{org_id}/people", headers=self.h(leader)
+        )
+        self.assertEqual([p["email"] for p in people.json()], ["lider@euc.pt"])
+
 
 if __name__ == "__main__":
     unittest.main()
