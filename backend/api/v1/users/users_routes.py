@@ -68,5 +68,12 @@ def delete_user(
     current: CurrentUser = Depends(get_current_user),
 ):
     _ensure_self(current, user_id)
+    # Apagar a conta do Líder deixava a organização sem ninguém para aprovar
+    # pedidos nem passar a liderança (revisão do PR #113).
+    if current.is_leader:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "O líder não pode apagar a conta; passe primeiro a liderança",
+        )
     user_service.delete_user(db, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

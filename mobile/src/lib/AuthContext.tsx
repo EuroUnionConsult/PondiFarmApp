@@ -46,12 +46,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const refreshMe = useCallback(async () => {
     let me = await auth.fetchMe();
-    if (me?.membershipStatus === 'active') {
-      const tokenOrg = await auth.getOrganizationId();
-      if (!tokenOrg) {
-        await auth.refreshToken();
-        setToken(await auth.getToken());
-        me = await auth.fetchMe();
+    if (me) {
+      // O token tem de trazer a organização ATUAL. Difere quando a pessoa foi
+      // aprovada (token sem org), criou uma, saiu ou foi removida (token ainda
+      // com a antiga) ou mudou de organização. Sem isto: 403 em tudo e o
+      // rebanho em cache da organização antiga (revisão do PR #113).
+      const tokenOrg = ((await auth.getOrganizationId()) || '').toLowerCase();
+      const current = me.membershipStatus === 'active' ? (me.organizationId || '').toLowerCase() : '';
+      if (tokenOrg !== current) {
+        await clearCloudCache();
+        try {
+          await auth.refreshToken();
+          setToken(await auth.getToken());
+          me = (await auth.fetchMe()) ?? me;
+        } catch {
+          // Sem rede: tenta outra vez na próxima verificação. A cache já foi limpa.
+        }
       }
     }
     setUser(me);
@@ -65,9 +75,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isPending) return;
     const id = setInterval(() => { void refreshMe(); }, 30_000);
-    const sub = AppState.addEventListener('change', s => { if (s === 'active') void refreshMe(); });
-    return () => { clearInterval(id); sub.remove(); };
+    return () => clearInterval(id);
   }, [isPending, refreshMe]);
+
+  // Para TODOS com sessão: ao voltar ao 1.º plano, relê o /me. Assim quem foi
+  // removido (ou mudou de papel) vê a mudança e perde a cache da organização,
+  // em vez de continuar a ver o rebanho antigo guardado no telemóvel.
+  useEffect(() => {
+    if (!token) return;
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') void refreshMe(); });
+    return () => sub.remove();
+  }, [token, refreshMe]);
 
   const login = useCallback(async (email: string, password: string) => {
     await auth.login(email, password);
