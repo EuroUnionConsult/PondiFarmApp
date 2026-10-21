@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
-  Animated, Easing,
+  View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Animated, Easing, Image,
 } from 'react-native';
+import Text from '../components/Text';
+import Wordmark from '../components/Wordmark';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ios } from '../lib/theme';
+import { ios, fonts } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import { getDevServerUrl, setDevServerUrl } from '../lib/api';
 import LiquidGlass from '../components/LiquidGlass';
@@ -78,8 +78,8 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Animated.View style={enterStyle}>
-            <Text style={styles.brand}>PondiFarm</Text>
-            <Text style={styles.tagline}>LiDAR cattle weight estimation</Text>
+            <Image source={APP_ICON} style={styles.brandIcon} accessibilityIgnoresInvertColors />
+            <Wordmark size={42} tagline align="center" style={styles.brandBlock} />
 
             <LiquidGlass tone="light" radius={24} style={styles.glassCard}>
               <View style={styles.segment}>
@@ -152,14 +152,15 @@ function Field(props: React.ComponentProps<typeof TextInput> & { label: string }
   );
 }
 
-const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
+// Símbolo da marca = o ícone da app (cabeça de bovino).
+const APP_ICON = require('../../assets/icon.png');
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: ios.systemGroupedBackground },
   content: { paddingHorizontal: 24 },
 
-  brand: { fontFamily: displayFont, fontSize: 42, fontWeight: '800', color: ios.navy, letterSpacing: -1.2, textAlign: 'center' },
-  tagline: { fontSize: 14, color: ios.tertiaryLabel, textAlign: 'center', marginTop: 6, marginBottom: 28 },
+  brandIcon: { width: 76, height: 76, borderRadius: 18, alignSelf: 'center', marginBottom: 16 },
+  brandBlock: { marginBottom: 28 },
 
   glassCard: { padding: 20 },
 
@@ -177,6 +178,7 @@ const styles = StyleSheet.create({
   fieldWrap: { marginBottom: 14 },
   fieldLabel: { fontSize: 12.5, fontWeight: '600', color: ios.secondaryLabel, marginBottom: 6, marginLeft: 2 },
   input: {
+    fontFamily: fonts.regular,
     backgroundColor: 'rgba(120,120,128,0.12)', borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(60,60,67,0.18)',
     paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: ios.label,
@@ -195,6 +197,7 @@ const styles = StyleSheet.create({
   serverBox: { marginTop: 28, opacity: 0.9 },
   serverLabel: { fontSize: 11, fontWeight: '600', color: ios.tertiaryLabel, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 5, marginLeft: 2 },
   serverInput: {
+    fontFamily: fonts.regular,
     backgroundColor: 'transparent', borderWidth: StyleSheet.hairlineWidth, borderColor: ios.separator,
     borderRadius: 8, paddingHorizontal: 12, paddingVertical: 9, fontSize: 13, color: ios.secondaryLabel,
   },

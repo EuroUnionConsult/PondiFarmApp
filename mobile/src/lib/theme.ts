@@ -4,16 +4,16 @@ export const colors = {
   surface:      '#FFFFFF',
   surfaceHigh:  '#F8FAFC',
 
-  // Brand — paleta do ícone PondiFarm (navy + verde + laranja)
-  primary:      '#16294D',   // navy (boi/moldura) — âncora da marca
-  primaryDark:  '#0F1D3A',
-  primaryLight: 'rgba(22,41,77,0.10)',
+  // Brand — paleta oficial «PondiFarm · Identidade visual v1.0» (EUC, 17/10/2026)
+  primary:      '#1B3A57',   // azul-noite — animal · tecnologia
+  primaryDark:  '#132A40',
+  primaryLight: 'rgba(27,58,87,0.10)',
 
-  secondary:    '#2F9E44',   // verde (campo)
-  secondaryLight: 'rgba(47,158,68,0.10)',
+  secondary:    '#2D7D46',   // verde — marca · scan
+  secondaryLight: 'rgba(45,125,70,0.10)',
 
-  highlight:    '#E8731F',   // laranja (moldura de scan) — destaque/atenção
-  highlightLight: 'rgba(232,115,31,0.12)',
+  highlight:    '#C2611F',   // laranja — ponto de medição
+  highlightLight: 'rgba(194,97,31,0.12)',
 
   warning:      '#D97706',
   warningLight: 'rgba(217,119,6,0.10)',
@@ -28,7 +28,7 @@ export const colors = {
 
   // Borders & dividers
   border:       '#E2E8F0',
-  borderActive: 'rgba(47,158,68,0.35)',
+  borderActive: 'rgba(45,125,70,0.35)',
 
   // Shadows (used inline)
   shadow:       '#64748B',
@@ -56,16 +56,25 @@ export const ios = {
   separator:       'rgba(60,60,67,0.29)',
   opaqueSeparator: '#C6C6C8',
 
-  // PondiFarm accent — verde da marca (campo do ícone)
-  accent:      '#2F9E44',
-  accentLight: 'rgba(47,158,68,0.12)',
-  accentDark:  '#257A35',
+  // PondiFarm accent — verde da marca (Identidade visual v1.0). 5,08:1 sobre
+  // branco: passa AA para texto pequeno (o verde anterior, #2F9E44, dava 3,45:1).
+  accent:      '#2D7D46',
+  accentLight: 'rgba(45,125,70,0.12)',
+  accentDark:  '#22603A',
+  accentSupport: '#3E9A5C', // verde claro — só apoio/gráficos, 3,51:1 não serve para texto
+  // Verde para texto/ícones sobre superfícies escuras (HUD do scan sobre a câmara):
+  // o verde da marca dá só 3,36:1 sobre o vidro escuro; este dá 7,6:1.
+  accentOnDark: '#5CC17E',
 
-  // Âncoras de marca (ícone): navy + laranja
-  navy:        '#16294D',
-  navyLight:   'rgba(22,41,77,0.10)',
-  orange:      '#E8731F',
-  orangeLight: 'rgba(232,115,31,0.12)',
+  // Âncoras de marca: azul-noite, azul médio (facetas da malha) e laranja (medição).
+  navy:        '#1B3A57',
+  navyLight:   'rgba(27,58,87,0.10)',
+  navyMid:     '#2C5B82',
+  // Laranja a 4,18:1 sobre branco: ícones, selos e destaques; nunca texto pequeno.
+  // Para texto use `orangeText`, a mesma cor escurecida (6,07:1).
+  orange:      '#C2611F',
+  orangeLight: 'rgba(194,97,31,0.12)',
+  orangeText:  '#9C4C16',
 
   // System colors (iOS HIG)
   systemRed:    '#FF3B30',
@@ -88,7 +97,7 @@ export const glass = {
   dark: {
     tint: 'dark' as const,
     intensity: 30,
-    fill: 'rgba(22,41,77,0.45)',
+    fill: 'rgba(27,58,87,0.45)',
     border: 'rgba(255,255,255,0.18)',
   },
 };
@@ -109,6 +118,14 @@ export const radius = {
   lg: 16,
   xl: 24,
   full: 999,
+};
+
+// Tipografia da marca: Inter (sans geométrica). Títulos 700, texto 400 — as
+// únicas duas espessuras da Identidade visual. Carregadas em App.tsx; o
+// componente `Text` (components/Text.tsx) escolhe a família pela fontWeight.
+export const fonts = {
+  regular: 'Inter_400Regular',
+  bold: 'Inter_700Bold',
 };
 
 export const font = {

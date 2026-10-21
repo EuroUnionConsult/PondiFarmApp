@@ -1,12 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Platform,
-  TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator,
+  View, ScrollView, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator,
 } from 'react-native';
+import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ios } from '../lib/theme';
+import { ios, fonts } from '../lib/theme';
 import { clearAll } from '../lib/storage';
 import { useAuth } from '../lib/AuthContext';
 import {
@@ -14,7 +14,7 @@ import {
   getDevServerUrl, setDevServerUrl,
 } from '../lib/api';
 import { APP_VERSION } from '../lib/version';
-import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
+import { WEIGHT_MODEL_FEATURE_COUNT, WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import { CFG_KEY, LEGACY_CFG_KEY } from '../lib/config';
 import ScreenBackground from '../components/ScreenBackground';
 
@@ -237,21 +237,21 @@ export default function SettingsScreen() {
         {[
           { k: 'Application', v: 'PondiFarm Mobile' },
           { k: 'Version',     v: APP_VERSION },
-          { k: 'AI engine',   v: 'Linear regression, 5 morphometrics — on-device' },
+          { k: 'AI engine',   v: `Linear regression, ${WEIGHT_MODEL_FEATURE_COUNT} morphometrics, on-device` },
           { k: 'Weight model', v: `${WEIGHT_MODEL_VERSION} · Hereford base` },
           { k: 'Protocol',    v: 'LiDAR (ARKit scene reconstruction)' },
         ].map(({ k, v }, i, arr) => (
           <View key={k}>
             <View style={styles.row}>
-              <Text style={styles.rowLabel}>{k}</Text>
-              <Text style={styles.rowValue}>{v}</Text>
+              <Text style={styles.aboutLabel}>{k}</Text>
+              <Text style={styles.aboutValue}>{v}</Text>
             </View>
             {i < arr.length - 1 && <View style={styles.rowDivider} />}
           </View>
         ))}
       </View>
       <Text style={styles.sectionFooter}>
-        PondiFarm — Euro Union Consult, Lda. Phase 0 demo build.
+        PondiFarm · Euro Union Consult, Lda. Pilot build: weight estimates are experimental.
       </Text>
 
       {/* ACCOUNT ========================================================= */}
@@ -352,6 +352,17 @@ const styles = StyleSheet.create({
     fontSize: 17, color: ios.secondaryLabel,
     letterSpacing: -0.3,
   },
+  // About: a etiqueta nunca encolhe e o valor quebra linha à direita. Com
+  // `rowLabel` (flex: 1) um valor comprido espremia a etiqueta até ficar uma
+  // letra por linha («W/ei/ght/mo/del») — relatado pela EUC a 21/10.
+  aboutLabel: {
+    flexShrink: 0, marginRight: 12,
+    fontSize: 17, color: ios.label, letterSpacing: -0.3,
+  },
+  aboutValue: {
+    flex: 1, textAlign: 'right',
+    fontSize: 17, color: ios.secondaryLabel, letterSpacing: -0.3,
+  },
   rowChevron: {
     fontSize: 20, color: ios.tertiaryLabel,
   },
@@ -359,6 +370,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 6,
   },
   rowInput: {
+    fontFamily: fonts.regular,
     flex: 1,
     fontSize: 17, color: ios.secondaryLabel,
     letterSpacing: -0.3,

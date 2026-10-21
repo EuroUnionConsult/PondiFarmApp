@@ -1,7 +1,9 @@
 import React from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform,
+  View, ScrollView, StyleSheet, TouchableOpacity, Platform,
 } from 'react-native';
+import Text from '../components/Text';
+import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -20,7 +22,7 @@ export default function AnimalDetailScreen() {
       ? { label: 'Body length', value: `${animal.bodyLengthCm.toFixed(0)} cm` } : null,
     animal.withersHeightCm != null
       ? { label: 'Withers height', value: `${animal.withersHeightCm.toFixed(0)} cm` } : null,
-    animal.breed ? { label: 'Breed', value: animal.breed } : null,
+    animal.breed ? { label: 'Breed', value: breedLabel(animal.breed) } : null,
     animal.tagCode ? { label: 'Tag', value: animal.tagCode } : null,
   ].filter(Boolean) as { label: string; value: string }[];
 
@@ -49,14 +51,21 @@ export default function AnimalDetailScreen() {
         <View style={styles.group}>
           <View style={styles.card}>
             <View style={styles.hero}>
-              <Text style={styles.eyebrow}>Estimated weight</Text>
+              <View style={styles.eyebrowRow}>
+                <Text style={styles.eyebrow}>Estimated weight</Text>
+                <View style={styles.experimentalBadge}>
+                  <Text style={styles.experimentalBadgeText}>Experimental</Text>
+                </View>
+              </View>
               <View style={styles.valueRow}>
+                {/* Sem casa decimal: «612.0» sugeria uma precisão que a cadeia
+                    scan→peso ainda não tem (não validada contra balança). */}
                 <Text style={styles.value}>
-                  {animal.weightKg != null ? animal.weightKg.toFixed(1) : '—'}
+                  {animal.weightKg != null ? `≈ ${Math.round(animal.weightKg)}` : '—'}
                 </Text>
                 <Text style={styles.valueUnit}>kg</Text>
               </View>
-              <Text style={styles.heroMeta}>PondiFarm model estimate</Text>
+              <Text style={styles.heroMeta}>Experimental estimate, not validated against a scale</Text>
             </View>
           </View>
         </View>
@@ -123,6 +132,12 @@ const styles = StyleSheet.create({
   },
   hero: { padding: 22, gap: 6 },
   eyebrow: { fontSize: 13, fontWeight: '600', color: ios.accent, letterSpacing: -0.05 },
+  eyebrowRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  experimentalBadge: {
+    backgroundColor: ios.orangeLight,
+    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2,
+  },
+  experimentalBadgeText: { fontSize: 12, fontWeight: '700', color: ios.orangeText, letterSpacing: -0.1 },
   valueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
   value: {
     fontFamily: displayFont,

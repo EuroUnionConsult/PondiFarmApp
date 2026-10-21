@@ -1,8 +1,9 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, Platform,
+  View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Platform,
 } from 'react-native';
+import Text from '../components/Text';
+import Wordmark from '../components/Wordmark';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +12,9 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ios, glass } from '../lib/theme';
 import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
 import LiquidGlass from '../components/LiquidGlass';
+import ProfileSheet from '../components/ProfileSheet';
+import { useAuth } from '../lib/AuthContext';
+import { initials, loadProfile, saveProfile, type Profile } from '../lib/profile';
 import ScreenBackground from '../components/ScreenBackground';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -27,6 +31,21 @@ export default function HomeScreen() {
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [editingProfile, setEditingProfile] = useState(false);
+
+  useEffect(() => {
+    void loadProfile(user?.id).then(setProfile);
+  }, [user?.id]);
+
+  const avatarInitials = initials(profile, user?.name);
+
+  const handleSaveProfile = async (p: Profile) => {
+    await saveProfile(user?.id, p);
+    setProfile(p);
+    setEditingProfile(false);
+  };
 
   const load = useCallback(async () => {
     // Cache primeiro (instantâneo), depois atualiza em 2º plano.
@@ -84,7 +103,7 @@ export default function HomeScreen() {
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>PondiFarm</Text>
+          <Wordmark size={34} />
           <Text style={styles.subtitle}>
             {backendOk === null
               ? 'Limousine pilot · loading'
@@ -93,9 +112,20 @@ export default function HomeScreen() {
                 : 'Limousine pilot · offline'}
           </Text>
         </View>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>TC</Text>
-        </View>
+        <TouchableOpacity
+          style={styles.avatar}
+          onPress={() => setEditingProfile(true)}
+          hitSlop={8}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={avatarInitials ? 'Edit your name' : 'Set your name'}
+        >
+          {avatarInitials ? (
+            <Text style={styles.avatarText}>{avatarInitials}</Text>
+          ) : (
+            <Ionicons name="person" size={18} color="#FFFFFF" />
+          )}
+        </TouchableOpacity>
       </View>
 
       <View style={styles.group}>
@@ -212,6 +242,12 @@ export default function HomeScreen() {
       {/* Studio 3D (Object Capture) escondido — fotogrametria lenta + crashes de GPU
           em background. Foco no LiDAR nativo (Caminho B). Código mantido para revisão. */}
     </ScrollView>
+      <ProfileSheet
+        visible={editingProfile}
+        initial={profile}
+        onSave={handleSaveProfile}
+        onCancel={() => setEditingProfile(false)}
+      />
     </View>
   );
 }
@@ -238,24 +274,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
-  title: {
-    fontFamily: displayFont,
-    fontSize: 34, fontWeight: '700',
-    letterSpacing: -0.95,
-    color: ios.label,
-    lineHeight: 36,
-  },
   subtitle: {
     fontSize: 13, color: ios.tertiaryLabel,
     marginTop: 4, letterSpacing: -0.05,
   },
   avatar: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 40, height: 40, borderRadius: 20,
     backgroundColor: ios.accent,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: {
-    color: '#FFFFFF', fontSize: 14, fontWeight: '600',
+    color: '#FFFFFF', fontSize: 15, fontWeight: '700',
     letterSpacing: -0.2,
   },
 

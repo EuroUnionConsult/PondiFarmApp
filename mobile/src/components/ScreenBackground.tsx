@@ -30,7 +30,7 @@ export default function ScreenBackground() {
 
 const styles = StyleSheet.create({
   blob: { position: 'absolute', borderRadius: 999 },
-  green:  { top: 60,  right: -90,  width: 300, height: 300, backgroundColor: 'rgba(47,158,68,0.14)' },
-  navy:   { top: 320, left: -110, width: 340, height: 340, backgroundColor: 'rgba(22,41,77,0.08)' },
-  orange: { bottom: 40, right: -70, width: 240, height: 240, backgroundColor: 'rgba(232,115,31,0.08)' },
+  green:  { top: 60,  right: -90,  width: 300, height: 300, backgroundColor: 'rgba(45,125,70,0.14)' },
+  navy:   { top: 320, left: -110, width: 340, height: 340, backgroundColor: 'rgba(27,58,87,0.08)' },
+  orange: { bottom: 40, right: -70, width: 240, height: 240, backgroundColor: 'rgba(194,97,31,0.08)' },
 });

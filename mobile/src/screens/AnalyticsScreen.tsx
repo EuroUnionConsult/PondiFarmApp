@@ -1,7 +1,10 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, Platform,
+  View, ScrollView, StyleSheet, Platform,
 } from 'react-native';
+import Text from '../components/Text';
+import { breedLabel } from '../lib/breeds';
+import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -16,10 +19,7 @@ const CHART_PAD_TOP = 14;
 const CHART_PAD_BOTTOM = 28;
 const BAR_W = 22;
 
-function prettyBreed(b: string): string {
-  if (b === 'default') return 'Unspecified';
-  return b.charAt(0).toUpperCase() + b.slice(1);
-}
+const prettyBreed = breedLabel;
 
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
@@ -205,7 +205,7 @@ export default function AnalyticsScreen() {
           </View>
           <Text style={styles.sectionFooter}>
             {hasCloud
-              ? 'Weight estimated by the PondiFarm model (v0.1, external calibration). Activity and per-breed girth come from local scans.'
+              ? `Weight estimated by the PondiFarm model (${WEIGHT_MODEL_VERSION}), experimental and not validated against a scale. Activity and per-breed girth come from local scans.`
               : 'Figures computed from locally stored scans. Trend over longer windows requires backend sync.'}
           </Text>
         </>
