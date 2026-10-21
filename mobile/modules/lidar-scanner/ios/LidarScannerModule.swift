@@ -36,7 +36,7 @@ public class LidarScannerModule: Module {
     }
 
     View(LidarScannerView.self) {
-      Events("onScanComplete")
+      Events("onScanComplete", "onScanProgress", "onBoxFit")
 
       AsyncFunction("startScan") { (view: LidarScannerView) in
         view.startScan()
@@ -52,6 +52,18 @@ public class LidarScannerModule: Module {
 
       AsyncFunction("recenterBox") { (view: LidarScannerView) in
         view.recenterBox()
+      }
+
+      AsyncFunction("rotateBox") { (view: LidarScannerView, degrees: Double) in
+        view.rotateBox(Float(degrees))
+      }
+
+      AsyncFunction("autoFitBox") { (view: LidarScannerView) in
+        view.autoFitBox()
+      }
+
+      AsyncFunction("cancelAutoFit") { (view: LidarScannerView) in
+        view.cancelAutoFit()
       }
     }
   }
