@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.8.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.7.0...v0.8.0) (2026-10-21)
+
+
+### Features
+
+* **backend:** migration 0004 merges the duplicate Euro Union Consult organisation ([23c7a09](https://github.com/EuroUnionConsult/PondiFarmApp/commit/23c7a0983c3d97d77e08aa5faa1a337ec33aefd9))
+* **backend:** organisations with a leader, join requests and Alembic migrations ([02e6acd](https://github.com/EuroUnionConsult/PondiFarmApp/commit/02e6acdbda50aa1e0fd44399249746c04ae92350))
+* live scan coverage with automatic box fit, and PondiFarm visual identity v1.0 ([2f9cf9a](https://github.com/EuroUnionConsult/PondiFarmApp/commit/2f9cf9a8edc38e573a1a9f3cbe25fd00292baeeb))
+* **mobile:** apply PondiFarm visual identity v1.0, profile initials and EUC review fixes ([8c7ffd7](https://github.com/EuroUnionConsult/PondiFarmApp/commit/8c7ffd7e35fa0c2c149facce2674b792941ce3b4))
+* **mobile:** light and dark theme with a sun/moon switch on the profile ([5b3df1e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/5b3df1eea4a85cdd42f4b1f91a9687ed7fce2dcb))
+* **mobile:** pending members use the app with local scans, and smoother motion ([67621cc](https://github.com/EuroUnionConsult/PondiFarmApp/commit/67621cc200b5fb0ceaaf92f674ce6014d966ea04))
+* **mobile:** profile with organisation role, join flow and leader tools ([ec00ef9](https://github.com/EuroUnionConsult/PondiFarmApp/commit/ec00ef98314e7b3ea5bb4a4b67ab8428e009abe7))
+* organisations with a leader, join requests and profile ([897edaa](https://github.com/EuroUnionConsult/PondiFarmApp/commit/897edaa732126e4891fcc151a3d3aa4b81f3d679))
+* **scanner:** live mesh, coverage ring and automatic box fit ([a439865](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a43986583d9ccf6947c1600a47a4fc0b5ccb148b))
+
+
+### Bug Fixes
+
+* **backend:** remove the legacy member write routes ([b368242](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b36824260d3cfcea41ad48a31b5ee6e2cd6c54cb))
+* keep the token's organisation current and protect the last leader ([8a7916a](https://github.com/EuroUnionConsult/PondiFarmApp/commit/8a7916a9d5952397a677f223dc48e566dc7fb266))
+* **scanner:** run box commands on the main thread and unstick the fit status ([0e3f854](https://github.com/EuroUnionConsult/PondiFarmApp/commit/0e3f854180dd5ea332aaf78c79ef07d8365f2fc9))
+
+
+### Documentation
+
+* **backend:** correct the Entra example in the Alembic env ([80ceb6b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/80ceb6b2961b1180434f1f0007b54c48504b7635))
+
+
+### Miscellaneous Chores
+
+* **backend:** let Alembic authenticate to Azure SQL with the az login token ([805da1c](https://github.com/EuroUnionConsult/PondiFarmApp/commit/805da1c7a7593ba343543ec65fe822a620857ad4))
+
 ## [0.7.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.6.1...v0.7.0) (2026-10-21)
 
 
