@@ -1,13 +1,18 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, Alert, TextInput, Platform,
+  View, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, Animated,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
+import Text from '../components/Text';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
+import PressableScale from '../components/PressableScale';
+import PendingApprovalBanner from '../components/PendingApprovalBanner';
+import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
 import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
@@ -47,7 +52,10 @@ function groupRecords(records: ScanRecord[]): Section[] {
 }
 
 export default function HerdScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useScrollY();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
@@ -83,7 +91,7 @@ export default function HerdScreen() {
       const q = query.toLowerCase().trim();
       if (!q) return true;
       return c.name.toLowerCase().includes(q)
-          || c.breed.toLowerCase().includes(q)
+          || breedLabel(c.breed).toLowerCase().includes(q)
           || (c.tagCode ?? '').toLowerCase().includes(q);
     }),
     [cloud, query]
@@ -96,7 +104,7 @@ export default function HerdScreen() {
       const q = query.toLowerCase().trim();
       if (!q) return true;
       return (r.animalId ?? '').toLowerCase().includes(q)
-          || (r.breed ?? '').toLowerCase().includes(q)
+          || breedLabel(r.breed).toLowerCase().includes(q)
           || r.category.toLowerCase().includes(q);
     }),
     [records, query]
@@ -127,7 +135,9 @@ export default function HerdScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
       keyboardShouldPersistTaps="handled"
@@ -151,6 +161,8 @@ export default function HerdScreen() {
           <Ionicons name="add" size={26} color={ios.accent} />
         </TouchableOpacity>
       </View>
+
+      <PendingApprovalBanner />
 
       {cloudOffline && (
         <View style={styles.offlineBanner}>
@@ -184,14 +196,14 @@ export default function HerdScreen() {
           <View style={styles.card}>
             {cloudFiltered.map((c, i, arr) => (
               <View key={c.id}>
-                <TouchableOpacity style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} activeOpacity={0.6}>
+                <PressableScale style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} scaleTo={0.985} accessibilityRole="button">
                   <View style={[styles.rowIcon, { backgroundColor: ios.accentLight }]}>
                     <Ionicons name="cloud-outline" size={16} color={ios.accent} />
                   </View>
                   <View style={styles.rowInfo}>
                     <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
-                      {c.breed || 'Breed n/a'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
+                      {c.breed ? breedLabel(c.breed) : 'Breed n/a'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
                     </Text>
                   </View>
                   <View style={styles.rowMetric}>
@@ -201,7 +213,7 @@ export default function HerdScreen() {
                     <Text style={styles.rowMetricUnit}>kg</Text>
                   </View>
                   <Text style={styles.rowChev}>›</Text>
-                </TouchableOpacity>
+                </PressableScale>
                 {i < arr.length - 1 && <View style={styles.rowDivider} />}
               </View>
             ))}
@@ -228,21 +240,21 @@ export default function HerdScreen() {
             <View style={styles.card}>
               {section.data.map((rec, i) => {
                 const isCow = rec.category === 'cow';
-                const breedLabel = !rec.breed || rec.breed === 'default'
+                const recBreed = !rec.breed || rec.breed === 'default'
                   ? 'Unspecified breed'
-                  : rec.breed.charAt(0).toUpperCase() + rec.breed.slice(1);
+                  : breedLabel(rec.breed);
                 return (
                 <View key={rec.id}>
-                  <TouchableOpacity
+                  <PressableScale
                     style={styles.row}
                     onPress={() => nav.navigate('Result', { record: rec })}
                     onLongPress={() => handleLongPress(rec)}
                     delayLongPress={350}
-                    activeOpacity={0.6}
+                    scaleTo={0.985}
                   >
                     <View style={[
                       styles.rowIcon,
-                      { backgroundColor: isCow ? ios.accentLight : '#EFEFF4' },
+                      { backgroundColor: isCow ? ios.accentLight : ios.segmentFill },
                     ]}>
                       <Ionicons
                         name={isCow ? 'paw' : 'cube-outline'}
@@ -255,7 +267,7 @@ export default function HerdScreen() {
                         {isCow ? (rec.animalId ?? 'Cattle') : 'Extra'}
                       </Text>
                       <Text style={styles.rowMeta} numberOfLines={1}>
-                        {isCow ? breedLabel : 'Object / person'}
+                        {isCow ? recBreed : 'Object / person'}
                         {'  ·  '}
                         {new Date(rec.scannedAt).toLocaleString('pt-PT', {
                           day: '2-digit', month: 'short',
@@ -277,7 +289,7 @@ export default function HerdScreen() {
                       />
                     )}
                     <Text style={styles.rowChev}>›</Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                   {i < section.data.length - 1 && <View style={styles.rowDivider} />}
                 </View>
               );
@@ -292,14 +304,15 @@ export default function HerdScreen() {
           Long-press a row to remove it.
         </Text>
       )}
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="Herd" scrollY={scrollY} />
     </View>
   );
 }
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   // Large title
@@ -333,11 +346,12 @@ const styles = StyleSheet.create({
   searchWrap: { paddingHorizontal: 16, marginTop: 12, marginBottom: 4 },
   searchField: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#E8E8EC',
+    backgroundColor: ios.segmentFill,
     borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 8,
   },
   searchInput: {
+    fontFamily: fonts.regular,
     flex: 1,
     fontSize: 17, color: ios.label, letterSpacing: -0.3,
     padding: 0,

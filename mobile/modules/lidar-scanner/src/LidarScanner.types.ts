@@ -35,3 +35,32 @@ export type ScanCompleteEvent = {
   measurements?: Measurements; // adicionado na Fase 3 (EURODEV-76)
   thumbUri?: string;
 };
+
+/**
+ * Progresso do scan, emitido ~2×/s. Os lados são relativos a quem começou o scan:
+ * `near` = o lado virado para a câmara no Start, `right`/`left` = à direita/esquerda
+ * dessa posição, `far` = o oposto. Valores 0–1 (fração dos ângulos já captados).
+ */
+export type ScanProgressEvent = {
+  near: number;
+  right: number;
+  far: number;
+  left: number;
+  overall: number;
+  /** Vértices da malha dentro da caixa neste momento. */
+  points: number;
+};
+
+export type BoxFitFailureReason =
+  | 'notEnoughPoints'
+  | 'nothingAboveFloor'
+  | 'tooSmall'
+  | 'tooLarge'
+  | 'touchingStructure'
+  /** O utilizador mexeu na caixa à mão: o ajuste automático parou. */
+  | 'cancelled';
+
+/** Resultado do ajuste automático da caixa ao animal (tamanhos em metros). */
+export type BoxFitEvent =
+  | { ok: true; width: number; height: number; length: number }
+  | { ok: false; reason: BoxFitFailureReason; /** true = deixou de tentar sozinho */ final: boolean };

@@ -1,17 +1,24 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, Platform,
+  View, Animated, StyleSheet, RefreshControl, Platform,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
+import Text from '../components/Text';
+import Wordmark from '../components/Wordmark';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios, glass } from '../lib/theme';
+import type { Palette } from '../lib/theme';
 import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
-import LiquidGlass from '../components/LiquidGlass';
+import { useAuth } from '../lib/AuthContext';
+import { initials, loadProfile, type Profile } from '../lib/profile';
 import ScreenBackground from '../components/ScreenBackground';
+import PressableScale from '../components/PressableScale';
+import FadeInView from '../components/FadeInView';
+import PendingApprovalBanner from '../components/PendingApprovalBanner';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -21,12 +28,26 @@ const RING_RADIUS = 32;
 const RING_CIRC = 2 * Math.PI * RING_RADIUS;
 
 export default function HomeScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { user } = useAuth();
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  // Relido sempre que a Home volta a aparecer: o nome edita-se no Perfil.
+  useFocusEffect(
+    useCallback(() => {
+      void loadProfile(user?.id).then(setProfile);
+    }, [user?.id]),
+  );
+
+  const avatarInitials = initials(profile, user?.name);
+  const { scrollY, onScroll } = useScrollY();
 
   const load = useCallback(async () => {
     // Cache primeiro (instantâneo), depois atualiza em 2º plano.
@@ -77,14 +98,16 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ios.accent} />}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>PondiFarm</Text>
+          <Wordmark size={34} />
           <Text style={styles.subtitle}>
             {backendOk === null
               ? 'Limousine pilot · loading'
@@ -93,13 +116,28 @@ export default function HomeScreen() {
                 : 'Limousine pilot · offline'}
           </Text>
         </View>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>TC</Text>
-        </View>
+        <PressableScale
+          style={styles.avatar}
+          onPress={() => nav.navigate('Profile')}
+          hitSlop={8}
+          scaleTo={0.9}
+          accessibilityRole="button"
+          accessibilityLabel="Open your profile"
+        >
+          {avatarInitials ? (
+            <Text style={styles.avatarText}>{avatarInitials}</Text>
+          ) : (
+            <Ionicons name="person" size={18} color="#FFFFFF" />
+          )}
+        </PressableScale>
       </View>
 
-      <View style={styles.group}>
-        <LiquidGlass tone="light" radius={18} fillColor={glass.light.fillStrong} style={styles.heroGlass}>
+      <PendingApprovalBanner />
+
+      <FadeInView index={0} style={styles.group}>
+        {/* Cartão SÓLIDO (como o «Today»): o vidro nativo do iOS 26 aqui ficava quase
+            transparente e os círculos do fundo passavam por trás dos números. */}
+        <View style={[styles.card, styles.heroGlass]}>
           <View style={styles.hero}>
             <View style={styles.heroLeft}>
               <View style={styles.eyebrow}>
@@ -122,7 +160,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.ringWrap}>
               <Svg width={78} height={78}>
-                <Circle cx={39} cy={39} r={RING_RADIUS} stroke="#E5E5EA" strokeWidth={8} fill="none" />
+                <Circle cx={39} cy={39} r={RING_RADIUS} stroke={ios.ringTrack} strokeWidth={8} fill="none" />
                 <Circle
                   cx={39} cy={39} r={RING_RADIUS}
                   stroke={ios.accent} strokeWidth={8} fill="none"
@@ -153,21 +191,22 @@ export default function HomeScreen() {
               <Text style={styles.tileLabel}>local scans</Text>
             </View>
           </View>
-        </LiquidGlass>
-      </View>
+        </View>
+      </FadeInView>
 
       {today.length > 0 && (
-        <View style={styles.group}>
+        <FadeInView index={1} style={styles.group}>
           <Text style={styles.groupHeader}>Today</Text>
           <View style={styles.card}>
             {today.map((rec, i) => {
               const isCow = rec.category === 'cow';
               return (
-              <TouchableOpacity
+              <PressableScale
                 key={rec.id}
                 style={[styles.row, i < today.length - 1 && styles.rowDivider]}
                 onPress={() => nav.navigate('Result', { record: rec })}
-                activeOpacity={0.6}
+                scaleTo={0.985}
+                accessibilityRole="button"
               >
                 <View style={styles.rowIcon}>
                   <Ionicons name={isCow ? 'paw' : 'cube-outline'} size={16} color={ios.accent} />
@@ -190,11 +229,11 @@ export default function HomeScreen() {
                   <Text style={styles.rowMetricUnit}>cm girth</Text>
                 </View>
                 <Text style={styles.rowChevron}>›</Text>
-              </TouchableOpacity>
+              </PressableScale>
             );
             })}
           </View>
-        </View>
+        </FadeInView>
       )}
 
       {today.length === 0 && (
@@ -205,13 +244,16 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <TouchableOpacity style={styles.cta} onPress={() => nav.navigate('Scan')} activeOpacity={0.85}>
-        <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
-        <Text style={styles.ctaText}>New scan</Text>
-      </TouchableOpacity>
+      <FadeInView index={2}>
+        <PressableScale style={styles.cta} onPress={() => nav.navigate('Scan')} haptic accessibilityRole="button">
+          <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.ctaText}>New scan</Text>
+        </PressableScale>
+      </FadeInView>
       {/* Studio 3D (Object Capture) escondido — fotogrametria lenta + crashes de GPU
           em background. Foco no LiDAR nativo (Caminho B). Código mantido para revisão. */}
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="PondiFarm" scrollY={scrollY} />
     </View>
   );
 }
@@ -222,13 +264,13 @@ const displayFont = Platform.select({
   default: undefined,
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   cloudLine: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
     paddingTop: 10, marginTop: 2,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5EA',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ios.separator,
   },
-  cloudLineText: { fontSize: 12.5, color: '#8A8A8E', letterSpacing: -0.05 },
+  cloudLineText: { fontSize: 12.5, color: ios.secondaryLabel, letterSpacing: -0.05 },
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   // Large title
@@ -238,24 +280,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
-  title: {
-    fontFamily: displayFont,
-    fontSize: 34, fontWeight: '700',
-    letterSpacing: -0.95,
-    color: ios.label,
-    lineHeight: 36,
-  },
   subtitle: {
     fontSize: 13, color: ios.tertiaryLabel,
     marginTop: 4, letterSpacing: -0.05,
   },
   avatar: {
-    width: 36, height: 36, borderRadius: 18,
-    backgroundColor: ios.accent,
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: ios.accentFill,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: {
-    color: '#FFFFFF', fontSize: 14, fontWeight: '600',
+    color: '#FFFFFF', fontSize: 15, fontWeight: '700',
     letterSpacing: -0.2,
   },
 
@@ -405,7 +440,7 @@ const styles = StyleSheet.create({
   // Primary CTA — verde sólido (padrão único de ação primária no app; Fable)
   cta: {
     marginTop: 22, marginHorizontal: 16,
-    backgroundColor: ios.accent,
+    backgroundColor: ios.accentFill,
     borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     shadowColor: ios.accent, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },

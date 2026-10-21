@@ -36,23 +36,39 @@ public class LidarScannerModule: Module {
     }
 
     View(LidarScannerView.self) {
-      Events("onScanComplete")
+      Events("onScanComplete", "onScanProgress", "onBoxFit")
+
+      // Todas na MAIN: numa View UIKit as AsyncFunction correm numa fila própria do
+      // Expo, e estas mexem no estado da caixa e em entidades do RealityKit
+      // (@MainActor) que o loop de render lê ao mesmo tempo (revisão do PR #112).
 
       AsyncFunction("startScan") { (view: LidarScannerView) in
         view.startScan()
-      }
+      }.runOnQueue(.main)
 
       AsyncFunction("stopScan") { (view: LidarScannerView) in
         view.stopScan()
-      }
+      }.runOnQueue(.main)
 
       AsyncFunction("setBoxScale") { (view: LidarScannerView, scale: Double) in
         view.setBoxScale(Float(scale))
-      }
+      }.runOnQueue(.main)
 
       AsyncFunction("recenterBox") { (view: LidarScannerView) in
         view.recenterBox()
-      }
+      }.runOnQueue(.main)
+
+      AsyncFunction("rotateBox") { (view: LidarScannerView, degrees: Double) in
+        view.rotateBox(Float(degrees))
+      }.runOnQueue(.main)
+
+      AsyncFunction("autoFitBox") { (view: LidarScannerView) in
+        view.autoFitBox()
+      }.runOnQueue(.main)
+
+      AsyncFunction("cancelAutoFit") { (view: LidarScannerView) in
+        view.cancelAutoFit()
+      }.runOnQueue(.main)
     }
   }
 }

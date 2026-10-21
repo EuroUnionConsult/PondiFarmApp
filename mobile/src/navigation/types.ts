@@ -7,11 +7,12 @@ export type RootStackParamList = {
   ObjectCapture: undefined;
   Result: { record: ScanRecord };
   AnimalDetail: { animal: CloudAnimal };
+  Profile: undefined;
+  Settings: undefined;
 };
 
 export type TabParamList = {
   Home: undefined;
   Herd: undefined;
   Analytics: undefined;
-  Settings: undefined;
 };
