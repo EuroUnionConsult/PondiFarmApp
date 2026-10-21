@@ -1,8 +1,9 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, ScrollView, StyleSheet, Platform,
+  View, StyleSheet, Platform, Animated,
 } from 'react-native';
 import Text from '../components/Text';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { breedLabel } from '../lib/breeds';
 import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
@@ -23,6 +24,7 @@ const prettyBreed = breedLabel;
 
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useScrollY();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
 
@@ -79,7 +81,9 @@ export default function AnalyticsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
     >
@@ -210,7 +214,8 @@ export default function AnalyticsScreen() {
           </Text>
         </>
       )}
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="Analytics" scrollY={scrollY} />
     </View>
   );
 }

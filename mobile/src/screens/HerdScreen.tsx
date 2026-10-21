@@ -1,8 +1,11 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, Alert, TextInput, Platform,
+  View, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, Animated,
 } from 'react-native';
 import Text from '../components/Text';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
+import PressableScale from '../components/PressableScale';
+import PendingApprovalBanner from '../components/PendingApprovalBanner';
 import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,6 +52,7 @@ function groupRecords(records: ScanRecord[]): Section[] {
 
 export default function HerdScreen() {
   const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useScrollY();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
@@ -128,7 +132,9 @@ export default function HerdScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
       keyboardShouldPersistTaps="handled"
@@ -152,6 +158,8 @@ export default function HerdScreen() {
           <Ionicons name="add" size={26} color={ios.accent} />
         </TouchableOpacity>
       </View>
+
+      <PendingApprovalBanner />
 
       {cloudOffline && (
         <View style={styles.offlineBanner}>
@@ -185,7 +193,7 @@ export default function HerdScreen() {
           <View style={styles.card}>
             {cloudFiltered.map((c, i, arr) => (
               <View key={c.id}>
-                <TouchableOpacity style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} activeOpacity={0.6}>
+                <PressableScale style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} scaleTo={0.985} accessibilityRole="button">
                   <View style={[styles.rowIcon, { backgroundColor: ios.accentLight }]}>
                     <Ionicons name="cloud-outline" size={16} color={ios.accent} />
                   </View>
@@ -202,7 +210,7 @@ export default function HerdScreen() {
                     <Text style={styles.rowMetricUnit}>kg</Text>
                   </View>
                   <Text style={styles.rowChev}>›</Text>
-                </TouchableOpacity>
+                </PressableScale>
                 {i < arr.length - 1 && <View style={styles.rowDivider} />}
               </View>
             ))}
@@ -234,12 +242,12 @@ export default function HerdScreen() {
                   : breedLabel(rec.breed);
                 return (
                 <View key={rec.id}>
-                  <TouchableOpacity
+                  <PressableScale
                     style={styles.row}
                     onPress={() => nav.navigate('Result', { record: rec })}
                     onLongPress={() => handleLongPress(rec)}
                     delayLongPress={350}
-                    activeOpacity={0.6}
+                    scaleTo={0.985}
                   >
                     <View style={[
                       styles.rowIcon,
@@ -278,7 +286,7 @@ export default function HerdScreen() {
                       />
                     )}
                     <Text style={styles.rowChev}>›</Text>
-                  </TouchableOpacity>
+                  </PressableScale>
                   {i < section.data.length - 1 && <View style={styles.rowDivider} />}
                 </View>
               );
@@ -293,7 +301,8 @@ export default function HerdScreen() {
           Long-press a row to remove it.
         </Text>
       )}
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="Herd" scrollY={scrollY} />
     </View>
   );
 }

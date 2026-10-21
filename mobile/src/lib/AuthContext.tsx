@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import { AppState } from 'react-native';
 import * as auth from './auth';
 import { clearCloudCache } from './api';
 import { startAutoSync, stopAutoSync } from './sync';
@@ -56,6 +57,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me);
     return me;
   }, []);
+
+  // À espera de aprovação: a pessoa usa a app (scans ficam no telemóvel) e esta
+  // verificação corre em fundo. Quando o Líder aprova, o refreshMe troca o token,
+  // o estado passa a `active`, o sync liga-se e envia os scans guardados.
+  const isPending = user?.membershipStatus === 'pending';
+  useEffect(() => {
+    if (!isPending) return;
+    const id = setInterval(() => { void refreshMe(); }, 30_000);
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') void refreshMe(); });
+    return () => { clearInterval(id); sub.remove(); };
+  }, [isPending, refreshMe]);
 
   const login = useCallback(async (email: string, password: string) => {
     await auth.login(email, password);

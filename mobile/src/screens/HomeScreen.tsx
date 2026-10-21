@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, Platform,
+  View, Animated, StyleSheet, RefreshControl, Platform,
 } from 'react-native';
 import Text from '../components/Text';
 import Wordmark from '../components/Wordmark';
@@ -15,6 +15,10 @@ import LiquidGlass from '../components/LiquidGlass';
 import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, type Profile } from '../lib/profile';
 import ScreenBackground from '../components/ScreenBackground';
+import PressableScale from '../components/PressableScale';
+import FadeInView from '../components/FadeInView';
+import PendingApprovalBanner from '../components/PendingApprovalBanner';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -41,6 +45,7 @@ export default function HomeScreen() {
   );
 
   const avatarInitials = initials(profile, user?.name);
+  const { scrollY, onScroll } = useScrollY();
 
   const load = useCallback(async () => {
     // Cache primeiro (instantâneo), depois atualiza em 2º plano.
@@ -91,9 +96,11 @@ export default function HomeScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ios.accent} />}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
@@ -107,11 +114,11 @@ export default function HomeScreen() {
                 : 'Limousine pilot · offline'}
           </Text>
         </View>
-        <TouchableOpacity
+        <PressableScale
           style={styles.avatar}
           onPress={() => nav.navigate('Profile')}
           hitSlop={8}
-          activeOpacity={0.8}
+          scaleTo={0.9}
           accessibilityRole="button"
           accessibilityLabel="Open your profile"
         >
@@ -120,10 +127,12 @@ export default function HomeScreen() {
           ) : (
             <Ionicons name="person" size={18} color="#FFFFFF" />
           )}
-        </TouchableOpacity>
+        </PressableScale>
       </View>
 
-      <View style={styles.group}>
+      <PendingApprovalBanner />
+
+      <FadeInView index={0} style={styles.group}>
         <LiquidGlass tone="light" radius={18} fillColor={glass.light.fillStrong} style={styles.heroGlass}>
           <View style={styles.hero}>
             <View style={styles.heroLeft}>
@@ -179,20 +188,21 @@ export default function HomeScreen() {
             </View>
           </View>
         </LiquidGlass>
-      </View>
+      </FadeInView>
 
       {today.length > 0 && (
-        <View style={styles.group}>
+        <FadeInView index={1} style={styles.group}>
           <Text style={styles.groupHeader}>Today</Text>
           <View style={styles.card}>
             {today.map((rec, i) => {
               const isCow = rec.category === 'cow';
               return (
-              <TouchableOpacity
+              <PressableScale
                 key={rec.id}
                 style={[styles.row, i < today.length - 1 && styles.rowDivider]}
                 onPress={() => nav.navigate('Result', { record: rec })}
-                activeOpacity={0.6}
+                scaleTo={0.985}
+                accessibilityRole="button"
               >
                 <View style={styles.rowIcon}>
                   <Ionicons name={isCow ? 'paw' : 'cube-outline'} size={16} color={ios.accent} />
@@ -215,11 +225,11 @@ export default function HomeScreen() {
                   <Text style={styles.rowMetricUnit}>cm girth</Text>
                 </View>
                 <Text style={styles.rowChevron}>›</Text>
-              </TouchableOpacity>
+              </PressableScale>
             );
             })}
           </View>
-        </View>
+        </FadeInView>
       )}
 
       {today.length === 0 && (
@@ -230,13 +240,16 @@ export default function HomeScreen() {
         </View>
       )}
 
-      <TouchableOpacity style={styles.cta} onPress={() => nav.navigate('Scan')} activeOpacity={0.85}>
-        <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
-        <Text style={styles.ctaText}>New scan</Text>
-      </TouchableOpacity>
+      <FadeInView index={2}>
+        <PressableScale style={styles.cta} onPress={() => nav.navigate('Scan')} haptic accessibilityRole="button">
+          <Ionicons name="scan-outline" size={18} color="#FFFFFF" />
+          <Text style={styles.ctaText}>New scan</Text>
+        </PressableScale>
+      </FadeInView>
       {/* Studio 3D (Object Capture) escondido — fotogrametria lenta + crashes de GPU
           em background. Foco no LiDAR nativo (Caminho B). Código mantido para revisão. */}
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="PondiFarm" scrollY={scrollY} />
     </View>
   );
 }

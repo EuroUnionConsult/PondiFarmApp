@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, ScrollView, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator,
+  View, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, Animated,
 } from 'react-native';
 import Text from '../components/Text';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -36,6 +37,7 @@ const BREEDS: { key: Config['defaultBreed']; label: string }[] = [
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const { scrollY, onScroll } = useScrollY();
   const [cfg, setCfg] = useState<Config>(DEFAULT);
   const [cloudSync, setCloudSync] = useState(true);
   const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');
@@ -116,7 +118,9 @@ export default function SettingsScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-    <ScrollView
+    <Animated.ScrollView
+      onScroll={onScroll}
+      scrollEventThrottle={16}
       style={[styles.scroll, { backgroundColor: 'transparent' }]}
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
     >
@@ -259,7 +263,8 @@ export default function SettingsScreen() {
       <Text style={styles.sectionFooter}>
         This deletes locally saved scans. It does not affect data on the backend.
       </Text>
-    </ScrollView>
+    </Animated.ScrollView>
+      <CompactHeader title="Settings" scrollY={scrollY} />
     </View>
   );
 }
