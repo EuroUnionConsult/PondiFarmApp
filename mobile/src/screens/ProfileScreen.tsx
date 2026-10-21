@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl,
+  View, Animated, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,11 +9,14 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Text from '../components/Text';
 import ScreenBackground from '../components/ScreenBackground';
 import ProfileSheet from '../components/ProfileSheet';
+import PressableScale from '../components/PressableScale';
+import FadeInView from '../components/FadeInView';
+import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { ios } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, saveProfile, type Profile } from '../lib/profile';
 import {
-  approveRequest, leaveOrganization, listPendingRequests, listPeople, rejectRequest,
+  approveRequest, cancelMyRequest, leaveOrganization, listPendingRequests, listPeople, rejectRequest,
   removePerson, transferLeadership, type OrgPerson, type PendingJoinRequest,
 } from '../lib/orgs';
 import type { RootStackParamList } from '../navigation/types';
@@ -28,6 +31,8 @@ export default function ProfileScreen() {
   const { user, logout, refreshMe } = useAuth();
   const orgId = user?.organizationId ?? null;
   const isLeader = user?.role === 'leader';
+  const isPending = user?.membershipStatus === 'pending';
+  const { scrollY, onScroll } = useScrollY();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [editing, setEditing] = useState(false);
@@ -126,8 +131,10 @@ export default function ProfileScreen() {
   return (
     <View style={{ flex: 1 }}>
       <ScreenBackground />
-      <ScrollView
+      <Animated.ScrollView
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40 }}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={ios.accent} />}
       >
         <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} hitSlop={8} accessibilityRole="button">
@@ -136,7 +143,7 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         {/* Quem sou */}
-        <View style={styles.hero}>
+        <FadeInView index={0} style={styles.hero}>
           <TouchableOpacity
             style={styles.avatar}
             onPress={() => setEditing(true)}
@@ -152,19 +159,26 @@ export default function ProfileScreen() {
           <TouchableOpacity onPress={() => setEditing(true)} hitSlop={8} accessibilityRole="button">
             <Text style={styles.link}>Edit name</Text>
           </TouchableOpacity>
-        </View>
+        </FadeInView>
 
         {/* Organização */}
+        <FadeInView index={1}>
         <Text style={styles.sectionHeader}>Organization</Text>
         <View style={styles.card}>
           <View style={styles.row}>
             <Text style={styles.rowKey}>Name</Text>
-            <Text style={styles.rowVal} numberOfLines={1}>{user?.organizationName || '—'}</Text>
+            <Text style={styles.rowVal} numberOfLines={1}>
+              {(isPending ? user?.pendingOrganizationName : user?.organizationName) || '—'}
+            </Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
             <Text style={styles.rowKey}>Your role</Text>
-            {user?.role ? (
+            {isPending ? (
+              <View style={[styles.roleBadge, styles.rolePending]}>
+                <Text style={[styles.roleText, styles.rolePendingText]}>Waiting for approval</Text>
+              </View>
+            ) : user?.role ? (
               <View style={[styles.roleBadge, isLeader ? styles.roleLeader : styles.roleMember]}>
                 <Text style={[styles.roleText, isLeader ? styles.roleLeaderText : styles.roleMemberText]}>
                   {isLeader ? 'Leader' : 'Member'}
@@ -174,11 +188,32 @@ export default function ProfileScreen() {
               <Text style={styles.rowVal}>Not available yet</Text>
             )}
           </View>
+          {isPending && (
+            <>
+              <View style={styles.divider} />
+              <Text style={styles.pendingNote}>
+                Until the leader approves you, you don’t see the organization’s herd and your scans
+                stay on this phone. They are sent automatically once you’re approved.
+              </Text>
+              <View style={styles.divider} />
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => Alert.alert('Cancel your request?', 'You can ask to join again later.', [
+                  { text: 'Keep it', style: 'cancel' },
+                  { text: 'Cancel request', style: 'destructive', onPress: () => act('cancel', cancelMyRequest) },
+                ])}
+                accessibilityRole="button"
+              >
+                <Text style={[styles.rowKey, { color: DANGER }]}>Cancel request</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
+        </FadeInView>
 
         {/* Pedidos (só Líder) */}
         {isLeader && (
-          <>
+          <FadeInView index={2}>
             <Text style={styles.sectionHeader}>Requests to join · {requests.length}</Text>
             <View style={styles.card}>
               {requests.length === 0 ? (
@@ -215,12 +250,12 @@ export default function ProfileScreen() {
                 </View>
               ))}
             </View>
-          </>
+          </FadeInView>
         )}
 
         {/* Membros */}
         {orgId && (
-          <>
+          <FadeInView index={3}>
             <Text style={styles.sectionHeader}>Members · {people.length}</Text>
             <View style={styles.card}>
               {people.map((p, i) => {
@@ -229,11 +264,11 @@ export default function ProfileScreen() {
                 return (
                   <View key={p.userId}>
                     {i > 0 && <View style={styles.divider} />}
-                    <TouchableOpacity
+                    <PressableScale
                       style={styles.personRow}
                       disabled={!canManage || busyId !== null}
                       onPress={() => manage(p)}
-                      activeOpacity={0.7}
+                      scaleTo={0.985}
                       accessibilityRole={canManage ? 'button' : undefined}
                       accessibilityLabel={canManage ? `Manage ${p.name}` : undefined}
                     >
@@ -247,25 +282,26 @@ export default function ProfileScreen() {
                           {canManage && <Ionicons name="ellipsis-horizontal" size={18} color={ios.tertiaryLabel} />}
                         </>
                       )}
-                    </TouchableOpacity>
+                    </PressableScale>
                   </View>
                 );
               })}
             </View>
             {isLeader && <Text style={styles.footer}>Tap a member to make them leader or remove them.</Text>}
-          </>
+          </FadeInView>
         )}
 
         {error && <Text style={styles.error}>{error}</Text>}
 
         {/* App */}
+        <FadeInView index={4}>
         <Text style={styles.sectionHeader}>App</Text>
         <View style={styles.card}>
-          <TouchableOpacity style={styles.row} onPress={() => nav.navigate('Settings')} accessibilityRole="button">
+          <PressableScale style={styles.row} onPress={() => nav.navigate('Settings')} scaleTo={0.985} accessibilityRole="button">
             <Ionicons name="settings-outline" size={20} color={ios.secondaryLabel} />
             <Text style={[styles.rowKey, { flex: 1 }]}>Settings</Text>
             <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />
-          </TouchableOpacity>
+          </PressableScale>
           {orgId && !isLeader && user?.role === 'member' && (
             <>
               <View style={styles.divider} />
@@ -279,7 +315,9 @@ export default function ProfileScreen() {
             <Text style={[styles.rowKey, { color: DANGER }]}>Sign out</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+        </FadeInView>
+      </Animated.ScrollView>
+      <CompactHeader title={displayName || 'Profile'} scrollY={scrollY} threshold={150} />
 
       <ProfileSheet
         visible={editing}
@@ -321,6 +359,9 @@ const styles = StyleSheet.create({
   roleText: { fontSize: 14, fontWeight: '700' },
   roleLeaderText: { color: ios.accentDark },
   roleMemberText: { color: ios.navy },
+  rolePending: { backgroundColor: ios.orangeLight },
+  rolePendingText: { color: ios.orangeText },
+  pendingNote: { paddingHorizontal: 16, paddingVertical: 12, fontSize: 14, lineHeight: 20, color: ios.secondaryLabel },
   empty: { padding: 16, fontSize: 15, color: ios.secondaryLabel },
   personRow: { minHeight: 60, paddingHorizontal: 16, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
   personName: { fontSize: 17, color: ios.label },

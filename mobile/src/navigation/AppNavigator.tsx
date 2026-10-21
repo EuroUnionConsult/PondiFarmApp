@@ -52,16 +52,19 @@ function RootNavigator() {
     return <LoginScreen />;
   }
 
-  // Com sessão mas sem organização ativa (acabou de se registar, ou espera que
-  // o Líder aprove): escolhe/espera, sem acesso a dados. `user` null = /me
-  // ainda não respondeu ou está offline — segue para a app (offline-first).
-  if (user && user.membershipStatus !== 'active') {
+  // Com sessão mas ainda sem organização escolhida: criar uma ou pedir entrada.
+  // À espera de aprovação (`pending`) já entra na app: faz scans, que ficam no
+  // telemóvel até o Líder aprovar (aviso na Home e no Perfil). `user` null =
+  // /me ainda não respondeu ou está offline — segue para a app (offline-first).
+  if (user && user.membershipStatus === 'none') {
     return <OrganizationGateScreen />;
   }
 
   return (
     <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {/* Voltar atrás deslizando de qualquer ponto do ecrã (não só da borda),
+          como nas apps nativas do iOS. */}
+      <Stack.Navigator screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>
         <Stack.Screen name="Main" component={TabNavigator} />
         <Stack.Screen
           name="Scan"
