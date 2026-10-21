@@ -22,6 +22,8 @@ import {
   removePerson, transferLeadership, type OrgPerson, type PendingJoinRequest,
 } from '../lib/orgs';
 import type { RootStackParamList } from '../navigation/types';
+import SyncRing from '../components/SyncRing';
+import { trackCloud } from '../lib/activity';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -52,10 +54,10 @@ export default function ProfileScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [p, r] = await Promise.all([
+      const [p, r] = await trackCloud(Promise.all([
         listPeople(orgId),
         isLeader ? listPendingRequests(orgId) : Promise.resolve([] as PendingJoinRequest[]),
-      ]);
+      ]));
       setPeople(p);
       setRequests(r);
     } catch (e: any) {
@@ -67,12 +69,14 @@ export default function ProfileScreen() {
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
 
-  const act = async (id: string, fn: () => Promise<unknown>) => {
+  // `roleMayChange`: passar a liderança ou sair mudam o papel e o token; aprovar,
+  // recusar e remover não, e o /me extra só atrasava a resposta.
+  const act = async (id: string, fn: () => Promise<unknown>, roleMayChange = false) => {
     setBusyId(id);
     setError(null);
     try {
-      await fn();
-      await refreshMe(); // o papel pode ter mudado (passar liderança, sair)
+      await trackCloud(fn());
+      if (roleMayChange) await refreshMe();
       await load();
     } catch (e: any) {
       setError(String(e?.message ?? e));
@@ -91,7 +95,7 @@ export default function ProfileScreen() {
           'You become a member and can no longer approve requests or manage people.',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Make leader', onPress: () => act(p.userId, () => transferLeadership(orgId, p.userId)) },
+            { text: 'Make leader', onPress: () => act(p.userId, () => transferLeadership(orgId, p.userId), true) },
           ],
         ),
       },
@@ -115,7 +119,7 @@ export default function ProfileScreen() {
     if (!orgId) return;
     Alert.alert('Leave organization?', `You stop seeing ${user?.organizationName}’s data.`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => act('leave', () => leaveOrganization(orgId)) },
+      { text: 'Leave', style: 'destructive', onPress: () => act('leave', () => leaveOrganization(orgId), true) },
     ]);
   };
 
@@ -150,16 +154,20 @@ export default function ProfileScreen() {
 
         {/* Quem sou */}
         <FadeInView index={0} style={styles.hero}>
-          <TouchableOpacity
-            style={styles.avatar}
-            onPress={() => setEditing(true)}
-            accessibilityRole="button"
-            accessibilityLabel="Edit your name"
-          >
-            {avatar
-              ? <Text style={styles.avatarText}>{avatar}</Text>
-              : <Ionicons name="person" size={30} color="#FFFFFF" />}
-          </TouchableOpacity>
+          <View style={styles.avatarWrap}>
+            <SyncRing size={84}>
+              <TouchableOpacity
+                style={styles.avatar}
+                onPress={() => setEditing(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Edit your name"
+              >
+                {avatar
+                  ? <Text style={styles.avatarText}>{avatar}</Text>
+                  : <Ionicons name="person" size={30} color="#FFFFFF" />}
+              </TouchableOpacity>
+            </SyncRing>
+          </View>
           <Text style={styles.name}>{displayName || 'Your name'}</Text>
           <Text style={styles.email}>{user?.email}</Text>
           <TouchableOpacity onPress={() => setEditing(true)} hitSlop={8} accessibilityRole="button">
@@ -206,7 +214,7 @@ export default function ProfileScreen() {
                 style={styles.row}
                 onPress={() => Alert.alert('Cancel your request?', 'You can ask to join again later.', [
                   { text: 'Keep it', style: 'cancel' },
-                  { text: 'Cancel request', style: 'destructive', onPress: () => act('cancel', cancelMyRequest) },
+                  { text: 'Cancel request', style: 'destructive', onPress: () => act('cancel', cancelMyRequest, true) },
                 ])}
                 accessibilityRole="button"
               >
@@ -342,8 +350,9 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   hero: { alignItems: 'center', gap: 4, paddingHorizontal: 16, marginTop: 4 },
   avatar: {
     width: 84, height: 84, borderRadius: 42, backgroundColor: ios.accentFill,
-    alignItems: 'center', justifyContent: 'center', marginBottom: 10,
+    alignItems: 'center', justifyContent: 'center',
   },
+  avatarWrap: { marginBottom: 10 },
   avatarText: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
   name: { fontSize: 24, fontWeight: '700', color: ios.label, textAlign: 'center' },
   email: { fontSize: 15, color: ios.secondaryLabel },

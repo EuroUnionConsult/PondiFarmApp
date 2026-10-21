@@ -5,6 +5,7 @@ import { AppState } from 'react-native';
 import { getBackendUrl, isCloudSyncEnabled } from './api';
 import { authHeaders, getOrganizationId } from './auth';
 import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from './weightModel';
+import { trackCloud } from './activity';
 import {
   listRecords, updateRecord, effectiveSyncState, type ScanRecord,
 } from './storage';
@@ -172,7 +173,11 @@ let syncing = false;   // C5: evita reentrância de syncPending
  * Reprocessa a fila: envia bovinos ainda não sincronizados, em série.
  * Não repete os marcados 'error' (falha permanente). Chamar ao focar / voltar a rede.
  */
-export async function syncPending(): Promise<{ synced: number; pending: number; error: number; skipped: number }> {
+export function syncPending(): Promise<{ synced: number; pending: number; error: number; skipped: number }> {
+  return trackCloud(runSyncPending());
+}
+
+async function runSyncPending(): Promise<{ synced: number; pending: number; error: number; skipped: number }> {
   const out = { synced: 0, pending: 0, error: 0, skipped: 0 };
   if (syncing || !(await isCloudSyncEnabled())) return out;
   syncing = true;

@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authHeaders, getOrganizationId } from './auth';
 import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY, CLOUD_CACHE_KEY } from './config';
+import { trackCloud } from './activity';
 
 const DEFAULT_HEADERS = { 'bypass-tunnel-reminder': 'true' } as const;
 
@@ -142,8 +143,29 @@ async function mapComLimite<T, R>(
   return out;
 }
 
+/** Pedido em curso, partilhado: Home, Rebanho e Análise pedem ao mesmo tempo ao
+ * ganhar foco, e cada carga eram centenas de pedidos em triplicado. */
+let cloudAnimalsInFlight: Promise<CloudAnimal[]> | null = null;
+
 /** Busca os animais da org no backend + o peso do scan mais recente de cada um. */
-export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
+export function fetchCloudAnimals(): Promise<CloudAnimal[]> {
+  if (!cloudAnimalsInFlight) {
+    cloudAnimalsInFlight = trackCloud(loadCloudAnimals()).finally(() => { cloudAnimalsInFlight = null; });
+  }
+  return cloudAnimalsInFlight;
+}
+
+/** Último scan de cada animal num só pedido. `null` quando o backend ainda não
+ * tem a rota (404): aí a app volta a pedir animal a animal. */
+async function fetchLatestScans(base: string, orgId: string): Promise<Map<string, any> | null> {
+  const res = await fetchWithTimeout(`${base}/api/v1/organizations/${orgId}/animals/latest-scans`, 20000);
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error(`latest-scans HTTP ${res.status}`);
+  const list: any[] = await res.json();
+  return new Map(list.map((s) => [String(s.animalId ?? s.animal_id), s]));
+}
+
+async function loadCloudAnimals(): Promise<CloudAnimal[]> {
   // Sync desligado pelo usuário => opera 100% local, não toca no backend.
   if (!(await isCloudSyncEnabled())) return [];
   // Org do usuário logado (do token) — isolamento multi-tenant.
@@ -167,35 +189,36 @@ export async function fetchCloudAnimals(): Promise<CloudAnimal[]> {
     if (lote.length < ANIMALS_PER_PAGE) break;
   }
 
-  // CONCORRÊNCIA LIMITADA. Cada animal exige um pedido para o seu scan mais
-  // recente. Um Promise.all sobre a lista inteira dispara tantos pedidos
-  // simultâneos quantos os animais — com 19 passa despercebido, com centenas é
-  // uma estampida que esgota o servidor e faz expirar os próprios pedidos.
+  // Um só pedido para o último scan de todos. Com 290 animais, o pedido por
+  // animal levava 22 s (medido a 21/10/2026) e entupia a ligação: o Perfil e as
+  // aprovações ficavam na fila atrás dele.
+  const latest = await fetchLatestScans(base, orgId);
+
+  // Backend antigo, sem a rota: um pedido por animal, com CONCORRÊNCIA LIMITADA.
+  // Um Promise.all sobre a lista inteira dispararia tantos pedidos simultâneos
+  // quantos os animais — uma estampida que esgota o servidor.
+  const scanOf = async (a: any): Promise<any> => {
+    if (latest) return latest.get(String(a.id));
+    try {
+      const sr = await fetchWithTimeout(`${base}/api/v1/animals/${a.id}/scans`, 20000);
+      if (!sr.ok) return undefined;
+      const body = await sr.json();
+      return latestUsableScan(Array.isArray(body) ? body : (body.items ?? body.data ?? []));
+    } catch {
+      return undefined;
+    }
+  };
+
   const result = await mapComLimite(animals, SCAN_FETCH_CONCURRENCY, async (a) => {
-      let weightKg: number | null = null;
-      let bodyLengthCm: number | null = null;
-      let withersHeightCm: number | null = null;
-      try {
-        const sr = await fetchWithTimeout(`${base}/api/v1/animals/${a.id}/scans`, 20000);
-        if (sr.ok) {
-          const body = await sr.json();
-          const list: any[] = Array.isArray(body) ? body : (body.items ?? body.data ?? []);
-          const s = latestUsableScan(list);
-          if (s) {
-            weightKg = numOrNull(s.estimatedWeight);
-            bodyLengthCm = numOrNull(s.bodyLength);
-            withersHeightCm = numOrNull(s.withersHeight);
-          }
-        }
-      } catch {}
+      const s = await scanOf(a);
       return {
         id: String(a.id),
         name: String(a.name ?? 'Animal'),
         breed: String(a.breed?.name ?? ''),
         tagCode: a.tagCode ?? null,
-        weightKg,
-        bodyLengthCm,
-        withersHeightCm,
+        weightKg: numOrNull(s?.estimatedWeight),
+        bodyLengthCm: numOrNull(s?.bodyLength),
+        withersHeightCm: numOrNull(s?.withersHeight),
         notes: a.notes ?? null,
       } as CloudAnimal;
   });

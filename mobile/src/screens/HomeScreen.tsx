@@ -21,6 +21,7 @@ import PendingApprovalBanner from '../components/PendingApprovalBanner';
 import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
+import SyncRing from '../components/SyncRing';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -116,20 +117,22 @@ export default function HomeScreen() {
                 : 'Limousine pilot · offline'}
           </Text>
         </View>
-        <PressableScale
-          style={styles.avatar}
-          onPress={() => nav.navigate('Profile')}
-          hitSlop={8}
-          scaleTo={0.9}
-          accessibilityRole="button"
-          accessibilityLabel="Open your profile"
-        >
-          {avatarInitials ? (
-            <Text style={styles.avatarText}>{avatarInitials}</Text>
-          ) : (
-            <Ionicons name="person" size={18} color="#FFFFFF" />
-          )}
-        </PressableScale>
+        <SyncRing size={40}>
+          <PressableScale
+            style={styles.avatar}
+            onPress={() => nav.navigate('Profile')}
+            hitSlop={8}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel="Open your profile"
+          >
+            {avatarInitials ? (
+              <Text style={styles.avatarText}>{avatarInitials}</Text>
+            ) : (
+              <Ionicons name="person" size={18} color="#FFFFFF" />
+            )}
+          </PressableScale>
+        </SyncRing>
       </View>
 
       <PendingApprovalBanner />

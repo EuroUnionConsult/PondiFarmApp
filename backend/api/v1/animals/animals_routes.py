@@ -10,6 +10,8 @@ from schemas.animal_schemas import (
     AnimalResponse,
     AnimalUpdate,
 )
+from repositories import scan_repository
+from schemas.scan_schemas import AnimalScanResponse
 from services import animal_service
 
 animals_router = APIRouter(prefix="/api/v1", tags=["animals"])
@@ -50,6 +52,20 @@ def list_organization_animals(
         page,
         limit,
     )
+
+
+@animals_router.get(
+    "/organizations/{organization_id}/animals/latest-scans",
+    response_model=list[AnimalScanResponse],
+)
+def list_organization_latest_scans(
+    organization_id: UUID,
+    db: Session = Depends(get_db),
+    current: CurrentUser = Depends(get_current_user),
+):
+    """Último scan visível de cada animal, num só pedido (ver scan_repository)."""
+    _ensure_same_org(current, organization_id)
+    return scan_repository.list_latest_usable_scans_by_organization(db, organization_id)
 
 
 @animals_router.post(
