@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.7.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.6.1...v0.7.0) (2026-10-21)
+
+
+### Features
+
+* **mobile:** mark weight estimate as experimental and default breed to Limousine ([b42da9e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b42da9ebdf265e609dd96cc372e0c3621f14749f))
+* Phase 1 integration — thoracic depth, ML benchmarks, e2e validation, experimental weight ([27b8c2b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/27b8c2b22de94a3d665cba7a87310279d5025bd7))
+
+
+### Miscellaneous Chores
+
+* **ml:** add end-to-end CowDatabase validation scripts ([732781b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/732781bb26c9c7a7d821051b5a20ad647b0439b5))
+* **mobile:** configure EAS organization and App Store Connect for TestFlight ([3d548dc](https://github.com/EuroUnionConsult/PondiFarmApp/commit/3d548dc400be0db0bf0a394883c5880fee52e3c4))
+* **mobile:** configure EAS organization and App Store Connect for TestFlight ([3197fac](https://github.com/EuroUnionConsult/PondiFarmApp/commit/3197fac63e68a833732c9810c4bdb3262ca86816))
+
 ## [0.6.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.6.0...v0.6.1) (2026-08-28)
 
 
