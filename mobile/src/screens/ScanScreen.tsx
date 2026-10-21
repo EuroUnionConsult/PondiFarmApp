@@ -40,9 +40,10 @@ const FIT_FAILURE_TEXT: Record<BoxFitFailureReason, string> = {
   tooSmall: 'Couldn’t find the animal yet. Point at it and tap Fit to animal, or adjust manually.',
   nothingAboveFloor: 'Couldn’t find the animal yet. Point at it and tap Fit to animal, or adjust manually.',
   notEnoughPoints: 'Not enough of the animal captured yet. Move closer, then tap Fit to animal.',
+  cancelled: 'Box adjusted by hand.',
 };
 
-type FitState = { state: 'fitting' | 'fitted' | 'failed'; reason?: BoxFitFailureReason };
+type FitState = { state: 'fitting' | 'fitted' | 'failed' | 'manual'; reason?: BoxFitFailureReason };
 
 // Dica para o lado que falta. Os lados são relativos a onde o utilizador começou.
 function coverageHint(p: ScanProgressEvent | null, fit: FitState, manual: boolean): string {
@@ -278,6 +279,8 @@ export default function ScanScreen() {
       setFit({ state: 'fitted' });
       setBoxScale(1.0); // o tamanho ajustado passa a ser o novo 1.0×
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else if (r.reason === 'cancelled') {
+      setFit({ state: 'manual' });
     } else if (r.final) {
       setFit({ state: 'failed', reason: r.reason });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
@@ -428,6 +431,11 @@ export default function ScanScreen() {
             <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
               <ActivityIndicator color="#FFFFFF" size="small" />
               <Text style={styles.boxHint}>Fitting the box to the animal…</Text>
+            </GlassSurface>
+          ) : fit.state === 'manual' ? (
+            <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
+              <Ionicons name="hand-left-outline" size={16} color={ios.accentOnDark} />
+              <Text style={styles.boxHint}>Box adjusted by hand</Text>
             </GlassSurface>
           ) : fit.state === 'fitted' ? (
             <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
