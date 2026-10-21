@@ -15,7 +15,6 @@ const TABS: Record<string, { active: string; inactive: string; label: string }> 
   Home:      { active: 'home',      inactive: 'home-outline',      label: 'Home' },
   Herd:      { active: 'paw',       inactive: 'paw-outline',       label: 'Herd' },
   Analytics: { active: 'bar-chart', inactive: 'bar-chart-outline', label: 'Analytics' },
-  Settings:  { active: 'settings',  inactive: 'settings-outline',  label: 'Settings' },
 };
 
 export default function GlassTabBar({ state, navigation }: BottomTabBarProps) {
