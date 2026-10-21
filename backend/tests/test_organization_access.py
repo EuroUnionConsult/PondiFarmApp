@@ -375,11 +375,6 @@ class OrganizationAccessTests(unittest.TestCase):
                 headers=h,
             ),
             self.client.post(
-                f"/api/v1/organizations/{org_id}/members",
-                json={"userId": self.me(member)["id"]},
-                headers=h,
-            ),
-            self.client.post(
                 "/api/v1/users",
                 json={"name": "X", "email": "x@x.pt", "password": PW},
                 headers=h,
@@ -393,6 +388,24 @@ class OrganizationAccessTests(unittest.TestCase):
             headers=self.h(leader),
         )
         self.assertEqual(r.status_code, 200, r.text)
+
+    def test_legacy_member_write_routes_are_gone(self):
+        # Nem o líder: entrar só por pedido, sair por /people ou /leave.
+        leader, org_id = self.leader_and_org()
+        other = self.register("alguem@x.pt")
+        uid = self.me(other)["id"]
+        h = self.h(leader)
+        add = self.client.post(
+            f"/api/v1/organizations/{org_id}/members", json={"userId": uid}, headers=h
+        )
+        self.assertIn(add.status_code, (404, 405))
+        self.assertEqual(self.me(other)["membershipStatus"], "none")
+        me_id = self.me(leader)["id"]
+        drop = self.client.delete(
+            f"/api/v1/organizations/{org_id}/members/{me_id}", headers=h
+        )
+        self.assertIn(drop.status_code, (404, 405))
+        self.assertEqual(self.me(leader)["role"], "leader")
 
 
 if __name__ == "__main__":
