@@ -135,6 +135,13 @@ def load_training_rows(
 
 def build_candidate_models(random_state: int) -> dict[str, Pipeline]:
     return {
+        # A LinearRegression foi a que venceu e é a que está embarcada
+        # (external-trained-v0.2.0). Ridge e RandomForest ficam como candidatos
+        # comparáveis, não como o que corre em produção. Duas fontes
+        # independentes indicam que a complexidade extra não rende neste
+        # problema: Rozendo et al. 2025 reporta que a regressão não-linear não
+        # superou a linear e que a seleção de variáveis não melhorou o
+        # desempenho; e a relação forma-peso é, de facto, quase linear.
         "LinearRegression": build_pipeline(LinearRegression()),
         "Ridge": build_pipeline(Ridge(alpha=1.0, random_state=random_state)),
         "RandomForestRegressor": build_pipeline(

@@ -1,6 +1,4 @@
-import io
-
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -21,7 +19,6 @@ from api.v1.organizations_members.organizations_members_routes import (
 from api.v1.predictions.prediction_routes import predictions_router
 from api.v1.auth.auth_routes import auth_router
 from core.database import get_db, initialize_database
-from core.deps import CurrentUser, get_current_user
 from core.errors import register_exception_handlers
 
 
@@ -30,7 +27,10 @@ def create_app() -> FastAPI:
     # CORS configurável por env (D.6): restringir em produção via CORS_ORIGINS
     # (lista separada por vírgula). O app nativo não usa CORS; isto é só p/ docs/ferramentas.
     import os
-    cors_origins = [o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()]
+
+    cors_origins = [
+        o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
@@ -59,66 +59,20 @@ def create_app() -> FastAPI:
         db.execute(text("SELECT 1"))
         return {"status": "ok", "db": "ok"}
 
-    @app.post("/api/v1/scan")
-    async def scan(
-        file: UploadFile = File(...),
-        animal_id: str = Form(default="DEMO-001"),
-        breed: str = Form(default="default"),
-        current: CurrentUser = Depends(get_current_user),
-    ):
-        import cv2
-        import numpy as np
-        from PIL import Image
-
-        from models.detector import detect_subject
-        from models.weight_estimator import estimate_weight
-        from utils.geometry import bbox_to_measurements
-
-        contents = await file.read()
-        img_pil = Image.open(io.BytesIO(contents)).convert("RGB")
-        img_np = np.array(img_pil)
-        img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
-
-        detection = detect_subject(img_bgr)
-
-        if detection is None:
-            raise HTTPException(
-                status_code=422,
-                detail="Nenhum objeto detectado na imagem. Certifique-se de que o animal/objeto está visível e bem iluminado.",
-            )
-
-        h, w = img_bgr.shape[:2]
-        measurements = bbox_to_measurements(
-            bbox=detection["bbox"],
-            img_h=h,
-            img_w=w,
-            breed=breed.lower(),
-        )
-
-        peso_kg, confianca = estimate_weight(measurements)
-
-        return {
-            "animal_id": animal_id,
-            "breed": breed,
-            "detection": {
-                "class": detection["class_name"],
-                "confidence_pct": detection["confidence"],
-                "is_real_animal": detection["is_real_animal"],
-                "mode": "2D sem LiDAR — Fase 0",
-            },
-            "measurements": {
-                "body_length_cm": measurements["body_length_cm"],
-                "withers_height_cm": measurements["withers_height_cm"],
-                "thoracic_depth_cm": measurements["thoracic_depth_cm"],
-                "rump_width_cm": measurements["rump_width_cm"],
-                "chest_girth_cm": measurements["chest_girth_cm"],
-            },
-            "result": {
-                "estimated_weight_kg": peso_kg,
-                "confidence_pct": confianca,
-                "accuracy_note": "Estimativa por visão computacional 2D · Precisão aumentada com LiDAR na versão final",
-            },
-        }
+    # A rota POST /api/v1/scan foi REMOVIDA a 25/08/2026.
+    #
+    # Estimava peso a partir de uma FOTOGRAFIA 2D, com detecção YOLO e um Random
+    # Forest treinado sobre dados sintéticos. Pertencia à arquitectura anterior
+    # ao LiDAR, e o caminho de produção nunca a usou: a app calcula o peso no
+    # próprio dispositivo, a partir da malha.
+    #
+    # Devolvia 500 a qualquer chamada autenticada, porque o Dockerfile instala
+    # requirements-api.txt, que exclui ultralytics e opencv. Um erro de servidor
+    # numa rota que não devia existir é pior do que a rota não existir: passa a
+    # responder 404, que é a verdade.
+    #
+    # O código continua em models/detector.py e models/weight_estimator.py,
+    # marcado como legado.
 
     app.include_router(auth_router)
     app.include_router(organizations_router)
