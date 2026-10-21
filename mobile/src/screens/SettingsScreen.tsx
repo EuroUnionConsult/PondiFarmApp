@@ -19,17 +19,17 @@ import { CFG_KEY, LEGACY_CFG_KEY } from '../lib/config';
 import ScreenBackground from '../components/ScreenBackground';
 
 interface Config {
-  defaultBreed: 'default' | 'minhota' | 'alentejana';
+  defaultBreed: 'limousine' | 'minhota' | 'alentejana';
   vibration: boolean;
 }
 
 const DEFAULT: Config = {
-  defaultBreed: 'default',
+  defaultBreed: 'limousine',
   vibration: true,
 };
 
 const BREEDS: { key: Config['defaultBreed']; label: string }[] = [
-  { key: 'default',    label: 'Padrão' },
+  { key: 'limousine',  label: 'Limousine' },
   { key: 'minhota',    label: 'Minhota' },
   { key: 'alentejana', label: 'Alentejana' },
 ];
@@ -45,7 +45,12 @@ export default function SettingsScreen() {
     (async () => {
       const raw = await AsyncStorage.getItem(CFG_KEY)
         ?? await AsyncStorage.getItem(LEGACY_CFG_KEY);
-      if (raw) setCfg({ ...DEFAULT, ...JSON.parse(raw) });
+      if (raw) {
+        const stored = { ...DEFAULT, ...JSON.parse(raw) } as Config;
+        // Configs gravadas antes da troca guardam 'default' (o antigo «Padrão»).
+        if (!BREEDS.some(b => b.key === stored.defaultBreed)) stored.defaultBreed = DEFAULT.defaultBreed;
+        setCfg(stored);
+      }
       setCloudSync(await isCloudSyncEnabled());
       if (__DEV__) setDevUrl(await getDevServerUrl());
     })();

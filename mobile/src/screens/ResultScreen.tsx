@@ -153,7 +153,12 @@ export default function ResultScreen() {
         <Text style={styles.sectionHeader}>Estimated weight</Text>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.rowKey}>Model estimate</Text>
+            <View style={styles.weightKey}>
+              <Text style={[styles.rowKey, styles.weightKeyLabel]}>Model estimate</Text>
+              <View style={styles.experimentalBadge}>
+                <Text style={styles.experimentalBadgeText}>Experimental</Text>
+              </View>
+            </View>
             <Text style={styles.rowMeasure}>
               ≈ {estimateWeightKg(measurements, record.breed, animalCategory).toFixed(0)} kg
             </Text>
@@ -185,17 +190,15 @@ export default function ResultScreen() {
         )}
 
         <Text style={styles.sectionFooter}>
-          On-device trained model ({WEIGHT_MODEL_VERSION}), running offline from the 3D
-          measurements. Base model fitted on 103 public Hereford: MAPE 4.62%, MAE 19.5 kg,
-          leave-one-out, against 13.84% for predicting the cohort mean.{' '}
+          Experimental estimate, not validated. On-device model ({WEIGHT_MODEL_VERSION}),
+          running offline from the 3D measurements. The scan-to-weight chain has not yet
+          been validated against scale weights, so no error margin is shown — confirm on a
+          scale before any decision.{' '}
           {calibration
-            ? `Calibrated for ${prettyBreed(record.breed)} using a factor measured on ` +
-              `${calibration.sampleSize} animals (${calibration.measuredOn}); ` +
-              `MAPE ${calibration.mapePercent}% on that cohort, leave-one-out. ` +
-              `Source: ${calibration.source}.`
+            ? `An experimental ${prettyBreed(record.breed)} factor is applied, measured on ` +
+              `${calibration.sampleSize} animals (${calibration.measuredOn}).`
             : 'No breed calibration applies to this category, so the base estimate is shown ' +
-              'unchanged — a measured correction exists only for Limousine young bulls, and ' +
-              'extrapolating it to other categories is not supported by data.'}
+              'unchanged.'}
         </Text>
 
         {/* Measurements — main card */}
@@ -408,6 +411,17 @@ const styles = StyleSheet.create({
     fontFamily: displayFont,
     fontSize: 17, fontWeight: '500',
     color: ios.label, letterSpacing: -0.3,
+  },
+  weightKey: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+  },
+  weightKeyLabel: { flex: 0, flexShrink: 1 },
+  experimentalBadge: {
+    backgroundColor: ios.orangeLight,
+    borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2,
+  },
+  experimentalBadgeText: {
+    fontSize: 12, fontWeight: '600', color: ios.orange, letterSpacing: -0.1,
   },
 
   // Actions
