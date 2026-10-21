@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.deps import CurrentUser, get_current_user
+from core.deps import CurrentUser, get_current_user, require_leader
 
 from schemas.organization_schemas import (
     OrganizationCreate,
@@ -35,7 +35,7 @@ def _ensure_own_org(current: CurrentUser, organization_id: UUID) -> None:
 def create_organization(
     payload: OrganizationCreate,
     db: Session = Depends(get_db),
-    current: CurrentUser = Depends(get_current_user),
+    current: CurrentUser = Depends(require_leader),
 ):
     return organization_service.create_organization(db, payload)
 
@@ -70,7 +70,7 @@ def update_organization(
     organization_id: UUID,
     payload: OrganizationUpdate,
     db: Session = Depends(get_db),
-    current: CurrentUser = Depends(get_current_user),
+    current: CurrentUser = Depends(require_leader),
 ):
     _ensure_own_org(current, organization_id)
     return organization_service.update_organization(db, organization_id, payload)
@@ -83,7 +83,7 @@ def update_organization(
 def delete_organization(
     organization_id: UUID,
     db: Session = Depends(get_db),
-    current: CurrentUser = Depends(get_current_user),
+    current: CurrentUser = Depends(require_leader),
 ):
     _ensure_own_org(current, organization_id)
     organization_service.delete_organization(db, organization_id)
