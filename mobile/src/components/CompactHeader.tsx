@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fonts, ios } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
 // Barra compacta ao estilo iOS: o título grande do ecrã sai com o scroll e esta
 // barra (vidro + título pequeno + linha) aparece no topo. Tudo no thread nativo.
@@ -23,6 +24,8 @@ export function useScrollY() {
 export default function CompactHeader({
   title, scrollY, threshold = 44,
 }: { title: string; scrollY: Animated.Value; threshold?: number }) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const opacity = scrollY.interpolate({
     inputRange: [threshold, threshold + 24],
@@ -39,7 +42,7 @@ export default function CompactHeader({
       pointerEvents="none"
       style={[styles.bar, { paddingTop: insets.top, height: insets.top + 44, opacity }]}
     >
-      <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
+      <BlurView intensity={60} tint={ios.isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, styles.tint]} />
       <Animated.Text
         style={[styles.title, { transform: [{ translateY: titleShift }] }]}
@@ -53,9 +56,9 @@ export default function CompactHeader({
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   bar: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
-  tint: { backgroundColor: 'rgba(242,242,247,0.55)' },
+  tint: { backgroundColor: ios.isDark ? 'rgba(11,22,34,0.62)' : 'rgba(242,242,247,0.55)' },
   title: { fontFamily: fonts.bold, fontSize: 17, color: ios.label },
   hairline: {
     position: 'absolute', left: 0, right: 0, bottom: 0,

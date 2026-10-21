@@ -1,5 +1,6 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { useTheme } from '../lib/ThemeContext';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator } from 'react-native';
@@ -39,10 +40,21 @@ function TabNavigator() {
 
 function RootNavigator() {
   const { token, user, loading } = useAuth();
+  const { mode, colors: palette } = useTheme();
+  // Fundo da navegação = fundo do tema: sem isto, cada transição pisca a branco no escuro.
+  const navTheme = {
+    ...(mode === 'dark' ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(mode === 'dark' ? DarkTheme : DefaultTheme).colors,
+      background: palette.systemGroupedBackground,
+      card: palette.secondarySystemGroupedBackground,
+      primary: palette.accent,
+    },
+  };
 
   if (loading) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.systemGroupedBackground }}>
         <ActivityIndicator color={colors.primary} />
       </View>
     );
@@ -61,7 +73,7 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       {/* Voltar atrás deslizando de qualquer ponto do ecrã (não só da borda),
           como nas apps nativas do iOS. */}
       <Stack.Navigator screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>

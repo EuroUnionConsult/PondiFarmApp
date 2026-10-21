@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, type ViewStyle, type StyleProp } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { glass } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
 type Tone = 'light' | 'dark';
 
@@ -31,7 +32,14 @@ export default function GlassSurface({
   style,
   children,
 }: Props) {
-  const g = glass[tone];
+  const { mode } = useTheme();
+  // No tema escuro o vidro "claro" dos cartões passa a vidro escuro; os fills
+  // claros passados à mão (ex.: fillStrong da Home) seguem a mesma regra.
+  const darkUi = mode === 'dark' && tone === 'light';
+  const g = glass[darkUi ? 'dark' : tone];
+  const fill = darkUi && fillColor && fillColor.startsWith('rgba(255,255,255')
+    ? 'rgba(20,32,45,0.78)'
+    : fillColor;
   return (
     <View style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
       <BlurView
@@ -40,7 +48,7 @@ export default function GlassSurface({
         style={StyleSheet.absoluteFill}
       />
       <View
-        style={[StyleSheet.absoluteFill, { backgroundColor: fillColor ?? g.fill }]}
+        style={[StyleSheet.absoluteFill, { backgroundColor: fill ?? (darkUi ? 'rgba(20,32,45,0.62)' : g.fill) }]}
         pointerEvents="none"
       />
       <View

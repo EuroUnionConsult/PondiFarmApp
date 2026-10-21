@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTheme } from '../lib/ThemeContext';
 import Text from './Text';
 import PressableScale from './PressableScale';
-import { ios } from '../lib/theme';
+import { type Palette } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import type { RootStackParamList } from '../navigation/types';
 
@@ -13,6 +14,8 @@ import type { RootStackParamList } from '../navigation/types';
 // ficam no telemóvel e sobem sozinhos quando o pedido for aprovado.
 // Não aparece a mais ninguém.
 export default function PendingApprovalBanner() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const { user } = useAuth();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   if (user?.membershipStatus !== 'pending') return null;
@@ -40,13 +43,13 @@ export default function PendingApprovalBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   banner: {
     marginHorizontal: 16, marginTop: 12,
     flexDirection: 'row', alignItems: 'center', gap: 12,
     padding: 14, borderRadius: 16,
-    backgroundColor: '#FFF7F0',
-    borderWidth: 1, borderColor: 'rgba(194,97,31,0.25)',
+    backgroundColor: ios.warnBg,
+    borderWidth: 1, borderColor: ios.warnBorder,
   },
   icon: {
     width: 36, height: 36, borderRadius: 18, backgroundColor: ios.orangeLight,

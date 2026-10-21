@@ -1,14 +1,15 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import Wordmark from '../components/Wordmark';
 import ScreenBackground from '../components/ScreenBackground';
-import { ios, fonts } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import {
   MIN_SEARCH_CHARS, cancelMyRequest, createOrganization, requestToJoin, searchOrganizations,
@@ -22,6 +23,8 @@ import {
 const POLL_MS = 30_000;
 
 export default function OrganizationGateScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const { user, refreshMe, logout } = useAuth();
   const pending = user?.membershipStatus === 'pending';
@@ -196,7 +199,7 @@ export default function OrganizationGateScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   content: { paddingHorizontal: 20, gap: 16 },
   hello: { fontSize: 22, fontWeight: '700', color: ios.label, marginTop: 8 },
   lead: { fontSize: 16, color: ios.secondaryLabel, lineHeight: 22 },
@@ -212,11 +215,11 @@ const styles = StyleSheet.create({
   cardText: { fontSize: 15, color: ios.secondaryLabel, lineHeight: 21 },
   strong: { fontWeight: '700', color: ios.label },
   segment: {
-    flexDirection: 'row', backgroundColor: 'rgba(118,118,128,0.12)',
+    flexDirection: 'row', backgroundColor: ios.segmentFill,
     borderRadius: 10, padding: 2,
   },
   segItem: { flex: 1, minHeight: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  segItemActive: { backgroundColor: '#FFFFFF' },
+  segItemActive: { backgroundColor: ios.surface },
   segText: { fontSize: 15, color: ios.secondaryLabel },
   segTextActive: { color: ios.label, fontWeight: '700' },
   label: { fontSize: 13, fontWeight: '700', color: ios.secondaryLabel },
@@ -238,14 +241,14 @@ const styles = StyleSheet.create({
   resultName: { flex: 1, fontSize: 17, color: ios.label },
   resultAction: { fontSize: 15, fontWeight: '700', color: ios.accent },
   primary: {
-    backgroundColor: ios.accent, borderRadius: 14, height: 52,
+    backgroundColor: ios.accentFill, borderRadius: 14, height: 52,
     alignItems: 'center', justifyContent: 'center',
   },
   primaryDisabled: { opacity: 0.45 },
   primaryText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
   secondary: { height: 44, alignItems: 'center', justifyContent: 'center' },
   secondaryText: { color: ios.accent, fontSize: 16 },
-  error: { color: '#DC2626', fontSize: 14, textAlign: 'center' },
+  error: { color: ios.danger, fontSize: 14, textAlign: 'center' },
   signOut: { alignItems: 'center', paddingVertical: 12 },
   signOutText: { color: ios.secondaryLabel, fontSize: 14 },
 });

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
   View, Animated, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl,
 } from 'react-native';
@@ -6,13 +6,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import ScreenBackground from '../components/ScreenBackground';
 import ProfileSheet from '../components/ProfileSheet';
+import ThemeToggle from '../components/ThemeToggle';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import CompactHeader, { useScrollY } from '../components/CompactHeader';
-import { ios } from '../lib/theme';
+import { type Palette } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, saveProfile, type Profile } from '../lib/profile';
 import {
@@ -23,9 +25,10 @@ import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const DANGER = '#DC2626'; // 4,8:1 sobre branco (o systemRed #FF3B30 dá 3,6:1)
 
 export default function ProfileScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const { user, logout, refreshMe } = useAuth();
@@ -137,10 +140,13 @@ export default function ProfileScreen() {
         scrollEventThrottle={16}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={ios.accent} />}
       >
-        <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} hitSlop={8} accessibilityRole="button">
-          <Ionicons name="chevron-back" size={22} color={ios.accent} />
-          <Text style={styles.backText}>Home</Text>
-        </TouchableOpacity>
+        <View style={styles.topRow}>
+          <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} hitSlop={8} accessibilityRole="button">
+            <Ionicons name="chevron-back" size={22} color={ios.accent} />
+            <Text style={styles.backText}>Home</Text>
+          </TouchableOpacity>
+          <ThemeToggle />
+        </View>
 
         {/* Quem sou */}
         <FadeInView index={0} style={styles.hero}>
@@ -204,7 +210,7 @@ export default function ProfileScreen() {
                 ])}
                 accessibilityRole="button"
               >
-                <Text style={[styles.rowKey, { color: DANGER }]}>Cancel request</Text>
+                <Text style={[styles.rowKey, { color: ios.danger }]}>Cancel request</Text>
               </TouchableOpacity>
             </>
           )}
@@ -306,13 +312,13 @@ export default function ProfileScreen() {
             <>
               <View style={styles.divider} />
               <TouchableOpacity style={styles.row} onPress={leave} accessibilityRole="button">
-                <Text style={[styles.rowKey, { color: DANGER }]}>Leave organization</Text>
+                <Text style={[styles.rowKey, { color: ios.danger }]}>Leave organization</Text>
               </TouchableOpacity>
             </>
           )}
           <View style={styles.divider} />
           <TouchableOpacity style={styles.row} onPress={confirmSignOut} accessibilityRole="button">
-            <Text style={[styles.rowKey, { color: DANGER }]}>Sign out</Text>
+            <Text style={[styles.rowKey, { color: ios.danger }]}>Sign out</Text>
           </TouchableOpacity>
         </View>
         </FadeInView>
@@ -329,12 +335,13 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  back: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, minHeight: 44, alignSelf: 'flex-start' },
+const makeStyles = (ios: Palette) => StyleSheet.create({
+  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
+  back: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, minHeight: 44 },
   backText: { color: ios.accent, fontSize: 17 },
   hero: { alignItems: 'center', gap: 4, paddingHorizontal: 16, marginTop: 4 },
   avatar: {
-    width: 84, height: 84, borderRadius: 42, backgroundColor: ios.accent,
+    width: 84, height: 84, borderRadius: 42, backgroundColor: ios.accentFill,
     alignItems: 'center', justifyContent: 'center', marginBottom: 10,
   },
   avatarText: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
@@ -368,10 +375,10 @@ const styles = StyleSheet.create({
   personEmail: { fontSize: 14, color: ios.secondaryLabel },
   personRole: { fontSize: 15, color: ios.secondaryLabel },
   actions: { flexDirection: 'row', gap: 8 },
-  approve: { backgroundColor: ios.accent, borderRadius: 10, paddingHorizontal: 14, minHeight: 36, justifyContent: 'center' },
+  approve: { backgroundColor: ios.accentFill, borderRadius: 10, paddingHorizontal: 14, minHeight: 36, justifyContent: 'center' },
   approveText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
-  reject: { borderRadius: 10, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center', backgroundColor: 'rgba(220,38,38,0.08)' },
-  rejectText: { color: DANGER, fontSize: 15, fontWeight: '700' },
+  reject: { borderRadius: 10, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center', backgroundColor: ios.dangerLight },
+  rejectText: { color: ios.danger, fontSize: 15, fontWeight: '700' },
   footer: { paddingHorizontal: 32, paddingTop: 8, fontSize: 13, color: ios.secondaryLabel },
-  error: { color: DANGER, fontSize: 14, textAlign: 'center', marginTop: 16, paddingHorizontal: 24 },
+  error: { color: ios.danger, fontSize: 14, textAlign: 'center', marginTop: 16, paddingHorizontal: 24 },
 });
