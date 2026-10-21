@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, StyleSheet, TouchableOpacity,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from './Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, font } from '../lib/theme';
+import { colors, spacing, font, type Palette } from '../lib/theme';
 
 interface Props {
   title: string;
@@ -15,6 +16,8 @@ interface Props {
 }
 
 export default function GradientHeader({ title, subtitle, onBack, right }: Props) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
 
   return (
@@ -36,7 +39,7 @@ export default function GradientHeader({ title, subtitle, onBack, right }: Props
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   header: {
     backgroundColor: colors.surface,
     paddingHorizontal: spacing.md,

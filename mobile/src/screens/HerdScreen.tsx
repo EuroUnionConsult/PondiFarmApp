@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import {
   View, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, Animated,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import PressableScale from '../components/PressableScale';
@@ -11,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios, fonts } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
 import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
@@ -51,6 +52,8 @@ function groupRecords(records: ScanRecord[]): Section[] {
 }
 
 export default function HerdScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const { scrollY, onScroll } = useScrollY();
   const nav = useNavigation<Nav>();
@@ -251,7 +254,7 @@ export default function HerdScreen() {
                   >
                     <View style={[
                       styles.rowIcon,
-                      { backgroundColor: isCow ? ios.accentLight : '#EFEFF4' },
+                      { backgroundColor: isCow ? ios.accentLight : ios.segmentFill },
                     ]}>
                       <Ionicons
                         name={isCow ? 'paw' : 'cube-outline'}
@@ -309,7 +312,7 @@ export default function HerdScreen() {
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   // Large title
@@ -343,7 +346,7 @@ const styles = StyleSheet.create({
   searchWrap: { paddingHorizontal: 16, marginTop: 12, marginBottom: 4 },
   searchField: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#E8E8EC',
+    backgroundColor: ios.segmentFill,
     borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 8,
   },

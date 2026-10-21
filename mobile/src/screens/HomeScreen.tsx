@@ -1,7 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import {
   View, Animated, StyleSheet, RefreshControl, Platform,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import Wordmark from '../components/Wordmark';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,9 +10,8 @@ import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios, glass } from '../lib/theme';
+import type { Palette } from '../lib/theme';
 import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
-import LiquidGlass from '../components/LiquidGlass';
 import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, type Profile } from '../lib/profile';
 import ScreenBackground from '../components/ScreenBackground';
@@ -28,6 +28,8 @@ const RING_RADIUS = 32;
 const RING_CIRC = 2 * Math.PI * RING_RADIUS;
 
 export default function HomeScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
@@ -133,7 +135,9 @@ export default function HomeScreen() {
       <PendingApprovalBanner />
 
       <FadeInView index={0} style={styles.group}>
-        <LiquidGlass tone="light" radius={18} fillColor={glass.light.fillStrong} style={styles.heroGlass}>
+        {/* Cartão SÓLIDO (como o «Today»): o vidro nativo do iOS 26 aqui ficava quase
+            transparente e os círculos do fundo passavam por trás dos números. */}
+        <View style={[styles.card, styles.heroGlass]}>
           <View style={styles.hero}>
             <View style={styles.heroLeft}>
               <View style={styles.eyebrow}>
@@ -156,7 +160,7 @@ export default function HomeScreen() {
             </View>
             <View style={styles.ringWrap}>
               <Svg width={78} height={78}>
-                <Circle cx={39} cy={39} r={RING_RADIUS} stroke="#E5E5EA" strokeWidth={8} fill="none" />
+                <Circle cx={39} cy={39} r={RING_RADIUS} stroke={ios.ringTrack} strokeWidth={8} fill="none" />
                 <Circle
                   cx={39} cy={39} r={RING_RADIUS}
                   stroke={ios.accent} strokeWidth={8} fill="none"
@@ -187,7 +191,7 @@ export default function HomeScreen() {
               <Text style={styles.tileLabel}>local scans</Text>
             </View>
           </View>
-        </LiquidGlass>
+        </View>
       </FadeInView>
 
       {today.length > 0 && (
@@ -260,13 +264,13 @@ const displayFont = Platform.select({
   default: undefined,
 });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   cloudLine: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5,
     paddingTop: 10, marginTop: 2,
-    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5EA',
+    borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: ios.separator,
   },
-  cloudLineText: { fontSize: 12.5, color: '#8A8A8E', letterSpacing: -0.05 },
+  cloudLineText: { fontSize: 12.5, color: ios.secondaryLabel, letterSpacing: -0.05 },
   scroll: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   // Large title
@@ -282,7 +286,7 @@ const styles = StyleSheet.create({
   },
   avatar: {
     width: 40, height: 40, borderRadius: 20,
-    backgroundColor: ios.accent,
+    backgroundColor: ios.accentFill,
     alignItems: 'center', justifyContent: 'center',
   },
   avatarText: {
@@ -436,7 +440,7 @@ const styles = StyleSheet.create({
   // Primary CTA — verde sólido (padrão único de ação primária no app; Fable)
   cta: {
     marginTop: 22, marginHorizontal: 16,
-    backgroundColor: ios.accent,
+    backgroundColor: ios.accentFill,
     borderRadius: 14, paddingVertical: 16, paddingHorizontal: 20,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
     shadowColor: ios.accent, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },

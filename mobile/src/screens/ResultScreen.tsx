@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Alert,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
@@ -11,7 +12,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
 import { MeshPreviewView, renderTexture } from '../../modules/lidar-scanner';
-import { ios } from '../lib/theme';
+import { type Palette } from '../lib/theme';
 import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import { updateRecord } from '../lib/storage';
 import type { AnimalCategory } from '../lib/storage';
@@ -34,6 +35,8 @@ const CATEGORY_OPTIONS: { value: AnimalCategory; label: string }[] = [
 // peso(lb) = (cinta_torácica_in² × comprimento_in) / 300 → kg.
 
 export default function ResultScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const { params } = useRoute<Route>();
@@ -272,7 +275,7 @@ export default function ResultScreen() {
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: ios.systemGroupedBackground },
 
   // Inline nav
@@ -312,7 +315,7 @@ const styles = StyleSheet.create({
   },
   renderBtn: {
     marginTop: 12, marginHorizontal: 16, paddingVertical: 14, borderRadius: 14,
-    backgroundColor: ios.accent,
+    backgroundColor: ios.accentFill,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
   renderBtnText: { color: '#FFF', fontSize: 16, fontWeight: '600', letterSpacing: -0.3 },
@@ -323,7 +326,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     padding: 3,
     borderRadius: 12,
-    backgroundColor: '#EFEFF4',
+    backgroundColor: ios.segmentFill,
     gap: 3,
   },
   segmentItem: {
@@ -334,7 +337,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   segmentItemActive: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: ios.surface,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 3,
@@ -358,7 +361,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   badgeCow: { backgroundColor: ios.accentLight },
-  badgeExtra: { backgroundColor: '#EFEFF4' },
+  badgeExtra: { backgroundColor: ios.segmentFill },
   badgeText: {
     fontSize: 13, fontWeight: '600', letterSpacing: -0.1,
   },

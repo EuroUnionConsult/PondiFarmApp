@@ -2,6 +2,7 @@ import React from 'react';
 import { type ViewStyle, type StyleProp } from 'react-native';
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import GlassSurface from './GlassSurface';
+import { useTheme } from '../lib/ThemeContext';
 
 type Tone = 'light' | 'dark';
 
@@ -31,12 +32,15 @@ export default function LiquidGlass({
   style,
   children,
 }: Props) {
+  const { mode } = useTheme();
+  const darkUi = mode === 'dark' && tone === 'light';
   if (LIQUID) {
     return (
       <GlassView
         glassEffectStyle="regular"
-        colorScheme={tone === 'dark' ? 'dark' : 'light'}
-        tintColor={fillColor}
+        colorScheme={tone === 'dark' || darkUi ? 'dark' : 'light'}
+        // No escuro o vidro nativo sem tinta quase desaparece: tinta azul-noite leve.
+        tintColor={darkUi && (!fillColor || fillColor.startsWith('rgba(255,255,255')) ? 'rgba(20,32,45,0.55)' : fillColor}
         isInteractive={interactive}
         style={[{ borderRadius: radius, overflow: 'hidden' }, style]}
       >

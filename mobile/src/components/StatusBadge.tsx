@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, StyleSheet,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from './Text';
-import { colors, font, spacing, radius } from '../lib/theme';
+import { colors, font, spacing, radius, type Palette } from '../lib/theme';
 
 type Variant = 'success' | 'warning' | 'danger' | 'info' | 'muted';
 
@@ -21,6 +22,8 @@ const variantMap: Record<Variant, { bg: string; text: string }> = {
 };
 
 export default function StatusBadge({ label, variant = 'muted' }: Props) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const v = variantMap[variant];
   return (
     <View style={[styles.badge, { backgroundColor: v.bg }]}>
@@ -29,7 +32,7 @@ export default function StatusBadge({ label, variant = 'muted' }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   badge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 3,
