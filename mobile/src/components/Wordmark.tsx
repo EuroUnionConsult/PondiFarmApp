@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, type TextStyle, type ViewStyle } from 'react-native';
 import Text from './Text';
-import { ios } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 
 // Logótipo de palavra da Identidade visual v1.0: «Pondi» em azul-noite + «Farm»
 // em verde, Inter 700, com a assinatura por baixo. O símbolo da marca é o ícone
@@ -17,6 +17,7 @@ type Props = {
 export const BRAND_TAGLINE = 'Non-invasive cattle weighing · LiDAR 3D';
 
 export default function Wordmark({ size = 34, tagline = false, align = 'left', style }: Props) {
+  const { colors: ios } = useTheme();
   const word: TextStyle = {
     fontSize: size,
     lineHeight: Math.round(size * 1.08),

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from core.deps import CurrentUser, get_current_user
+from core.deps import CurrentUser, get_current_user, require_leader
 from schemas.user_schemas import UserCreate, UserResponse, UserUpdate
 from services import user_service
 
@@ -26,7 +26,7 @@ def _ensure_self(current: CurrentUser, user_id: UUID) -> None:
 def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
-    current: CurrentUser = Depends(get_current_user),
+    current: CurrentUser = Depends(require_leader),
 ):
     return user_service.create_user(db, payload)
 
@@ -68,5 +68,12 @@ def delete_user(
     current: CurrentUser = Depends(get_current_user),
 ):
     _ensure_self(current, user_id)
+    # Apagar a conta do Líder deixava a organização sem ninguém para aprovar
+    # pedidos nem passar a liderança (revisão do PR #113).
+    if current.is_leader:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "O líder não pode apagar a conta; passe primeiro a liderança",
+        )
     user_service.delete_user(db, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

@@ -1,18 +1,21 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity, Platform,
 } from 'react-native';
+import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import { ios } from '../lib/theme';
+import { type Palette } from '../lib/theme';
 import type { RootStackParamList } from '../navigation/types';
 
 type DetailRoute = RouteProp<RootStackParamList, 'AnimalDetail'>;
 
 export default function AnimalDetailScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const { animal } = useRoute<DetailRoute>().params;
@@ -104,7 +107,7 @@ export default function AnimalDetailScreen() {
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
-const styles = StyleSheet.create({
+const makeStyles = (ios: Palette) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: ios.systemGroupedBackground },
   header: { paddingHorizontal: 8, paddingBottom: 4 },
   back: { flexDirection: 'row', alignItems: 'center' },
