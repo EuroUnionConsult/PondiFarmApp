@@ -34,9 +34,13 @@ def run_migrations_offline() -> None:
 
 def _entra_connect_args() -> dict:
     """`-x entra=1`: autentica no Azure SQL com a sessão do `az login` (token
-    Entra), sem usar nem copiar a senha SQL da API. O URL passa a ser só
-    servidor + base, por exemplo:
-      alembic -x entra=1 -x url="mssql+pyodbc://@pondifarm.database.windows.net/<base>?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=yes"
+    Entra), sem usar nem copiar a senha SQL da API. O URL tem de ser uma
+    ligação ODBC SEM utilizador (com «mssql+pyodbc://@host/db» o SQLAlchemy
+    junta Trusted_Connection e o driver recusa o token). Usado a 21/10/2026:
+      odbc = quote_plus("DRIVER={ODBC Driver 18 for SQL Server};"
+                        "SERVER=tcp:pondifarm.database.windows.net,1433;"
+                        "DATABASE=free-sql-db-8156065;Encrypt=yes;")
+      alembic -x entra=1 -x url="mssql+pyodbc:///?odbc_connect=<odbc>" upgrade head
     """
     import struct
     import subprocess
