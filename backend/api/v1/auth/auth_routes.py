@@ -67,7 +67,9 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
         .filter(func.lower(User.email) == email, User.deleted_at.is_(None))
         .first()
     )
-    if user is None or not security.verify_password(payload.password, user.password_hash):
+    if user is None or not security.verify_password(
+        payload.password, user.password_hash
+    ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
 
     member = (

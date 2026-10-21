@@ -15,6 +15,23 @@ from prediction.schemas import (
 TRAINED_MODEL_VERSION = "external-trained-v0.1.0"
 TRAINED_ESTIMATION_METHOD = "supervised_regression_external_dataset"
 
+# ⚠️ DIVERGÊNCIA DELIBERADA, LEIA ANTES DE PRODUZIR UM ARTEFACTO
+#
+# A app passou para `external-trained-v0.2.0`, com QUATRO variáveis
+# (cernelha, profundidade torácica, largura da garupa, perímetro torácico).
+# O comprimento do corpo foi retirado: medido nos mesmos 103 Hereford, sozinho
+# marca 16,96% de MAPE, pior do que prever a média, e removê-lo leva o modelo de
+# 5,01% para 4,62% com o r a subir de 0,897 para 0,932.
+#
+# Este caminho continua a declarar cinco variáveis e a v0.1.0 porque está
+# DORMENTE: `load_if_available` devolve None e `ml/models/weight/` está vazia,
+# por isso nenhuma estimativa do servidor é produzida hoje. Assim que alguém
+# gerar um joblib, ele passa a responder — e responderia com um modelo diferente
+# do que o utilizador vê no telemóvel, sem qualquer aviso.
+#
+# Antes de colocar um artefacto aqui: retreinar com as quatro variáveis, subir
+# esta versão para v0.2.0 e alinhar DEFAULT_FEATURE_NAMES com o COEF de
+# mobile/src/lib/weightModel.ts. Os dois têm de contar a mesma história.
 DEFAULT_FEATURE_NAMES = [
     "body_length_cm",
     "withers_height_cm",

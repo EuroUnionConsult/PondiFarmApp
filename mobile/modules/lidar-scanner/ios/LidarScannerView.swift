@@ -304,8 +304,22 @@ class LidarScannerView: ExpoView {
             "body_length_cm": m.bodyLength * 100,
             "withers_height_cm": m.withersHeight * 100,
             "thoracic_depth_cm": m.thoracicDepth * 100,
-            "rump_width_cm": m.rumpWidth * 100,
-            "chest_girth_cm": m.chestGirth * 100
+            // `maxBodyWidth` e não `rumpWidth`: é o MESMO valor que este campo
+            // sempre transportou — a largura máxima do animal. O coeficiente do
+            // modelo embarcado foi ajustado sobre esta quantidade, por isso
+            // trocá-la pela `rumpWidth` anatómica muda o peso estimado e exige
+            // reajustar `COEF` em weightModel.ts. Enquanto isso não acontecer,
+            // o nome do campo continua desalinhado com a definição da base
+            // Limousine, e é deliberado.
+            "rump_width_cm": m.maxBodyWidth * 100,
+            "chest_girth_cm": m.chestGirth * 100,
+            // Descritores alinhados com `Final_Biometrics` da base Limousine v5.
+            // Emitidos para poderem ser recolhidos em campo, mas ainda NÃO
+            // consumidos pelo modelo de peso nem mostrados no ecrã de resultado.
+            "chest_width_cm": m.chestWidth * 100,
+            "rump_width_ilium_cm": m.rumpWidth * 100,
+            "tail_height_cm": m.tailHeight * 100,
+            "orientation_head_at_min_axis": m.headAtMinL
           ]
         ]
 
