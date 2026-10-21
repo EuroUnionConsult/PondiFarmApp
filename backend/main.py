@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from api.v1.organization_access.organization_access_routes import (
+    organization_access_router,
+)
 from api.v1.organizations.organizations_routes import organizations_router
 from api.v1.species.species_routes import species_router
 from api.v1.breeds.breeds_routes import breeds_router
@@ -75,6 +78,8 @@ def create_app() -> FastAPI:
     # marcado como legado.
 
     app.include_router(auth_router)
+    # Antes de organizations_router: /organizations/search colidia com /{organization_id}.
+    app.include_router(organization_access_router)
     app.include_router(organizations_router)
     app.include_router(users_router)
     app.include_router(organizations_member_router)
