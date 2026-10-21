@@ -1,13 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet,
-  TouchableOpacity, Alert, TextInput, Platform,
+  View, ScrollView, StyleSheet, TouchableOpacity, Alert, TextInput, Platform,
 } from 'react-native';
+import Text from '../components/Text';
+import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios } from '../lib/theme';
+import { ios, fonts } from '../lib/theme';
 import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
@@ -83,7 +84,7 @@ export default function HerdScreen() {
       const q = query.toLowerCase().trim();
       if (!q) return true;
       return c.name.toLowerCase().includes(q)
-          || c.breed.toLowerCase().includes(q)
+          || breedLabel(c.breed).toLowerCase().includes(q)
           || (c.tagCode ?? '').toLowerCase().includes(q);
     }),
     [cloud, query]
@@ -96,7 +97,7 @@ export default function HerdScreen() {
       const q = query.toLowerCase().trim();
       if (!q) return true;
       return (r.animalId ?? '').toLowerCase().includes(q)
-          || (r.breed ?? '').toLowerCase().includes(q)
+          || breedLabel(r.breed).toLowerCase().includes(q)
           || r.category.toLowerCase().includes(q);
     }),
     [records, query]
@@ -191,7 +192,7 @@ export default function HerdScreen() {
                   <View style={styles.rowInfo}>
                     <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
                     <Text style={styles.rowMeta} numberOfLines={1}>
-                      {c.breed || 'Breed n/a'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
+                      {c.breed ? breedLabel(c.breed) : 'Breed n/a'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
                     </Text>
                   </View>
                   <View style={styles.rowMetric}>
@@ -228,9 +229,9 @@ export default function HerdScreen() {
             <View style={styles.card}>
               {section.data.map((rec, i) => {
                 const isCow = rec.category === 'cow';
-                const breedLabel = !rec.breed || rec.breed === 'default'
+                const recBreed = !rec.breed || rec.breed === 'default'
                   ? 'Unspecified breed'
-                  : rec.breed.charAt(0).toUpperCase() + rec.breed.slice(1);
+                  : breedLabel(rec.breed);
                 return (
                 <View key={rec.id}>
                   <TouchableOpacity
@@ -255,7 +256,7 @@ export default function HerdScreen() {
                         {isCow ? (rec.animalId ?? 'Cattle') : 'Extra'}
                       </Text>
                       <Text style={styles.rowMeta} numberOfLines={1}>
-                        {isCow ? breedLabel : 'Object / person'}
+                        {isCow ? recBreed : 'Object / person'}
                         {'  ·  '}
                         {new Date(rec.scannedAt).toLocaleString('pt-PT', {
                           day: '2-digit', month: 'short',
@@ -338,6 +339,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 8,
   },
   searchInput: {
+    fontFamily: fonts.regular,
     flex: 1,
     fontSize: 17, color: ios.label, letterSpacing: -0.3,
     padding: 0,

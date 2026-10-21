@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Alert,
+  View, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Alert,
 } from 'react-native';
+import Text from '../components/Text';
+import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -18,10 +20,7 @@ import type { RootStackParamList } from '../navigation/types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'Result'>;
 
-function prettyBreed(b?: string): string {
-  if (!b || b === 'default') return 'Unspecified';
-  return b.charAt(0).toUpperCase() + b.slice(1);
-}
+const prettyBreed = breedLabel;
 
 // 'unknown' é a opção honesta e o padrão: sem categoria não se aplica calibração
 // nenhuma, em vez de se assumir uma que talvez não sirva a este animal.
@@ -421,7 +420,7 @@ const styles = StyleSheet.create({
     borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2,
   },
   experimentalBadgeText: {
-    fontSize: 12, fontWeight: '600', color: ios.orange, letterSpacing: -0.1,
+    fontSize: 12, fontWeight: '600', color: ios.orangeText, letterSpacing: -0.1,
   },
 
   // Actions

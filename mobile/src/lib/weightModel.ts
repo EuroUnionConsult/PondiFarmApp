@@ -39,6 +39,8 @@ export const WEIGHT_MODEL_VERSION = 'external-trained-v0.2.0';
 // rump_width is the ilium width column of CowDatabase (training median 44 cm).
 const COEF = [1.6451018341024197, 0.3620137862529025, 5.488782242499486, 3.7381253276099202] as const;
 const INTERCEPT = -691.191945913401;
+/** Quantas medidas alimentam o modelo — para o ecrã About não as contar à mão. */
+export const WEIGHT_MODEL_FEATURE_COUNT = COEF.length;
 // Median of each feature in the training set — used as a fallback if a
 // measurement is missing/invalid (mirrors the training imputer).
 const MEDIAN = [120, 62, 44, 180] as const;

@@ -1,5 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import {
+  View, StyleSheet,
+} from 'react-native';
+import Text from './Text';
 import { colors, font, spacing, radius } from '../lib/theme';
 
 type Variant = 'success' | 'warning' | 'danger' | 'info' | 'muted';
