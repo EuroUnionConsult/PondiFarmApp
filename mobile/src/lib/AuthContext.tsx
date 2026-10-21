@@ -3,6 +3,7 @@ import { AppState } from 'react-native';
 import * as auth from './auth';
 import { clearCloudCache } from './api';
 import { startAutoSync, stopAutoSync } from './sync';
+import { trackCloud } from './activity';
 
 interface AuthState {
   token: string | null;
@@ -44,7 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => stopAutoSync();
   }, [canSync]);
 
-  const refreshMe = useCallback(async () => {
+  // Só usa setters de estado (estáveis), por isso a 1.ª versão serve sempre.
+  const reloadMe = async () => {
     let me = await auth.fetchMe();
     if (me) {
       // O token tem de trazer a organização ATUAL. Difere quando a pessoa foi
@@ -66,7 +68,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setUser(me);
     return me;
-  }, []);
+  };
+
+  // Acende o anel do avatar enquanto relê a conta.
+  const refreshMe = useCallback(() => trackCloud(reloadMe()), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // À espera de aprovação: a pessoa usa a app (scans ficam no telemóvel) e esta
   // verificação corre em fundo. Quando o Líder aprova, o refreshMe troca o token,

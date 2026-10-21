@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from models.models import AnimalScan
@@ -82,4 +82,41 @@ def list_active_scans_by_animal(
         AnimalScan.created_at.desc(),
     )
     statement = statement.offset((page - 1) * limit).limit(limit)
+    return list(db.scalars(statement).all())
+
+
+# Estados que a app não mostra como «último peso» (iguais ao HIDDEN_SCAN_STATUSES
+# do mobile/src/lib/api.ts).
+HIDDEN_SCAN_STATUSES = ("archived", "failed", "validation_failed")
+
+
+def list_latest_usable_scans_by_organization(
+    db: Session, organization_id: UUID
+) -> list[AnimalScan]:
+    """O scan mais recente de cada animal da organização, numa só consulta.
+
+    Substitui o pedido `/animals/{id}/scans` por animal que a app fazia: com 290
+    animais eram 290 pedidos (22 s medidos em produção a 21/10/2026), que
+    entupiam a ligação e atrasavam tudo o resto, aprovações incluídas.
+    """
+    ranked = (
+        select(
+            AnimalScan.id,
+            func.row_number()
+            .over(
+                partition_by=AnimalScan.animal_id,
+                order_by=(AnimalScan.scanned_at.desc(), AnimalScan.created_at.desc()),
+            )
+            .label("rn"),
+        )
+        .where(
+            AnimalScan.organization_id == organization_id,
+            AnimalScan.deleted_at.is_(None),
+            AnimalScan.scan_status.not_in(HIDDEN_SCAN_STATUSES),
+        )
+        .subquery()
+    )
+    statement = select(AnimalScan).join(ranked, AnimalScan.id == ranked.c.id).where(
+        ranked.c.rn == 1
+    )
     return list(db.scalars(statement).all())
