@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError  # noqa: E402
 from sqlalchemy.orm import sessionmaker  # noqa: E402
 from sqlalchemy.pool import StaticPool  # noqa: E402
 
+from core import rate_limit  # noqa: E402
 from core.database import Base, get_db  # noqa: E402
 from main import app  # noqa: E402
 from models.models import Organization, OrganizationMember  # noqa: E402
@@ -54,6 +55,7 @@ class OrganizationAccessTests(unittest.TestCase):
         cls.engine.dispose()
 
     def setUp(self):
+        rate_limit.reset()
         Base.metadata.drop_all(bind=self.engine)
         Base.metadata.create_all(bind=self.engine)
 
