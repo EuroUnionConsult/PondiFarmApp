@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSessionOwner } from './auth';
 
 export type ScanCategory = 'cow' | 'extra';
 
@@ -48,6 +49,11 @@ export interface ScanRecord {
   remoteId?: string;            // id do scan no backend
   remoteAnimalId?: string;      // id do animal no backend
   syncError?: string;           // mensagem se syncState === 'error'
+  // --- Dono (segurança) ---
+  // Conta e organização da sessão em que o scan foi feito. Num aparelho partilhado
+  // (sobretudo no browser), outra conta não vê nem envia estes scans para a sua organização.
+  ownerUserId?: string | null;
+  ownerOrgId?: string | null;
 }
 
 /** Estado de sync efetivo (registros sem o campo contam como pendentes). */
@@ -72,8 +78,12 @@ function serialize<T>(fn: () => Promise<T>): Promise<T> {
 }
 
 export async function saveRecord(record: ScanRecord): Promise<void> {
+  if (record.ownerUserId === undefined) {
+    const o = await getSessionOwner();
+    record = { ...record, ownerUserId: o.userId, ownerOrgId: o.orgId };
+  }
   await serialize(async () => {
-    const all = await listRecords();
+    const all = await readAll();
     all.unshift(record);
     // Nunca evictar scans não sincronizados (pending/error) — só descartar sincronizados antigos.
     const trimmed: ScanRecord[] = [];
@@ -84,7 +94,8 @@ export async function saveRecord(record: ScanRecord): Promise<void> {
   });
 }
 
-export async function listRecords(): Promise<ScanRecord[]> {
+/** Todos os registos do aparelho, de qualquer conta. Só para as escritas internas. */
+async function readAll(): Promise<ScanRecord[]> {
   try {
     const raw = await AsyncStorage.getItem(KEY);
     return raw ? JSON.parse(raw) : [];
@@ -93,10 +104,17 @@ export async function listRecords(): Promise<ScanRecord[]> {
   }
 }
 
+/** Os scans da conta com sessão aberta. Os antigos, sem dono, continuam visíveis. */
+export async function listRecords(): Promise<ScanRecord[]> {
+  const all = await readAll();
+  const { userId } = await getSessionOwner();
+  return all.filter(r => !r.ownerUserId || r.ownerUserId === userId);
+}
+
 /** Atualiza campos de um scan local (ex.: estado de sync após o push). */
 export async function updateRecord(id: string, patch: Partial<ScanRecord>): Promise<void> {
   await serialize(async () => {
-    const all = await listRecords();
+    const all = await readAll();
     const next = all.map(r => (r.id === id ? { ...r, ...patch } : r));
     await AsyncStorage.setItem(KEY, JSON.stringify(next));
   });
@@ -104,7 +122,7 @@ export async function updateRecord(id: string, patch: Partial<ScanRecord>): Prom
 
 export async function deleteRecord(id: string): Promise<void> {
   await serialize(async () => {
-    const all = await listRecords();
+    const all = await readAll();
     await AsyncStorage.setItem(KEY, JSON.stringify(all.filter(r => r.id !== id)));
   });
 }

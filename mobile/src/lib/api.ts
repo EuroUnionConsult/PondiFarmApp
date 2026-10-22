@@ -224,6 +224,8 @@ async function loadCloudAnimals(): Promise<CloudAnimal[]> {
       } as CloudAnimal;
   });
   // Cacheia por org (mostra instantâneo na próxima navegação).
+  // Se a sessão mudou (logout ou outra conta) enquanto isto carregava, não escreve a cache.
+  if ((await getOrganizationId()) !== orgId) return result;
   try { await AsyncStorage.setItem(CLOUD_CACHE_KEY, JSON.stringify({ orgId, at: Date.now(), animals: result })); } catch {}
   return result;
 }
