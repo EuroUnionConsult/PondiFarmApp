@@ -38,20 +38,17 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _recent(key: str, window_s: int, now: float) -> deque[float]:
-    q = _hits.setdefault(key, deque())
-    while q and q[0] <= now - window_s:
-        q.popleft()
-    return q
-
-
-def check(key: str, limit: int, window_s: int) -> None:
-    """429 se a chave já tem `limit` registos na janela; não regista nada."""
+def hit(key: str, limit: int, window_s: int) -> None:
+    """Verifica e regista numa só operação (sob o lock): 429 se a chave já tem
+    `limit` registos na janela. Ser atómico importa: o hash da senha demora, e
+    pedidos em paralelo não podem passar todos antes de algum ser contado."""
     if not _enabled():
         return
     now = time.monotonic()
     with _lock:
-        q = _recent(key, window_s, now)
+        q = _hits.setdefault(key, deque())
+        while q and q[0] <= now - window_s:
+            q.popleft()
         if len(q) >= limit:
             retry = max(1, math.ceil(q[0] + window_s - now))
             raise HTTPException(
@@ -59,25 +56,19 @@ def check(key: str, limit: int, window_s: int) -> None:
                 "Demasiadas tentativas. Tente novamente mais tarde.",
                 headers={"Retry-After": str(retry)},
             )
-
-
-def add(key: str) -> None:
-    """Regista uma ocorrência (ex.: uma senha errada)."""
-    if not _enabled():
-        return
-    now = time.monotonic()
-    with _lock:
-        _hits.setdefault(key, deque()).append(now)
+        q.append(now)
         # Limpeza ocasional para a memória não crescer com chaves que não voltam.
         if len(_hits) > 10_000:
             for k in [k for k, v in _hits.items() if not v or v[-1] <= now - 3600]:
                 del _hits[k]
 
 
-def hit(key: str, limit: int, window_s: int) -> None:
-    """Verifica e regista: conta todas as tentativas, certas ou erradas."""
-    check(key, limit, window_s)
-    add(key)
+def release(key: str) -> None:
+    """Devolve a última tentativa reservada com `hit` (ex.: a senha estava certa)."""
+    with _lock:
+        q = _hits.get(key)
+        if q:
+            q.pop()
 
 
 def clear(key: str) -> None:

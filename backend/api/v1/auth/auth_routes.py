@@ -74,15 +74,20 @@ def login(
     payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 ) -> TokenResponse:
     email = payload.email.lower()
-    # Contra adivinhar senhas. Só as senhas erradas contam para os limites da
-    # conta: 10 por conta + IP em 15 min, e 100 por conta por hora vindas de
-    # qualquer IP (ataque distribuído). O limite apertado não é só por conta
-    # para um estranho não conseguir bloquear o dono só por saber o email.
+    # Contra adivinhar senhas: 30 tentativas por IP em 5 min; 10 senhas erradas
+    # por conta + IP em 15 min; e 100 por conta por hora de qualquer IP (ataque
+    # distribuído). O limite apertado não é só por conta para um estranho não
+    # bloquear o dono só por saber o email. A tentativa é reservada antes de
+    # verificar a senha (pedidos em paralelo contam) e devolvida se estiver certa.
     ip = rate_limit.client_ip(request)
     rate_limit.hit(f"login-ip:{ip}", 30, 300)
-    account_keys = ((f"login-fail:{email}:{ip}", 10, 900), (f"login-fail:{email}", 100, 3600))
-    for key, limit, window in account_keys:
-        rate_limit.check(key, limit, window)
+    pair_key, account_key = f"login-fail:{email}:{ip}", f"login-fail:{email}"
+    rate_limit.hit(pair_key, 10, 900)
+    try:
+        rate_limit.hit(account_key, 100, 3600)
+    except HTTPException:
+        rate_limit.release(pair_key)
+        raise
     user = (
         db.query(User)
         .filter(func.lower(User.email) == email, User.deleted_at.is_(None))
@@ -91,11 +96,11 @@ def login(
     if user is None or not security.verify_password(
         payload.password, user.password_hash
     ):
-        for key, _, _ in account_keys:
-            rate_limit.add(key)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
-    for key, _, _ in account_keys:
-        rate_limit.clear(key)
+    # Senha certa: zera o par conta + IP e devolve a reserva no contador global,
+    # sem o apagar (senão um login do dono apagava o rasto de um ataque distribuído).
+    rate_limit.clear(pair_key)
+    rate_limit.release(account_key)
     # Sem organização já não é erro: a conta entra e vê o ecrã de escolha/espera.
     return _token_for(db, user)
 

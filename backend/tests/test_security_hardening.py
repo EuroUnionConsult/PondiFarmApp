@@ -90,6 +90,15 @@ class SecurityHardeningTests(unittest.TestCase):
         for _ in range(12):
             self.assertEqual(self.login("ok@x.pt", PW).status_code, 200)
 
+    def test_parallel_wrong_passwords_cannot_exceed_the_limit(self):
+        from concurrent.futures import ThreadPoolExecutor
+
+        self.register("par@x.pt")
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            codes = list(pool.map(lambda _: self.login("par@x.pt", "errada").status_code, range(20)))
+        self.assertEqual(codes.count(401), 10)
+        self.assertEqual(codes.count(429), 10)
+
     def test_successful_login_resets_the_account_counter(self):
         self.register("b@x.pt")
         for _ in range(9):
