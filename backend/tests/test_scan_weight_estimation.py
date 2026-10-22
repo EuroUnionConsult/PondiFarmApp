@@ -214,12 +214,10 @@ class ScanWeightEstimationTests(unittest.TestCase):
         self.assertEqual(self.get_scan(scan_id).scan_status, "failed")
 
     def test_endpoint_is_present_in_openapi_schema(self):
-        response = self.client.get("/openapi.json")
-
-        self.assertEqual(response.status_code, 200)
+        # /openapi.json está desligado por defeito; o esquema gera-se na mesma.
         self.assertIn(
             "/api/v1/scans/{scan_id}/estimate-weight",
-            response.json()["paths"],
+            app.openapi()["paths"],
         )
 
 

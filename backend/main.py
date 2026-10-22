@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -26,10 +26,22 @@ from core.errors import register_exception_handlers
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="PondiFarm API", version="0.1.0")
-    # CORS configurável por env (D.6): restringir em produção via CORS_ORIGINS
-    # (lista separada por vírgula). O app nativo não usa CORS; isto é só p/ docs/ferramentas.
     import os
+
+    # /docs, /redoc e /openapi.json desligados por defeito: o repositório é público
+    # e o mapa da API não precisa de estar exposto em produção. Para desenvolver,
+    # API_DOCS_ENABLED=1.
+    docs = os.getenv("API_DOCS_ENABLED", "0") == "1"
+    app = FastAPI(
+        title="PondiFarm API",
+        version="0.1.0",
+        docs_url="/docs" if docs else None,
+        redoc_url="/redoc" if docs else None,
+        openapi_url="/openapi.json" if docs else None,
+    )
+    # CORS configurável por env (D.6): restringir em produção via CORS_ORIGINS
+    # (lista separada por vírgula). O app nativo não usa CORS; a versão web
+    # (pondifarmdesk) precisa de estar na lista.
 
     cors_origins = [
         o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()
@@ -42,6 +54,24 @@ def create_app() -> FastAPI:
     )
 
     register_exception_handlers(app)
+
+    @app.middleware("http")
+    async def security_headers(request: Request, call_next):
+        response = await call_next(request)
+        h = response.headers
+        h.setdefault("X-Content-Type-Options", "nosniff")
+        h.setdefault("X-Frame-Options", "DENY")
+        h.setdefault("Referrer-Policy", "no-referrer")
+        h.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        h.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        # A API só devolve JSON; o Swagger (quando ligado) precisa de carregar scripts.
+        if not request.url.path.startswith(("/docs", "/redoc")):
+            h.setdefault(
+                "Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'"
+            )
+        if request.url.path.startswith("/api/"):
+            h.setdefault("Cache-Control", "no-store")
+        return response
 
     @app.on_event("startup")
     def startup_event():

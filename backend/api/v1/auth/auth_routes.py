@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from core import security
+from core import rate_limit, security
 from core.database import get_db
 from core.deps import CurrentAccount, get_current_account
 from models.models import ROLE_LEADER, Organization, User
@@ -37,7 +37,11 @@ def _token_for(db: Session, user: User) -> TokenResponse:
     response_model=TokenResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def register(
+    payload: RegisterRequest, request: Request, db: Session = Depends(get_db)
+) -> TokenResponse:
+    # Contra criação de contas em massa por bots: 10 registos por IP por hora.
+    rate_limit.hit(f"register:{rate_limit.client_ip(request)}", 10, 3600)
     email = payload.email.lower()
     existing = (
         db.query(User)
@@ -66,8 +70,24 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenRe
 
 
 @auth_router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(
+    payload: LoginRequest, request: Request, db: Session = Depends(get_db)
+) -> TokenResponse:
     email = payload.email.lower()
+    # Contra adivinhar senhas: 30 tentativas por IP em 5 min; 10 senhas erradas
+    # por conta + IP em 15 min; e 100 por conta por hora de qualquer IP (ataque
+    # distribuído). O limite apertado não é só por conta para um estranho não
+    # bloquear o dono só por saber o email. A tentativa é reservada antes de
+    # verificar a senha (pedidos em paralelo contam) e devolvida se estiver certa.
+    ip = rate_limit.client_ip(request)
+    rate_limit.hit(f"login-ip:{ip}", 30, 300)
+    pair_key, account_key = f"login-fail:{email}:{ip}", f"login-fail:{email}"
+    rate_limit.hit(pair_key, 10, 900)
+    try:
+        rate_limit.hit(account_key, 100, 3600)
+    except HTTPException:
+        rate_limit.release(pair_key)
+        raise
     user = (
         db.query(User)
         .filter(func.lower(User.email) == email, User.deleted_at.is_(None))
@@ -77,6 +97,10 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
         payload.password, user.password_hash
     ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
+    # Senha certa: zera o par conta + IP e devolve a reserva no contador global,
+    # sem o apagar (senão um login do dono apagava o rasto de um ataque distribuído).
+    rate_limit.clear(pair_key)
+    rate_limit.release(account_key)
     # Sem organização já não é erro: a conta entra e vê o ecrã de escolha/espera.
     return _token_for(db, user)
 

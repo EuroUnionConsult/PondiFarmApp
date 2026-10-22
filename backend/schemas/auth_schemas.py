@@ -20,7 +20,8 @@ class RegisterRequest(APIModel):
 
 class LoginRequest(APIModel):
     email: EmailStr
-    password: str = Field(min_length=1)
+    # Teto igual ao do registo: uma senha de megabytes faria o hash pesar no servidor.
+    password: str = Field(min_length=1, max_length=128)
 
 
 class TokenResponse(APIModel):

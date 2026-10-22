@@ -92,12 +92,10 @@ class WeightEstimationApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
 
     def test_endpoint_is_present_in_openapi_schema(self):
-        response = self.client.get("/openapi.json")
-
-        self.assertEqual(response.status_code, 200)
+        # /openapi.json está desligado por defeito; o esquema gera-se na mesma.
         self.assertIn(
             "/api/v1/predictions/weight-estimation",
-            response.json()["paths"],
+            app.openapi()["paths"],
         )
 
 
