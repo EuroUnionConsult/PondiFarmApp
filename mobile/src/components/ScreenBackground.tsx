@@ -15,7 +15,8 @@ export default function ScreenBackground() {
     ? ['#0F1B28', '#0B1622', '#08111B']
     : ['#FBFBFD', '#F2F2F7', '#EDF0F5'];
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    // overflow hidden: os blobs saem das bordas de propósito; na web, sem isto, a página fica mais larga que o ecrã.
+    <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]} pointerEvents="none">
       <Svg style={StyleSheet.absoluteFill}>
         <Defs>
           {/* id muda com o tema: o react-native-svg não refaz um gradiente com o mesmo id */}
