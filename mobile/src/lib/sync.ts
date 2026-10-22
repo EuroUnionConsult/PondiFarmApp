@@ -109,6 +109,8 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
   if (inFlight.has(record.id)) return 'pending';   // C5: já em voo
   const orgId = await getOrganizationId();
   if (!orgId) return 'pending';
+  // Um scan feito noutra organização nunca é enviado para esta (aparelho partilhado).
+  if (record.ownerOrgId && record.ownerOrgId !== orgId.toLowerCase()) return 'pending';
 
   inFlight.add(record.id);
   try {

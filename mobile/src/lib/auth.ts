@@ -75,6 +75,13 @@ function decodeJwtPayload(token: string): Record<string, any> | null {
   }
 }
 
+/** Dono da sessão atual (claims `sub` e `org` do token). Marca os scans locais com quem os fez. */
+export async function getSessionOwner(): Promise<{ userId: string | null; orgId: string | null }> {
+  const t = await getToken();
+  const p = t ? decodeJwtPayload(t) : null;
+  return { userId: p?.sub ? String(p.sub) : null, orgId: p?.org ? String(p.org).toLowerCase() : null };
+}
+
 /** Org do usuário logado, derivada do claim `org` do token (multi-tenant). */
 export async function getOrganizationId(): Promise<string | null> {
   const t = await getToken();
