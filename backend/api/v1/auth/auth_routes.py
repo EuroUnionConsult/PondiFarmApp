@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from core import security
+from core import rate_limit, security
 from core.database import get_db
 from core.deps import CurrentAccount, get_current_account
 from models.models import ROLE_LEADER, Organization, User
@@ -37,7 +37,11 @@ def _token_for(db: Session, user: User) -> TokenResponse:
     response_model=TokenResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def register(
+    payload: RegisterRequest, request: Request, db: Session = Depends(get_db)
+) -> TokenResponse:
+    # Contra criação de contas em massa por bots: 10 registos por IP por hora.
+    rate_limit.hit(f"register:{rate_limit.client_ip(request)}", 10, 3600)
     email = payload.email.lower()
     existing = (
         db.query(User)
@@ -66,8 +70,14 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenRe
 
 
 @auth_router.post("/login", response_model=TokenResponse)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(
+    payload: LoginRequest, request: Request, db: Session = Depends(get_db)
+) -> TokenResponse:
     email = payload.email.lower()
+    # Contra adivinhar senhas: 30 tentativas por IP em 5 min e 10 por conta em
+    # 15 min (vindas de qualquer IP). Um login certo zera o contador da conta.
+    rate_limit.hit(f"login-ip:{rate_limit.client_ip(request)}", 30, 300)
+    rate_limit.hit(f"login-email:{email}", 10, 900)
     user = (
         db.query(User)
         .filter(func.lower(User.email) == email, User.deleted_at.is_(None))
@@ -77,6 +87,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse
         payload.password, user.password_hash
     ):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
+    rate_limit.clear(f"login-email:{email}")
     # Sem organização já não é erro: a conta entra e vê o ecrã de escolha/espera.
     return _token_for(db, user)
 
