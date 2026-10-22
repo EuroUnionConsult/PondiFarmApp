@@ -235,6 +235,31 @@ async function loadCloudAnimals(): Promise<CloudAnimal[]> {
  * já filtra por org, mas os dados do utilizador anterior não devem continuar em
  * disco depois de ele sair da conta.
  */
+/** Um ponto do histórico de um animal (só scans válidos, do mais antigo ao mais recente). */
+export interface ScanPoint { at: number; weightKg: number | null; bodyLengthCm: number | null }
+
+/**
+ * Histórico de scans de um animal, para o gráfico da evolução do peso na ficha do
+ * animal. Lê até 5 páginas de 100 (o máximo do endpoint), da mais recente para trás.
+ */
+export async function fetchAnimalScans(animalId: string): Promise<ScanPoint[]> {
+  const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
+  const all: any[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const res = await fetchWithTimeout(`${base}/api/v1/animals/${encodeURIComponent(animalId)}/scans?page=${page}&limit=100`, 20000);
+    if (!res.ok) throw new Error(`scans HTTP ${res.status}`);
+    const body = await res.json();
+    const lote: any[] = Array.isArray(body) ? body : (body.items ?? body.data ?? []);
+    all.push(...lote);
+    if (lote.length < 100) break;
+  }
+  return all
+    .filter((s) => !HIDDEN_SCAN_STATUSES.has(String(s?.scanStatus ?? s?.scan_status ?? '')))
+    .map((s) => ({ at: Date.parse(s.scannedAt ?? s.scanned_at ?? s.createdAt), weightKg: numOrNull(s.estimatedWeight), bodyLengthCm: numOrNull(s.bodyLength) }))
+    .filter((p) => Number.isFinite(p.at))
+    .sort((a, b) => a.at - b.at);
+}
+
 export async function clearCloudCache(): Promise<void> {
   try { await AsyncStorage.removeItem(CLOUD_CACHE_KEY); } catch {}
 }

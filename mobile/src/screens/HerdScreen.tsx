@@ -17,6 +17,8 @@ import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
 import ScreenBackground from '../components/ScreenBackground';
+import CattleIcon from '../components/CattleIcon';
+import { SkeletonRows } from '../components/Skeleton';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -59,6 +61,7 @@ export default function HerdScreen() {
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
+  const [cloudLoaded, setCloudLoaded] = useState(false);
   const [query, setQuery] = useState('');
   // Distingue "não há nada para mostrar" de "não consegui perguntar". Sem isto,
   // um servidor inacessível e um rebanho vazio são o mesmo ecrã em branco, e o
@@ -67,7 +70,7 @@ export default function HerdScreen() {
 
   const load = useCallback(async () => {
     const cached = await getCachedCloudAnimals();
-    if (cached.length) setCloud(cached);   // instantâneo
+    if (cached.length) { setCloud(cached); setCloudLoaded(true); }   // instantâneo
     setRecords(await listRecords());
     try {
       setCloud(await fetchCloudAnimals());  // atualiza em 2º plano
@@ -76,6 +79,8 @@ export default function HerdScreen() {
       // Backend inacessível: mantém o cache em vez de esvaziar a lista, e
       // assinala-o, para o ecrã poder dizer que está desactualizado.
       setCloudOffline(true);
+    } finally {
+      setCloudLoaded(true);
     }
     // Reprocessa a fila de scans pendentes; se subiu algo, atualiza lista + nuvem.
     syncPending().then(async (r) => {
@@ -221,9 +226,11 @@ export default function HerdScreen() {
         </View>
       )}
 
-      {sections.length === 0 && cloudFiltered.length === 0 ? (
+      {!cloudLoaded && sections.length === 0 && cloudFiltered.length === 0 ? (
+        <View style={[styles.card, { marginHorizontal: 16, marginTop: 8 }]}><SkeletonRows n={6} /></View>
+      ) : sections.length === 0 && cloudFiltered.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="paw-outline" size={36} color={ios.tertiaryLabel} />
+          <CattleIcon size={38} color={ios.tertiaryLabel} />
           <Text style={styles.emptyTitle}>
             {query ? 'No matches' : 'No scans yet'}
           </Text>
@@ -256,11 +263,9 @@ export default function HerdScreen() {
                       styles.rowIcon,
                       { backgroundColor: isCow ? ios.accentLight : ios.segmentFill },
                     ]}>
-                      <Ionicons
-                        name={isCow ? 'paw' : 'cube-outline'}
-                        size={16}
-                        color={isCow ? ios.accent : ios.secondaryLabel}
-                      />
+                      {isCow
+                        ? <CattleIcon size={18} color={ios.accent} />
+                        : <Ionicons name="cube-outline" size={16} color={ios.secondaryLabel} />}
                     </View>
                     <View style={styles.rowInfo}>
                       <Text style={styles.rowId}>
