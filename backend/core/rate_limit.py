@@ -38,15 +38,20 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def hit(key: str, limit: int, window_s: int) -> None:
-    """Regista uma tentativa; 429 se a chave passou de `limit` na janela."""
+def _recent(key: str, window_s: int, now: float) -> deque[float]:
+    q = _hits.setdefault(key, deque())
+    while q and q[0] <= now - window_s:
+        q.popleft()
+    return q
+
+
+def check(key: str, limit: int, window_s: int) -> None:
+    """429 se a chave já tem `limit` registos na janela; não regista nada."""
     if not _enabled():
         return
     now = time.monotonic()
     with _lock:
-        q = _hits.setdefault(key, deque())
-        while q and q[0] <= now - window_s:
-            q.popleft()
+        q = _recent(key, window_s, now)
         if len(q) >= limit:
             retry = max(1, math.ceil(q[0] + window_s - now))
             raise HTTPException(
@@ -54,11 +59,25 @@ def hit(key: str, limit: int, window_s: int) -> None:
                 "Demasiadas tentativas. Tente novamente mais tarde.",
                 headers={"Retry-After": str(retry)},
             )
-        q.append(now)
-        # Limpeza ocasional para a memória não crescer com IPs que não voltam.
+
+
+def add(key: str) -> None:
+    """Regista uma ocorrência (ex.: uma senha errada)."""
+    if not _enabled():
+        return
+    now = time.monotonic()
+    with _lock:
+        _hits.setdefault(key, deque()).append(now)
+        # Limpeza ocasional para a memória não crescer com chaves que não voltam.
         if len(_hits) > 10_000:
             for k in [k for k, v in _hits.items() if not v or v[-1] <= now - 3600]:
                 del _hits[k]
+
+
+def hit(key: str, limit: int, window_s: int) -> None:
+    """Verifica e regista: conta todas as tentativas, certas ou erradas."""
+    check(key, limit, window_s)
+    add(key)
 
 
 def clear(key: str) -> None:

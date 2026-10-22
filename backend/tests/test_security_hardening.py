@@ -64,14 +64,31 @@ class SecurityHardeningTests(unittest.TestCase):
             headers={"X-Forwarded-For": ip},
         )
 
-    def test_login_blocks_after_ten_wrong_passwords_for_the_same_account(self):
+    def test_login_blocks_after_ten_wrong_passwords_from_the_same_ip(self):
         self.assertEqual(self.register("a@x.pt").status_code, 201)
-        for i in range(10):
-            # IPs diferentes: o limite por conta não depende do IP.
-            self.assertEqual(self.login("a@x.pt", "errada", ip=f"10.1.0.{i}").status_code, 401)
-        r = self.login("a@x.pt", PW, ip="10.2.0.1")
+        for _ in range(10):
+            self.assertEqual(self.login("a@x.pt", "errada").status_code, 401)
+        r = self.login("a@x.pt", PW)
         self.assertEqual(r.status_code, 429)
         self.assertIn("Retry-After", r.headers)
+
+    def test_stranger_cannot_lock_the_owner_out(self):
+        # Quem sabe o email erra 10 vezes do seu IP; o dono, noutro IP, entra.
+        self.register("dono@x.pt")
+        for _ in range(10):
+            self.login("dono@x.pt", "errada", ip="10.66.0.1")
+        self.assertEqual(self.login("dono@x.pt", PW, ip="10.0.0.2").status_code, 200)
+
+    def test_distributed_guessing_hits_the_global_account_limit(self):
+        self.register("alvo@x.pt")
+        for i in range(100):
+            self.login("alvo@x.pt", "errada", ip=f"10.{i // 9}.{i % 9}.1")
+        self.assertEqual(self.login("alvo@x.pt", PW, ip="10.200.0.1").status_code, 429)
+
+    def test_correct_logins_do_not_count_towards_the_account_limit(self):
+        self.register("ok@x.pt")
+        for _ in range(12):
+            self.assertEqual(self.login("ok@x.pt", PW).status_code, 200)
 
     def test_successful_login_resets_the_account_counter(self):
         self.register("b@x.pt")

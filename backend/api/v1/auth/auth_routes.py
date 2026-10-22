@@ -74,10 +74,15 @@ def login(
     payload: LoginRequest, request: Request, db: Session = Depends(get_db)
 ) -> TokenResponse:
     email = payload.email.lower()
-    # Contra adivinhar senhas: 30 tentativas por IP em 5 min e 10 por conta em
-    # 15 min (vindas de qualquer IP). Um login certo zera o contador da conta.
-    rate_limit.hit(f"login-ip:{rate_limit.client_ip(request)}", 30, 300)
-    rate_limit.hit(f"login-email:{email}", 10, 900)
+    # Contra adivinhar senhas. Só as senhas erradas contam para os limites da
+    # conta: 10 por conta + IP em 15 min, e 100 por conta por hora vindas de
+    # qualquer IP (ataque distribuído). O limite apertado não é só por conta
+    # para um estranho não conseguir bloquear o dono só por saber o email.
+    ip = rate_limit.client_ip(request)
+    rate_limit.hit(f"login-ip:{ip}", 30, 300)
+    account_keys = ((f"login-fail:{email}:{ip}", 10, 900), (f"login-fail:{email}", 100, 3600))
+    for key, limit, window in account_keys:
+        rate_limit.check(key, limit, window)
     user = (
         db.query(User)
         .filter(func.lower(User.email) == email, User.deleted_at.is_(None))
@@ -86,8 +91,11 @@ def login(
     if user is None or not security.verify_password(
         payload.password, user.password_hash
     ):
+        for key, _, _ in account_keys:
+            rate_limit.add(key)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Credenciais inválidas")
-    rate_limit.clear(f"login-email:{email}")
+    for key, _, _ in account_keys:
+        rate_limit.clear(key)
     # Sem organização já não é erro: a conta entra e vê o ecrã de escolha/espera.
     return _token_for(db, user)
 
