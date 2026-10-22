@@ -118,12 +118,12 @@ export default function AnalyticsScreen() {
               <View style={styles.hero}>
                 <Text style={styles.eyebrow}>{hasCloud ? 'Mean weight' : 'Mean chest girth'}</Text>
                 <View style={styles.valueRow}>
-                  <Text style={styles.value}>{hasCloud ? cloudMeanKg : avgGirth.toFixed(0)}</Text>
+                  <Text style={styles.value}>{hasCloud ? (cloudWeights.length ? cloudMeanKg : '—') : avgGirth.toFixed(0)}</Text>
                   <Text style={styles.valueUnit}>{hasCloud ? 'kg' : 'cm'}</Text>
                 </View>
                 <Text style={styles.heroMeta}>
                   {hasCloud
-                    ? `Range ${cloudMinKg}–${cloudMaxKg} kg`
+                    ? (cloudWeights.length ? `Range ${cloudMinKg}–${cloudMaxKg} kg` : 'No weight estimates yet')
                     : `Range ${minGirth.toFixed(0)}–${maxGirth.toFixed(0)} cm`}
                 </Text>
               </View>
@@ -189,8 +189,8 @@ export default function AnalyticsScreen() {
           <View style={styles.card}>
             {(hasCloud
               ? [
-                  { k: 'Max weight',   v: `${cloudMaxKg} kg` },
-                  { k: 'Min weight',   v: `${cloudMinKg} kg` },
+                  { k: 'Max weight',   v: cloudWeights.length ? `${cloudMaxKg} kg` : '—' },
+                  { k: 'Min weight',   v: cloudWeights.length ? `${cloudMinKg} kg` : '—' },
                   { k: 'With weight',  v: `${cloudWeights.length} / ${cloudCount}` },
                   { k: 'Local scans',  v: `${totalScans}` },
                 ]
