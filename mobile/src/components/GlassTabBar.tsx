@@ -9,6 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { font, type Palette } from '../lib/theme';
 import LiquidGlass from './LiquidGlass';
+import CattleIcon from './CattleIcon';
 
 // Tab bar FLUTUANTE (pill Liquid Glass, estilo iOS 26) com REALCE ANIMADO que desliza
 // para a aba ativa (Animated.spring, nativo). Labels em inglês.
@@ -64,7 +65,9 @@ export default function GlassTabBar({ state, navigation }: BottomTabBarProps) {
               accessibilityState={{ selected: focused }}
               accessibilityLabel={t.label}
             >
-              <Ionicons name={(focused ? t.active : t.inactive) as any} size={23} color={color} />
+              {route.name === 'Herd'
+                ? <CattleIcon size={24} color={color} filled={focused} />
+                : <Ionicons name={(focused ? t.active : t.inactive) as any} size={23} color={color} />}
               <Text style={[styles.label, { color }]} numberOfLines={1}>{t.label}</Text>
             </Pressable>
           );

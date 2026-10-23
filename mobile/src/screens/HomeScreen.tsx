@@ -15,6 +15,8 @@ import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
 import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, type Profile } from '../lib/profile';
 import ScreenBackground from '../components/ScreenBackground';
+import CattleIcon from '../components/CattleIcon';
+import { SkeletonRows } from '../components/Skeleton';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import PendingApprovalBanner from '../components/PendingApprovalBanner';
@@ -35,6 +37,7 @@ export default function HomeScreen() {
   const nav = useNavigation<Nav>();
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
+  const [cloudLoaded, setCloudLoaded] = useState(false);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
@@ -53,11 +56,12 @@ export default function HomeScreen() {
   const load = useCallback(async () => {
     // Cache primeiro (instantâneo), depois atualiza em 2º plano.
     const cached = await getCachedCloudAnimals();
-    if (cached.length) setCloud(cached);
+    if (cached.length) { setCloud(cached); setCloudLoaded(true); }
     const [recs, health] = await Promise.all([listRecords(), checkHealth()]);
     setRecords(recs);
     setBackendOk(health);
     try { setCloud(await fetchCloudAnimals()); } catch { /* mantém o cache em falha de rede */ }
+    finally { setCloudLoaded(true); }
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -212,7 +216,7 @@ export default function HomeScreen() {
                 accessibilityRole="button"
               >
                 <View style={styles.rowIcon}>
-                  <Ionicons name={isCow ? 'paw' : 'cube-outline'} size={16} color={ios.accent} />
+                  {isCow ? <CattleIcon size={18} color={ios.accent} /> : <Ionicons name="cube-outline" size={16} color={ios.accent} />}
                 </View>
                 <View style={styles.rowInfo}>
                   <Text style={styles.rowId}>
@@ -239,7 +243,44 @@ export default function HomeScreen() {
         </FadeInView>
       )}
 
-      {today.length === 0 && (
+      {/* A carregar o rebanho pela primeira vez: a forma da lista a pulsar. */}
+      {today.length === 0 && !cloudLoaded && (
+        <FadeInView index={1} style={styles.group}>
+          <Text style={styles.groupHeader}>Latest records</Text>
+          <View style={styles.card}><SkeletonRows n={4} /></View>
+        </FadeInView>
+      )}
+
+      {/* Sem scans feitos neste telemóvel: mostra os últimos animais da organização. */}
+      {today.length === 0 && cloudLoaded && cloud.length > 0 && (
+        <FadeInView index={1} style={styles.group}>
+          <Text style={styles.groupHeader}>Latest records</Text>
+          <View style={styles.card}>
+            {cloud.slice(0, 5).map((c, i, arr) => (
+              <PressableScale
+                key={c.id}
+                style={[styles.row, i < arr.length - 1 && styles.rowDivider]}
+                onPress={() => nav.navigate('AnimalDetail', { animal: c })}
+                scaleTo={0.985}
+                accessibilityRole="button"
+              >
+                <View style={styles.rowIcon}><CattleIcon size={18} color={ios.accent} /></View>
+                <View style={styles.rowInfo}>
+                  <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
+                  <Text style={styles.rowMeta} numberOfLines={1}>{[c.breed, c.tagCode].filter(Boolean).join(' · ')}</Text>
+                </View>
+                <View style={styles.rowMetric}>
+                  <Text style={styles.rowMetricValue}>{c.weightKg != null ? Math.round(c.weightKg) : '—'}</Text>
+                  <Text style={styles.rowMetricUnit}>kg</Text>
+                </View>
+                <Text style={styles.rowChevron}>›</Text>
+              </PressableScale>
+            ))}
+          </View>
+        </FadeInView>
+      )}
+
+      {today.length === 0 && cloudLoaded && cloud.length === 0 && (
         <View style={styles.empty}>
           <Ionicons name="layers-outline" size={36} color={ios.tertiaryLabel} />
           <Text style={styles.emptyTitle}>Nothing logged yet</Text>
