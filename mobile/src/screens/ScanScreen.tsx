@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   View, StyleSheet, TouchableOpacity, Platform, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, ScrollView,
 } from 'react-native';
@@ -9,7 +9,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ios, fonts } from '../lib/theme';
+import { fonts, type Palette } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
+import CattleIcon from '../components/CattleIcon';
 import {
   LidarScannerView,
   type BoxFitEvent,
@@ -63,7 +65,7 @@ function coverageHint(p: ScanProgressEvent | null, fit: FitState, manual: boolea
 }
 
 const CATEGORIES: { key: ScanCategory; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'cow',   label: 'Cattle', icon: 'paw-outline' },
+  { key: 'cow',   label: 'Cattle', icon: 'paw-outline' },   // desenhado com o CattleIcon
   { key: 'extra', label: 'Extra',  icon: 'cube-outline' },
 ];
 
@@ -87,6 +89,8 @@ function PreScanModal({
   onConfirm: (category: ScanCategory, animalId: string, breed: string) => void;
   onCancel: () => void;
 }) {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState<ScanCategory>('cow');
   const [animalId, setAnimalId] = useState('');
@@ -121,11 +125,9 @@ function PreScanModal({
                     onPress={() => setCategory(c.key)}
                     activeOpacity={0.7}
                   >
-                    <Ionicons
-                      name={c.icon}
-                      size={15}
-                      color={active ? '#FFFFFF' : ios.label}
-                    />
+                    {c.key === 'cow'
+                      ? <CattleIcon size={17} color={active ? '#FFFFFF' : ios.label} />
+                      : <Ionicons name={c.icon} size={15} color={active ? '#FFFFFF' : ios.label} />}
                     <Text style={[styles.breedLabel, active && styles.breedLabelActive]}>
                       {c.label}
                     </Text>
@@ -199,6 +201,8 @@ function PreScanModal({
 }
 
 export default function ScanScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const [permission, requestPermission] = useCameraPermissions();
@@ -599,7 +603,9 @@ export default function ScanScreen() {
 
 const displayFont = Platform.select({ ios: 'System', android: undefined, default: undefined });
 
-const styles = StyleSheet.create({
+// Estilos com a paleta do tema ativo (claro/escuro): antes vinha a paleta clara fixa,
+// e a folha «New scan» ficava clara no tema escuro.
+const makeStyles = (ios: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   center: {
     flex: 1, backgroundColor: ios.systemGroupedBackground,

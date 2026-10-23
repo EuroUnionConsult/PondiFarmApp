@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Alert,
 } from 'react-native';
@@ -12,6 +12,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import * as Sharing from 'expo-sharing';
 import { MeshPreviewView, renderTexture } from '../../modules/lidar-scanner';
+import { resolveLocalFile } from '../lib/files';
 import { type Palette } from '../lib/theme';
 import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import { updateRecord } from '../lib/storage';
@@ -59,7 +60,17 @@ export default function ResultScreen() {
   // Render de textura sob demanda. Começa com o que já existir (se já texturizado).
   const [texturedUri, setTexturedUri] = useState<string | null>(record.meshTexturedUri ?? null);
   const [rendering, setRendering] = useState(false);
-  const viewerSource = texturedUri ?? record.meshPlyUri ?? record.meshUri;
+  const storedSource = texturedUri ?? record.meshPlyUri ?? record.meshUri;
+  // O caminho guardado pode ter mudado com uma atualização do app (files.ts).
+  const [viewerSource, setViewerSource] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const r = (await resolveLocalFile(texturedUri)) ?? (await resolveLocalFile(record.meshPlyUri)) ?? (await resolveLocalFile(record.meshUri));
+      if (alive) setViewerSource(r);
+    })();
+    return () => { alive = false; };
+  }, [storedSource, texturedUri, record.meshPlyUri, record.meshUri]);
   // "Render texture" desativado: o bake por-triângulo (TextureBaker) tem teto de qualidade
   // baixo (mosaico/emendas). O caminho de textura fotorrealista é o Object Capture (USDZ).
   // Para reativar: const canRender = !texturedUri && !!record.keyframesDir;
@@ -106,7 +117,13 @@ export default function ResultScreen() {
         {typeof record.meshUri === 'string' && record.meshUri.length > 0 && (
           <View style={styles.meshSection}>
             <View style={styles.meshCard}>
-              <MeshPreviewView source={viewerSource} style={StyleSheet.absoluteFill} />
+              {viewerSource
+                ? <MeshPreviewView source={viewerSource} style={StyleSheet.absoluteFill} />
+                : viewerSource === null && (
+                  <View style={styles.meshMissing}>
+                    <Ionicons name="cube-outline" size={30} color={ios.tertiaryLabel} />
+                    <Text style={styles.meshMissingText}>The 3D model file is no longer on this phone.</Text>
+                  </View>)}
             </View>
             <Text style={styles.meshHint}>Drag to rotate · pinch to zoom</Text>
 
@@ -302,9 +319,12 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     height: 260,
     marginHorizontal: 16,
     borderRadius: 18,
-    backgroundColor: '#000000',
+    // Fundo do tema: a vista nativa é transparente (claro e escuro).
+    backgroundColor: ios.secondarySystemGroupedBackground,
     overflow: 'hidden',
   },
+  meshMissing: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: 24 },
+  meshMissingText: { fontSize: 14, color: ios.secondaryLabel, textAlign: 'center' },
   meshHint: {
     marginTop: 8,
     paddingHorizontal: 32,
@@ -431,7 +451,8 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     marginTop: 32, marginHorizontal: 16, gap: 10,
   },
   actionPrimary: {
-    backgroundColor: ios.label,
+    // Verde da marca: com ios.label o botão ficava quase branco no tema escuro (texto branco ilegível).
+    backgroundColor: ios.accentFill,
     borderRadius: 14, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },

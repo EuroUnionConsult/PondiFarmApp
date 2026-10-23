@@ -11,10 +11,10 @@ class MeshPreviewView: ExpoView {
     clipsToBounds = true
     scnView.allowsCameraControl = true
     scnView.defaultCameraController.interactionMode = .orbitTurntable
-    // Fundo estúdio claro OPACO: o viewer deixa de depender do card JS e a malha "clay"
-    // lê bem em qualquer iluminação de captura (antes: .clear sobre card preto = malha
-    // escura sumia no fundo).
-    scnView.backgroundColor = UIColor(red: 0.93, green: 0.94, blue: 0.96, alpha: 1)
+    // Transparente: o cartão em React Native dá a cor do tema (claro ou escuro).
+    // Antes era cinzento-claro fixo, que no tema escuro ficava um bloco claro. O card
+    // já não é preto (era isso que escondia a malha "clay" quando isto era .clear).
+    scnView.backgroundColor = .clear
     // Luz é montada por nós fixos em `load()`; a default lighting não afeta clay PBR bem.
     scnView.autoenablesDefaultLighting = false
     scnView.antialiasingMode = .multisampling4X
