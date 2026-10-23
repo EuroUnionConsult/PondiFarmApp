@@ -11,6 +11,7 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import { type Palette } from '../lib/theme';
 import type { RootStackParamList } from '../navigation/types';
 import WeightHistory from '../components/WeightHistory';
+import Scan3DCard from '../components/Scan3DCard';
 
 type DetailRoute = RouteProp<RootStackParamList, 'AnimalDetail'>;
 
@@ -72,6 +73,12 @@ export default function AnimalDetailScreen() {
               <Text style={styles.heroMeta}>Experimental estimate, not validated against a scale</Text>
             </View>
           </View>
+        </View>
+
+        {/* Modelo 3D do último scan (da nuvem) */}
+        <Text style={styles.sectionHeader}>3D scan</Text>
+        <View style={{ marginHorizontal: 16 }}>
+          <Scan3DCard animal={animal} />
         </View>
 
         {/* Evolução do peso ao longo dos scans */}

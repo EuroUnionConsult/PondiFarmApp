@@ -163,6 +163,26 @@ class ScanMeshTests(unittest.TestCase):
         )
         self.assertEqual(self.put(h2, sid, PLY).status_code, 403)
 
+    def test_glb_can_be_downloaded_as_ply_for_the_iphone(self):
+        import trimesh
+
+        h, org = self.account("i@x.pt", "Quinta I")
+        sid = self.scan(h, org)
+        glb = trimesh.creation.box(extents=(1, 2, 3)).export(file_type="glb")
+        self.assertEqual(self.put(h, sid, glb, fmt="glb").status_code, 204)
+        raw = self.client.get(f"/api/v1/scans/{sid}/mesh", headers=h)
+        self.assertEqual(raw.headers["X-Mesh-Format"], "glb")
+        ply = self.client.get(f"/api/v1/scans/{sid}/mesh?as=ply", headers=h)
+        self.assertEqual(ply.status_code, 200)
+        self.assertEqual(ply.headers["X-Mesh-Format"], "ply")
+        self.assertTrue(ply.content.startswith(b"ply"))
+        self.assertIn(b"format ascii", ply.content[:64])
+        # PLY guardado passa sem conversão.
+        self.put(h, sid, PLY)
+        self.assertEqual(
+            self.client.get(f"/api/v1/scans/{sid}/mesh?as=ply", headers=h).content, PLY
+        )
+
     def test_scan_without_model_is_404_and_requires_login(self):
         h, org = self.account("h@x.pt", "Quinta H")
         sid = self.scan(h, org)

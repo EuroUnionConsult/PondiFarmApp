@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
 import { authHeaders, getOrganizationId } from './auth';
 import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY, CLOUD_CACHE_KEY } from './config';
 import { trackCloud } from './activity';
@@ -97,6 +98,9 @@ export interface CloudAnimal {
   bodyLengthCm: number | null;
   withersHeightCm: number | null;
   notes: string | null;
+  /** Último scan válido e se tem modelo 3D na nuvem. */
+  latestScanId?: string | null;
+  hasMesh?: boolean;
 }
 
 function numOrNull(v: unknown): number | null {
@@ -221,6 +225,8 @@ async function loadCloudAnimals(): Promise<CloudAnimal[]> {
         bodyLengthCm: numOrNull(s?.bodyLength),
         withersHeightCm: numOrNull(s?.withersHeight),
         notes: a.notes ?? null,
+        latestScanId: s?.id ? String(s.id) : null,
+        hasMesh: Boolean(s?.hasMesh),
       } as CloudAnimal;
   });
   // Cacheia por org (mostra instantâneo na próxima navegação).
@@ -258,6 +264,27 @@ export async function fetchAnimalScans(animalId: string): Promise<ScanPoint[]> {
     .map((s) => ({ at: Date.parse(s.scannedAt ?? s.scanned_at ?? s.createdAt), weightKg: numOrNull(s.estimatedWeight), bodyLengthCm: numOrNull(s.bodyLength) }))
     .filter((p) => Number.isFinite(p.at))
     .sort((a, b) => a.at - b.at);
+}
+
+/**
+ * Descarrega o modelo 3D de um scan para a cache do telemóvel e devolve o ficheiro.
+ * Pede sempre PLY (`?as=ply`): o visualizador do iPhone não abre GLB, e o servidor
+ * converte as malhas da sessão de campo. Fica em cache: só se descarrega uma vez.
+ */
+export async function fetchScanMeshFile(scanId: string): Promise<string> {
+  const dir = `${FileSystem.cacheDirectory}meshes/`;
+  const file = `${dir}scan-${scanId}.ply`;
+  if ((await FileSystem.getInfoAsync(file)).exists) return file;
+  await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
+  const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
+  const res = await FileSystem.downloadAsync(`${base}/api/v1/scans/${encodeURIComponent(scanId)}/mesh?as=ply`, file, {
+    headers: { ...DEFAULT_HEADERS, ...(await authHeaders()) },
+  });
+  if (res.status !== 200) {
+    await FileSystem.deleteAsync(file, { idempotent: true }).catch(() => {});
+    throw new Error(`mesh HTTP ${res.status}`);
+  }
+  return file;
 }
 
 export async function clearCloudCache(): Promise<void> {

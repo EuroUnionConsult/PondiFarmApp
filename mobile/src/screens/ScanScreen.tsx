@@ -846,12 +846,12 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   breedChip: {
     paddingHorizontal: 14, paddingVertical: 8,
     borderRadius: 999,
-    backgroundColor: '#EFEFF4',
+    backgroundColor: ios.segmentFill,   // era #EFEFF4 fixo: chip branco com texto branco no escuro
   },
   categoryChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
   },
-  breedChipActive: { backgroundColor: ios.accent },
+  breedChipActive: { backgroundColor: ios.accentFill },
   breedLabel: {
     fontSize: 14, color: ios.label, letterSpacing: -0.1,
   },
@@ -859,7 +859,8 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
 
   confirmBtn: {
     marginTop: 22, marginHorizontal: 16,
-    backgroundColor: ios.accent,
+    // accentFill (verde da marca nos dois temas): ios.accent clareia no escuro e o texto branco perdia contraste.
+    backgroundColor: ios.accentFill,
     borderRadius: 14, paddingVertical: 16,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
   },

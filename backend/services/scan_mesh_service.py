@@ -7,7 +7,10 @@ com o formato declarado (assinatura do ficheiro), para não se guardar qualquer 
 
 from __future__ import annotations
 
+import io
+from collections import OrderedDict
 from datetime import datetime
+from threading import Lock
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -72,3 +75,45 @@ def get_mesh(db: Session, scan: AnimalScan) -> AnimalScanMesh:
     if row is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Este scan não tem modelo 3D")
     return row
+
+
+# Conversões recentes em memória (o mesmo modelo é pedido várias vezes seguidas).
+_ply_cache: OrderedDict[tuple[UUID, datetime], bytes] = OrderedDict()
+_ply_lock = Lock()
+_PLY_CACHE_ITEMS = 8
+
+
+def as_ply(mesh: AnimalScanMesh) -> bytes:
+    """O modelo em PLY (texto, com cor por vértice), para o visualizador do iPhone.
+
+    O SceneKit/ModelIO do iPhone abre PLY e OBJ mas não GLB; as malhas da sessão
+    de campo são GLB (Polycam). Converte-se aqui com o trimesh; PLY passa direto.
+    """
+    if mesh.mesh_format == "ply":
+        return mesh.data
+    key = (mesh.scan_id, mesh.updated_at)
+    with _ply_lock:
+        if key in _ply_cache:
+            _ply_cache.move_to_end(key)
+            return _ply_cache[key]
+    import trimesh  # só quando é preciso converter
+
+    try:
+        m = trimesh.load(
+            io.BytesIO(mesh.data), file_type=mesh.mesh_format, force="mesh"
+        )
+        try:
+            m.visual = m.visual.to_color()  # textura -> cor por vértice
+        except Exception:
+            pass  # sem textura: fica só a forma
+        out = m.export(file_type="ply", encoding="ascii")
+    except Exception as exc:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "Não foi possível converter o modelo 3D",
+        ) from exc
+    with _ply_lock:
+        _ply_cache[key] = out
+        while len(_ply_cache) > _PLY_CACHE_ITEMS:
+            _ply_cache.popitem(last=False)
+    return out
