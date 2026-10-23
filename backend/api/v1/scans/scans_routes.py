@@ -134,7 +134,9 @@ async def _read_limited(request: Request, limit: int) -> bytes:
     async for chunk in request.stream():
         size += len(chunk)
         if size > limit:
-            raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, "Malha demasiado grande")
+            raise HTTPException(
+                status.HTTP_413_CONTENT_TOO_LARGE, "Malha demasiado grande"
+            )
         chunks.append(chunk)
     return b"".join(chunks)
 

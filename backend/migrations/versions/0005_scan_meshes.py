@@ -22,15 +22,23 @@ def upgrade() -> None:
         return
     op.create_table(
         TABLE,
-        sa.Column("scan_id", GUID(), sa.ForeignKey("animal_scans.id"), primary_key=True),
-        sa.Column("organization_id", GUID(), sa.ForeignKey("organizations.id"), nullable=False),
+        sa.Column(
+            "scan_id", GUID(), sa.ForeignKey("animal_scans.id"), primary_key=True
+        ),
+        sa.Column(
+            "organization_id", GUID(), sa.ForeignKey("organizations.id"), nullable=False
+        ),
         sa.Column("mesh_format", sa.String(8), nullable=False),
         sa.Column("size_bytes", sa.Integer(), nullable=False),
         sa.Column("data", sa.LargeBinary(), nullable=False),
-        sa.Column("uploaded_by_user_id", GUID(), sa.ForeignKey("users.id"), nullable=True),
+        sa.Column(
+            "uploaded_by_user_id", GUID(), sa.ForeignKey("users.id"), nullable=True
+        ),
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
-        sa.CheckConstraint("mesh_format IN ('ply', 'obj', 'glb')", name="chk_animal_scan_meshes_format"),
+        sa.CheckConstraint(
+            "mesh_format IN ('ply', 'obj', 'glb')", name="chk_animal_scan_meshes_format"
+        ),
     )
     op.create_index("ix_animal_scan_meshes_organization_id", TABLE, ["organization_id"])
 

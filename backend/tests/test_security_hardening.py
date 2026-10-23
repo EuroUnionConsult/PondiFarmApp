@@ -119,19 +119,29 @@ class SecurityHardeningTests(unittest.TestCase):
 
     def test_login_blocks_one_ip_trying_many_accounts(self):
         for i in range(30):
-            self.assertEqual(self.login(f"n{i}@x.pt", "errada", ip="10.9.9.9").status_code, 401)
-        self.assertEqual(self.login("outra@x.pt", "errada", ip="10.9.9.9").status_code, 429)
-        self.assertEqual(self.login("outra@x.pt", "errada", ip="10.9.9.8").status_code, 401)
+            self.assertEqual(
+                self.login(f"n{i}@x.pt", "errada", ip="10.9.9.9").status_code, 401
+            )
+        self.assertEqual(
+            self.login("outra@x.pt", "errada", ip="10.9.9.9").status_code, 429
+        )
+        self.assertEqual(
+            self.login("outra@x.pt", "errada", ip="10.9.9.8").status_code, 401
+        )
 
     def test_forged_forwarded_for_prefix_does_not_dodge_the_ip_limit(self):
         # O Azure acrescenta o IP real no fim; o que o cliente põe à esquerda é ignorado.
         for i in range(30):
             self.login(f"m{i}@x.pt", "errada", ip=f"1.1.1.{i}, 10.7.7.7")
-        self.assertEqual(self.login("z@x.pt", "errada", ip="9.9.9.9, 10.7.7.7").status_code, 429)
+        self.assertEqual(
+            self.login("z@x.pt", "errada", ip="9.9.9.9, 10.7.7.7").status_code, 429
+        )
 
     def test_register_is_limited_per_ip(self):
         for i in range(10):
-            self.assertEqual(self.register(f"r{i}@x.pt", ip="10.3.3.3").status_code, 201)
+            self.assertEqual(
+                self.register(f"r{i}@x.pt", ip="10.3.3.3").status_code, 201
+            )
         self.assertEqual(self.register("r10@x.pt", ip="10.3.3.3").status_code, 429)
         self.assertEqual(self.register("r10@x.pt", ip="10.3.3.4").status_code, 201)
 

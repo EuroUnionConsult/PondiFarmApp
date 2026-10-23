@@ -23,7 +23,12 @@ PLY = b"ply\nformat ascii 1.0\nelement vertex 1\nproperty float x\nproperty floa
 class ScanMeshTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.engine = create_engine("sqlite://", future=True, connect_args={"check_same_thread": False}, poolclass=StaticPool)
+        cls.engine = create_engine(
+            "sqlite://",
+            future=True,
+            connect_args={"check_same_thread": False},
+            poolclass=StaticPool,
+        )
         cls.Session = sessionmaker(bind=cls.engine, autoflush=False, future=True)
 
         def override_get_db():
@@ -47,22 +52,52 @@ class ScanMeshTests(unittest.TestCase):
         Base.metadata.create_all(bind=self.engine)
 
     def account(self, email, org):
-        r = self.client.post("/api/v1/auth/register", json={"name": "Pessoa", "email": email, "password": PW, "organizationName": org})
+        r = self.client.post(
+            "/api/v1/auth/register",
+            json={
+                "name": "Pessoa",
+                "email": email,
+                "password": PW,
+                "organizationName": org,
+            },
+        )
         self.assertEqual(r.status_code, 201, r.text)
         h = {"Authorization": f"Bearer {r.json()['accessToken']}"}
         return h, self.client.get("/api/v1/auth/me", headers=h).json()["organizationId"]
 
     def scan(self, h, org):
-        sp = self.client.post("/api/v1/species", json={"name": "Bovine"}, headers=h).json()["id"]
-        br = self.client.post(f"/api/v1/species/{sp}/breeds", json={"name": "Limousine"}, headers=h).json()["id"]
-        a = self.client.post("/api/v1/animals", json={"organizationId": org, "speciesId": sp, "breedId": br, "name": "Malhada", "sex": "female"}, headers=h)
+        sp = self.client.post(
+            "/api/v1/species", json={"name": "Bovine"}, headers=h
+        ).json()["id"]
+        br = self.client.post(
+            f"/api/v1/species/{sp}/breeds", json={"name": "Limousine"}, headers=h
+        ).json()["id"]
+        a = self.client.post(
+            "/api/v1/animals",
+            json={
+                "organizationId": org,
+                "speciesId": sp,
+                "breedId": br,
+                "name": "Malhada",
+                "sex": "female",
+            },
+            headers=h,
+        )
         self.assertEqual(a.status_code, 201, a.text)
-        s = self.client.post(f"/api/v1/animals/{a.json()['id']}/scans", json={"estimatedWeight": 520, "bodyLength": 160}, headers=h)
+        s = self.client.post(
+            f"/api/v1/animals/{a.json()['id']}/scans",
+            json={"estimatedWeight": 520, "bodyLength": 160},
+            headers=h,
+        )
         self.assertEqual(s.status_code, 201, s.text)
         return s.json()["id"]
 
     def put(self, h, scan_id, body, fmt="ply"):
-        return self.client.put(f"/api/v1/scans/{scan_id}/mesh?format={fmt}", content=body, headers={**h, "Content-Type": "application/octet-stream"})
+        return self.client.put(
+            f"/api/v1/scans/{scan_id}/mesh?format={fmt}",
+            content=body,
+            headers={**h, "Content-Type": "application/octet-stream"},
+        )
 
     def test_upload_then_download_returns_the_same_bytes(self):
         h, org = self.account("a@x.pt", "Quinta A")
@@ -77,12 +112,18 @@ class ScanMeshTests(unittest.TestCase):
     def test_has_mesh_flag_on_scans(self):
         h, org = self.account("b@x.pt", "Quinta B")
         sid = self.scan(h, org)
-        latest = self.client.get(f"/api/v1/organizations/{org}/animals/latest-scans", headers=h).json()
+        latest = self.client.get(
+            f"/api/v1/organizations/{org}/animals/latest-scans", headers=h
+        ).json()
         self.assertFalse(latest[0]["hasMesh"])
         self.put(h, sid, PLY)
-        latest = self.client.get(f"/api/v1/organizations/{org}/animals/latest-scans", headers=h).json()
+        latest = self.client.get(
+            f"/api/v1/organizations/{org}/animals/latest-scans", headers=h
+        ).json()
         self.assertTrue(latest[0]["hasMesh"])
-        self.assertTrue(self.client.get(f"/api/v1/scans/{sid}", headers=h).json()["hasMesh"])
+        self.assertTrue(
+            self.client.get(f"/api/v1/scans/{sid}", headers=h).json()["hasMesh"]
+        )
 
     def test_upload_replaces_the_previous_model(self):
         h, org = self.account("c@x.pt", "Quinta C")
@@ -90,7 +131,9 @@ class ScanMeshTests(unittest.TestCase):
         self.put(h, sid, PLY)
         newer = PLY + b"1 1 1\n"
         self.assertEqual(self.put(h, sid, newer).status_code, 204)
-        self.assertEqual(self.client.get(f"/api/v1/scans/{sid}/mesh", headers=h).content, newer)
+        self.assertEqual(
+            self.client.get(f"/api/v1/scans/{sid}/mesh", headers=h).content, newer
+        )
 
     def test_content_must_match_the_format(self):
         h, org = self.account("d@x.pt", "Quinta D")
@@ -100,7 +143,9 @@ class ScanMeshTests(unittest.TestCase):
         self.assertEqual(self.put(h, sid, b"", fmt="ply").status_code, 422)
         # Formato fora da lista: erro de validação do parâmetro (a app devolve 400).
         self.assertEqual(self.put(h, sid, PLY, fmt="usdz").status_code, 400)
-        self.assertFalse(self.client.get(f"/api/v1/scans/{sid}", headers=h).json()["hasMesh"])
+        self.assertFalse(
+            self.client.get(f"/api/v1/scans/{sid}", headers=h).json()["hasMesh"]
+        )
 
     def test_too_large_is_rejected(self):
         h, org = self.account("e@x.pt", "Quinta E")
@@ -113,13 +158,17 @@ class ScanMeshTests(unittest.TestCase):
         h2, _ = self.account("g@x.pt", "Quinta G")
         sid = self.scan(h1, org1)
         self.put(h1, sid, PLY)
-        self.assertEqual(self.client.get(f"/api/v1/scans/{sid}/mesh", headers=h2).status_code, 403)
+        self.assertEqual(
+            self.client.get(f"/api/v1/scans/{sid}/mesh", headers=h2).status_code, 403
+        )
         self.assertEqual(self.put(h2, sid, PLY).status_code, 403)
 
     def test_scan_without_model_is_404_and_requires_login(self):
         h, org = self.account("h@x.pt", "Quinta H")
         sid = self.scan(h, org)
-        self.assertEqual(self.client.get(f"/api/v1/scans/{sid}/mesh", headers=h).status_code, 404)
+        self.assertEqual(
+            self.client.get(f"/api/v1/scans/{sid}/mesh", headers=h).status_code, 404
+        )
         self.assertEqual(self.client.get(f"/api/v1/scans/{sid}/mesh").status_code, 401)
 
 

@@ -116,7 +116,9 @@ def list_latest_usable_scans_by_organization(
         )
         .subquery()
     )
-    statement = select(AnimalScan).join(ranked, AnimalScan.id == ranked.c.id).where(
-        ranked.c.rn == 1
+    statement = (
+        select(AnimalScan)
+        .join(ranked, AnimalScan.id == ranked.c.id)
+        .where(ranked.c.rn == 1)
     )
     return list(db.scalars(statement).all())
