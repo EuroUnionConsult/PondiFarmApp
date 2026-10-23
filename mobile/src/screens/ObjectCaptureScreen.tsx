@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
 } from 'react-native';
@@ -16,7 +16,8 @@ import {
   measureObjectBounds,
   type ObjectCapturePhase,
 } from '../../modules/lidar-scanner';
-import { ios } from '../lib/theme';
+import { type Palette } from '../lib/theme';
+import { useTheme } from '../lib/ThemeContext';
 import type { RootStackParamList } from '../navigation/types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -34,6 +35,8 @@ const PHASE_LABEL: Record<ObjectCapturePhase, string> = {
 };
 
 export default function ObjectCaptureScreen() {
+  const { colors: ios } = useTheme();
+  const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
 
@@ -207,7 +210,8 @@ export default function ObjectCaptureScreen() {
 
 const displayFont = Platform.select({ ios: 'System', default: undefined });
 
-const styles = StyleSheet.create({
+// Paleta do tema ativo (claro/escuro), como nos outros ecrãs.
+const makeStyles = (ios: Palette) => StyleSheet.create({
   container: { flex: 1, backgroundColor: ios.systemGroupedBackground },
   center: {
     flex: 1, alignItems: 'center', justifyContent: 'center',

@@ -3,6 +3,7 @@
 // deixa na fila (pending) quando não há, e marca erro só em falhas PERMANENTES.
 import { AppState } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
+import { resolveLocalFile } from './files';
 import { getBackendUrl, isCloudSyncEnabled } from './api';
 import { authHeaders, getOrganizationId } from './auth';
 import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from './weightModel';
@@ -181,12 +182,11 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
  */
 export async function pushMesh(record: ScanRecord): Promise<'synced' | 'pending' | 'error' | 'skipped'> {
   if (!record.remoteId || record.meshSyncState) return 'skipped';
-  const file = record.meshPlyUri || record.meshUri;
+  // O caminho guardado pode ser de uma pasta do app que já não existe (ver files.ts).
+  const file = (await resolveLocalFile(record.meshPlyUri)) ?? (await resolveLocalFile(record.meshUri));
   const fmt = file?.toLowerCase().endsWith('.ply') ? 'ply' : file?.toLowerCase().endsWith('.obj') ? 'obj' : null;
   if (!file || !fmt) { await updateRecord(record.id, { meshSyncState: 'error' }); return 'error'; }
   try {
-    const info = await FileSystem.getInfoAsync(file);
-    if (!info.exists) { await updateRecord(record.id, { meshSyncState: 'error' }); return 'error'; }
     const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
     const res = await FileSystem.uploadAsync(`${base}/api/v1/scans/${record.remoteId}/mesh?format=${fmt}`, file, {
       httpMethod: 'PUT',
@@ -225,6 +225,10 @@ async function runSyncPending(): Promise<{ synced: number; pending: number; erro
       if (effectiveSyncState(r) === 'synced') {
         // Já sincronizado, mas o modelo 3D ainda não subiu (inclui os scans de antes desta versão).
         if (r.remoteId && !r.meshSyncState) await pushMesh(r);
+        else if (r.remoteId && r.meshSyncState === 'error' && !r.meshRetriedAfterPathFix) {
+          await updateRecord(r.id, { meshSyncState: undefined, meshRetriedAfterPathFix: true });
+          await pushMesh({ ...r, meshSyncState: undefined, meshRetriedAfterPathFix: true });
+        }
         continue;
       }
       if (r.syncState === 'error') continue;   // não repetir falha permanente

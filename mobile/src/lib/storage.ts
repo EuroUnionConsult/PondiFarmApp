@@ -53,6 +53,9 @@ export interface ScanRecord {
   // Ausente = a malha ainda não subiu (inclui scans sincronizados antes desta versão).
   // 'error' = falha permanente (ficheiro em falta, formato recusado): não repetir.
   meshSyncState?: 'synced' | 'error';
+  // A 0.8.0 (7) procurava a malha no caminho antigo (antes da correção de files.ts) e
+  // marcava 'error'. Com isto, cada um desses scans tem uma nova tentativa, uma só vez.
+  meshRetriedAfterPathFix?: boolean;
   // --- Dono (segurança) ---
   // Conta e organização da sessão em que o scan foi feito. Num aparelho partilhado
   // (sobretudo no browser), outra conta não vê nem envia estes scans para a sua organização.
