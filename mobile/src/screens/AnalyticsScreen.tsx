@@ -6,7 +6,7 @@ import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { breedLabel } from '../lib/breeds';
-import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
+import { WEIGHT_MODEL_VERSION, estimateWeightKg } from '../lib/weightModel';
 import Svg, { Rect, Line, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -42,7 +42,8 @@ export default function AnalyticsScreen() {
   const cowCount = cows.length;
   const extraCount = totalScans - cowCount;
 
-  // Aggregate over a real geometry measurement (chest girth), never weight.
+  // Medida geométrica real (perímetro torácico) para os detalhes de baixo; o título
+  // é sempre o peso estimado (pedido do Valter, 23/10).
   const girths = records.map(r => r.measurements.chest_girth_cm);
   const avgGirth = girths.length ? girths.reduce((a, b) => a + b, 0) / girths.length : 0;
   const maxGirth = girths.length ? Math.max(...girths) : 0;
@@ -80,6 +81,13 @@ export default function AnalyticsScreen() {
   // Produto = peso. Quando há animais na nuvem, o painel fala de peso (kg);
   // sem nuvem, cai para o perímetro torácico dos scans locais.
   const hasCloud = cloudCount > 0;
+  // Sem nuvem, o título continua a ser o PESO: estimativa dos scans deste telemóvel
+  // (o mesmo modelo do sync), nunca o perímetro torácico.
+  const localKgs = records.filter(r => r.category === 'cow')
+    .map(r => Math.round(estimateWeightKg(r.measurements, r.breed, r.animalCategory ?? 'unknown')))
+    .filter(w => Number.isFinite(w) && w > 0);
+  const heroKgs = hasCloud ? cloudWeights : localKgs;
+  const heroMeanKg = heroKgs.length ? Math.round(heroKgs.reduce((a, b) => a + b, 0) / heroKgs.length) : 0;
 
   return (
     <View style={{ flex: 1 }}>
@@ -112,19 +120,19 @@ export default function AnalyticsScreen() {
         </View>
       ) : (
         <>
-          {/* Hero — Mean chest girth */}
+          {/* Hero — Mean weight */}
           <View style={[styles.group, { marginTop: 22 }]}>
             <View style={styles.card}>
               <View style={styles.hero}>
-                <Text style={styles.eyebrow}>{hasCloud ? 'Mean weight' : 'Mean chest girth'}</Text>
+                <Text style={styles.eyebrow}>Mean weight</Text>
                 <View style={styles.valueRow}>
-                  <Text style={styles.value}>{hasCloud ? (cloudWeights.length ? cloudMeanKg : '—') : avgGirth.toFixed(0)}</Text>
-                  <Text style={styles.valueUnit}>{hasCloud ? 'kg' : 'cm'}</Text>
+                  <Text style={styles.value}>{heroKgs.length ? heroMeanKg : '—'}</Text>
+                  <Text style={styles.valueUnit}>kg</Text>
                 </View>
                 <Text style={styles.heroMeta}>
                   {hasCloud
                     ? (cloudWeights.length ? `Range ${cloudMinKg}–${cloudMaxKg} kg` : 'No weight estimates yet')
-                    : `Range ${minGirth.toFixed(0)}–${maxGirth.toFixed(0)} cm`}
+                    : (localKgs.length ? `Range ${Math.min(...localKgs)}–${Math.max(...localKgs)} kg · scans on this phone` : 'No weight estimates yet')}
                 </Text>
               </View>
               <View style={styles.heroDivider} />
