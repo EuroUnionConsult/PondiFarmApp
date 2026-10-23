@@ -8,6 +8,7 @@ com o formato declarado (assinatura do ficheiro), para não se guardar qualquer 
 from __future__ import annotations
 
 import io
+import warnings
 from collections import OrderedDict
 from datetime import datetime
 from threading import Lock
@@ -81,6 +82,9 @@ def get_mesh(db: Session, scan: AnimalScan) -> AnimalScanMesh:
 # com teto em BYTES, não só em itens: um PLY de texto pode ter vários MB.
 _ply_cache: OrderedDict[tuple[UUID, datetime], bytes] = OrderedDict()
 _ply_lock = Lock()
+# Uma conversão de cada vez: o limite de píxeis do PIL é global, e mudá-lo com duas
+# conversões em paralelo deixaria uma delas sem limite. As conversões são raras.
+_convert_lock = Lock()
 _PLY_CACHE_MAX_BYTES = 64 * 1024 * 1024
 
 # Limites da conversão. Um GLB de 15 MB pode repetir a mesma malha milhares de
@@ -118,8 +122,13 @@ def as_ply(mesh: AnimalScanMesh) -> bytes:
 
     # O PIL descodifica as texturas logo no load: baixa-se o teto de píxeis
     # (a imagem acima disso falha como "decompression bomb" em vez de alocar).
+    _convert_lock.acquire()
     old_max = PIL.Image.MAX_IMAGE_PIXELS
     PIL.Image.MAX_IMAGE_PIXELS = MAX_TEXTURE_PIXELS
+    warn_ctx = warnings.catch_warnings()
+    warn_ctx.__enter__()
+    # Acima do limite o PIL só AVISA (até 2x); aqui o aviso passa a erro.
+    warnings.simplefilter("error", PIL.Image.DecompressionBombWarning)
     try:
         scene = trimesh.load(
             io.BytesIO(mesh.data), file_type=mesh.mesh_format, force="scene"
@@ -159,7 +168,10 @@ def as_ply(mesh: AnimalScanMesh) -> bytes:
         out = m.export(file_type="ply", encoding="ascii")
     except HTTPException:
         raise
-    except PIL.Image.DecompressionBombError as exc:
+    except (
+        PIL.Image.DecompressionBombError,
+        PIL.Image.DecompressionBombWarning,
+    ) as exc:
         raise _too_big() from exc
     except Exception as exc:
         raise HTTPException(
@@ -167,7 +179,9 @@ def as_ply(mesh: AnimalScanMesh) -> bytes:
             "Não foi possível converter o modelo 3D",
         ) from exc
     finally:
+        warn_ctx.__exit__(None, None, None)
         PIL.Image.MAX_IMAGE_PIXELS = old_max
+        _convert_lock.release()
     if len(out) > MAX_PLY_BYTES:
         raise _too_big()
     with _ply_lock:
