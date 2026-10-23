@@ -16,6 +16,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     UniqueConstraint,
+    case,
     exists,
     text,
 )
@@ -597,7 +598,9 @@ class AnimalScanMesh(Base):
     )
 
 
-# Se o scan tem modelo 3D, calculado na própria query (EXISTS), sem carregar a malha.
+# Se o scan tem modelo 3D, calculado na própria query, sem carregar a malha.
+# CASE WHEN EXISTS(...) e não EXISTS(...) sozinho: o SQL Server (Azure SQL) não
+# aceita EXISTS como coluna do SELECT, o SQLite sim — foi assim que partiu a 23/10.
 AnimalScan.has_mesh = column_property(
-    exists().where(AnimalScanMesh.scan_id == AnimalScan.id)
+    case((exists().where(AnimalScanMesh.scan_id == AnimalScan.id), True), else_=False)
 )
