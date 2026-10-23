@@ -225,6 +225,10 @@ async function runSyncPending(): Promise<{ synced: number; pending: number; erro
       if (effectiveSyncState(r) === 'synced') {
         // Já sincronizado, mas o modelo 3D ainda não subiu (inclui os scans de antes desta versão).
         if (r.remoteId && !r.meshSyncState) await pushMesh(r);
+        else if (r.remoteId && r.meshSyncState === 'error' && !r.meshRetriedAfterPathFix) {
+          await updateRecord(r.id, { meshSyncState: undefined, meshRetriedAfterPathFix: true });
+          await pushMesh({ ...r, meshSyncState: undefined, meshRetriedAfterPathFix: true });
+        }
         continue;
       }
       if (r.syncState === 'error') continue;   // não repetir falha permanente
