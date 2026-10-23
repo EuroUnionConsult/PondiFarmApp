@@ -51,6 +51,8 @@ def create_app() -> FastAPI:
         allow_origins=cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
+        # O site lê o formato do modelo 3D neste cabeçalho (GET /scans/{id}/mesh).
+        expose_headers=["X-Mesh-Format"],
     )
 
     register_exception_handlers(app)

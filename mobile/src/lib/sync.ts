@@ -2,6 +2,7 @@
 // O scan é salvo local primeiro; este módulo o envia ao backend quando há rede,
 // deixa na fila (pending) quando não há, e marca erro só em falhas PERMANENTES.
 import { AppState } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { getBackendUrl, isCloudSyncEnabled } from './api';
 import { authHeaders, getOrganizationId } from './auth';
 import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from './weightModel';
@@ -154,6 +155,8 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
     await updateRecord(record.id, {
       syncState: 'synced', remoteId: String(scan.id), remoteAnimalId, syncError: undefined,
     });
+    // O modelo 3D sobe a seguir; se falhar, a próxima sincronização tenta de novo.
+    void pushMesh({ ...record, remoteId: String(scan.id) });
     return 'synced';
   } catch (e: any) {
     if (e instanceof PermanentError) {
@@ -166,6 +169,38 @@ export async function pushRecord(record: ScanRecord): Promise<'synced' | 'pendin
     return 'pending';
   } finally {
     inFlight.delete(record.id);
+  }
+}
+
+/**
+ * Envia o modelo 3D de um scan já sincronizado (PUT /scans/{id}/mesh), para a
+ * versão de computador o poder mostrar. Prefere o PLY (tem a cor de cada ponto);
+ * sem ele, o OBJ. As malhas do scanner têm ~0,2 MB, por isso sobe em qualquer rede.
+ * Falhas de rede ficam para a próxima sincronização; um ficheiro em falta ou um
+ * formato recusado marcam 'error' e não se repetem.
+ */
+export async function pushMesh(record: ScanRecord): Promise<'synced' | 'pending' | 'error' | 'skipped'> {
+  if (!record.remoteId || record.meshSyncState) return 'skipped';
+  const file = record.meshPlyUri || record.meshUri;
+  const fmt = file?.toLowerCase().endsWith('.ply') ? 'ply' : file?.toLowerCase().endsWith('.obj') ? 'obj' : null;
+  if (!file || !fmt) { await updateRecord(record.id, { meshSyncState: 'error' }); return 'error'; }
+  try {
+    const info = await FileSystem.getInfoAsync(file);
+    if (!info.exists) { await updateRecord(record.id, { meshSyncState: 'error' }); return 'error'; }
+    const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
+    const res = await FileSystem.uploadAsync(`${base}/api/v1/scans/${record.remoteId}/mesh?format=${fmt}`, file, {
+      httpMethod: 'PUT',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: { ...DEFAULT_HEADERS, 'Content-Type': 'application/octet-stream', ...(await authHeaders()) },
+    });
+    if (res.status === 204 || res.status === 200) { await updateRecord(record.id, { meshSyncState: 'synced' }); return 'synced'; }
+    if (res.status === 400 || res.status === 404 || res.status === 413 || res.status === 422) {
+      await updateRecord(record.id, { meshSyncState: 'error' });
+      return 'error';
+    }
+    return 'pending';
+  } catch {
+    return 'pending';
   }
 }
 
@@ -187,7 +222,11 @@ async function runSyncPending(): Promise<{ synced: number; pending: number; erro
     const records = await listRecords();
     for (const r of records) {
       if (r.category !== 'cow') continue;
-      if (effectiveSyncState(r) === 'synced') continue;
+      if (effectiveSyncState(r) === 'synced') {
+        // Já sincronizado, mas o modelo 3D ainda não subiu (inclui os scans de antes desta versão).
+        if (r.remoteId && !r.meshSyncState) await pushMesh(r);
+        continue;
+      }
       if (r.syncState === 'error') continue;   // não repetir falha permanente
       const s = await pushRecord(r);
       out[s] += 1;
