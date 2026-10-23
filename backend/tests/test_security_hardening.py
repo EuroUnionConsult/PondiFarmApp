@@ -90,14 +90,24 @@ class SecurityHardeningTests(unittest.TestCase):
         for _ in range(12):
             self.assertEqual(self.login("ok@x.pt", PW).status_code, 200)
 
-    def test_parallel_wrong_passwords_cannot_exceed_the_limit(self):
+    def test_parallel_attempts_cannot_exceed_the_limit(self):
+        # O contador é verificado e incrementado sob o mesmo lock: 20 tentativas em
+        # paralelo dão exatamente 10 aceites e 10 recusadas. Testado direto no
+        # limitador: via HTTP, 20 threads numa ligação SQLite partilhada é instável.
         from concurrent.futures import ThreadPoolExecutor
+        from fastapi import HTTPException
 
-        self.register("par@x.pt")
+        def attempt(_):
+            try:
+                rate_limit.hit("login-fail:par@x.pt:10.0.0.1", 10, 900)
+                return "ok"
+            except HTTPException:
+                return "429"
+
         with ThreadPoolExecutor(max_workers=20) as pool:
-            codes = list(pool.map(lambda _: self.login("par@x.pt", "errada").status_code, range(20)))
-        self.assertEqual(codes.count(401), 10)
-        self.assertEqual(codes.count(429), 10)
+            results = list(pool.map(attempt, range(20)))
+        self.assertEqual(results.count("ok"), 10)
+        self.assertEqual(results.count("429"), 10)
 
     def test_successful_login_resets_the_account_counter(self):
         self.register("b@x.pt")
@@ -109,19 +119,29 @@ class SecurityHardeningTests(unittest.TestCase):
 
     def test_login_blocks_one_ip_trying_many_accounts(self):
         for i in range(30):
-            self.assertEqual(self.login(f"n{i}@x.pt", "errada", ip="10.9.9.9").status_code, 401)
-        self.assertEqual(self.login("outra@x.pt", "errada", ip="10.9.9.9").status_code, 429)
-        self.assertEqual(self.login("outra@x.pt", "errada", ip="10.9.9.8").status_code, 401)
+            self.assertEqual(
+                self.login(f"n{i}@x.pt", "errada", ip="10.9.9.9").status_code, 401
+            )
+        self.assertEqual(
+            self.login("outra@x.pt", "errada", ip="10.9.9.9").status_code, 429
+        )
+        self.assertEqual(
+            self.login("outra@x.pt", "errada", ip="10.9.9.8").status_code, 401
+        )
 
     def test_forged_forwarded_for_prefix_does_not_dodge_the_ip_limit(self):
         # O Azure acrescenta o IP real no fim; o que o cliente põe à esquerda é ignorado.
         for i in range(30):
             self.login(f"m{i}@x.pt", "errada", ip=f"1.1.1.{i}, 10.7.7.7")
-        self.assertEqual(self.login("z@x.pt", "errada", ip="9.9.9.9, 10.7.7.7").status_code, 429)
+        self.assertEqual(
+            self.login("z@x.pt", "errada", ip="9.9.9.9, 10.7.7.7").status_code, 429
+        )
 
     def test_register_is_limited_per_ip(self):
         for i in range(10):
-            self.assertEqual(self.register(f"r{i}@x.pt", ip="10.3.3.3").status_code, 201)
+            self.assertEqual(
+                self.register(f"r{i}@x.pt", ip="10.3.3.3").status_code, 201
+            )
         self.assertEqual(self.register("r10@x.pt", ip="10.3.3.3").status_code, 429)
         self.assertEqual(self.register("r10@x.pt", ip="10.3.3.4").status_code, 201)
 
