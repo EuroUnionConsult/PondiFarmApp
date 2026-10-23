@@ -88,6 +88,8 @@ _PLY_CACHE_MAX_BYTES = 64 * 1024 * 1024
 # podia gastar memória e CPU sem fim. As malhas reais ficam muito abaixo
 # (a maior da sessão de campo tem ~100 mil vértices e textura de 4096 px).
 MAX_CONVERT_VERTICES = 2_000_000
+MAX_CONVERT_FACES = 4_000_000
+MAX_CONVERT_INSTANCES = 2_000
 MAX_TEXTURE_PIXELS = 4096 * 4096
 MAX_PLY_BYTES = 40 * 1024 * 1024
 
@@ -111,29 +113,45 @@ def as_ply(mesh: AnimalScanMesh) -> bytes:
         if key in _ply_cache:
             _ply_cache.move_to_end(key)
             return _ply_cache[key]
+    import PIL.Image
     import trimesh  # só quando é preciso converter
 
+    # O PIL descodifica as texturas logo no load: baixa-se o teto de píxeis
+    # (a imagem acima disso falha como "decompression bomb" em vez de alocar).
+    old_max = PIL.Image.MAX_IMAGE_PIXELS
+    PIL.Image.MAX_IMAGE_PIXELS = MAX_TEXTURE_PIXELS
     try:
         scene = trimesh.load(
             io.BytesIO(mesh.data), file_type=mesh.mesh_format, force="scene"
         )
-        # Conta os vértices de TODAS as instâncias antes de achatar a cena.
-        total = 0
-        for node in scene.graph.nodes_geometry:
+        # Antes de achatar: instâncias, vértices e faces de todas as instâncias,
+        # e o tamanho das texturas. Geometria de um tipo desconhecido é recusada.
+        nodes = scene.graph.nodes_geometry
+        if len(nodes) > MAX_CONVERT_INSTANCES:
+            raise _too_big()
+        verts = faces = 0
+        for node in nodes:
             _, geom_name = scene.graph[node]
             g = scene.geometry.get(geom_name)
-            total += len(getattr(g, "vertices", ()))
-            if total > MAX_CONVERT_VERTICES:
+            if not isinstance(g, trimesh.Trimesh):
                 raise _too_big()
+            verts += len(g.vertices)
+            faces += len(g.faces)
+            if verts > MAX_CONVERT_VERTICES or faces > MAX_CONVERT_FACES:
+                raise _too_big()
+        bake = True
+        for g in scene.geometry.values():
+            material = getattr(getattr(g, "visual", None), "material", None)
+            for attr in ("image", "baseColorTexture"):
+                img = getattr(material, attr, None)
+                if img is not None and img.width * img.height > MAX_TEXTURE_PIXELS:
+                    bake = False  # textura enorme: não se converte em cor, fica a forma
         m = (
             scene.to_geometry()
             if hasattr(scene, "to_geometry")
             else scene.dump(concatenate=True)
         )
-        img = getattr(
-            getattr(getattr(m, "visual", None), "material", None), "image", None
-        )
-        if img is None or img.width * img.height <= MAX_TEXTURE_PIXELS:
+        if bake:
             try:
                 m.visual = m.visual.to_color()  # textura -> cor por vértice
             except Exception:
@@ -141,11 +159,15 @@ def as_ply(mesh: AnimalScanMesh) -> bytes:
         out = m.export(file_type="ply", encoding="ascii")
     except HTTPException:
         raise
+    except PIL.Image.DecompressionBombError as exc:
+        raise _too_big() from exc
     except Exception as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "Não foi possível converter o modelo 3D",
         ) from exc
+    finally:
+        PIL.Image.MAX_IMAGE_PIXELS = old_max
     if len(out) > MAX_PLY_BYTES:
         raise _too_big()
     with _ply_lock:
