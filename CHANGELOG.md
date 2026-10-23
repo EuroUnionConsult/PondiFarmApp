@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.8.0...v0.9.0) (2026-10-23)
+
+
+### Features
+
+* 3D scan models in the cloud (upload from the app, served to the web) ([#124](https://github.com/EuroUnionConsult/PondiFarmApp/issues/124)) ([6c6859f](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6c6859fcd061f6f42b9d12c2c3eff41bb1259dfb))
+* **mobile:** cattle icon, weight history, loading skeletons, latest cloud animals ([#123](https://github.com/EuroUnionConsult/PondiFarmApp/issues/123)) ([2d12ccb](https://github.com/EuroUnionConsult/PondiFarmApp/commit/2d12ccb55b7fd431a5a5b05005f890c35904f0e6))
+
+
+### Bug Fixes
+
+* 3D scan in the app, dark theme, reliable sign out, weight headline and safer mesh conversion ([#127](https://github.com/EuroUnionConsult/PondiFarmApp/issues/127)) ([2b29ca3](https://github.com/EuroUnionConsult/PondiFarmApp/commit/2b29ca33651405e5aa8779ec3c8301887bfb5268))
+* **backend:** has_mesh as CASE WHEN EXISTS (SQL Server rejects bare EXISTS) ([#125](https://github.com/EuroUnionConsult/PondiFarmApp/issues/125)) ([79f15b7](https://github.com/EuroUnionConsult/PondiFarmApp/commit/79f15b72e369b7f83b978211bfd12c301ce02924))
+* **backend:** rate limit, security headers, docs desligados, PyJWT 2.15.1 e Pillow 13 ([#120](https://github.com/EuroUnionConsult/PondiFarmApp/issues/120)) ([9f6dd4f](https://github.com/EuroUnionConsult/PondiFarmApp/commit/9f6dd4ff22ea0143febae677e7905e451824d9a8))
+* **mobile:** 3D files after app updates, dark theme on scan screens ([#126](https://github.com/EuroUnionConsult/PondiFarmApp/issues/126)) ([6c9f129](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6c9f129590625b3fd409a52414c69e20e3b1774b))
+* **mobile:** clip ScreenBackground blobs so web pages do not overflow ([#121](https://github.com/EuroUnionConsult/PondiFarmApp/issues/121)) ([81cc7aa](https://github.com/EuroUnionConsult/PondiFarmApp/commit/81cc7aa3a6cd5e1c871c2f9305e1d199350b4327))
+* **mobile:** scans locais isolados por conta e organização ([#119](https://github.com/EuroUnionConsult/PondiFarmApp/issues/119)) ([d1cf62f](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d1cf62f3adea5af0c246155cd4af8cf0f3724d76))
+* rebanho num só pedido e anel de sincronização no avatar ([#116](https://github.com/EuroUnionConsult/PondiFarmApp/issues/116)) ([b72bfb1](https://github.com/EuroUnionConsult/PondiFarmApp/commit/b72bfb1cb491b79a72fb356f6073d9d3f854bdb5))
+
 ## [0.8.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.7.0...v0.8.0) (2026-10-21)
 
 
