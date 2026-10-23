@@ -183,6 +183,35 @@ class ScanMeshTests(unittest.TestCase):
             self.client.get(f"/api/v1/scans/{sid}/mesh?as=ply", headers=h).content, PLY
         )
 
+    def test_conversion_rejects_scenes_with_too_many_instanced_vertices(self):
+        import trimesh
+        from services import scan_mesh_service
+
+        h, org = self.account("j@x.pt", "Quinta J")
+        sid = self.scan(h, org)
+        # Uma caixa pequena repetida em muitas instâncias: ficheiro minúsculo, cena enorme.
+        box = trimesh.creation.box()
+        scene = trimesh.Scene()
+        for i in range(200):
+            scene.add_geometry(
+                box,
+                geom_name="box",
+                node_name=f"n{i}",
+                transform=trimesh.transformations.translation_matrix([i, 0, 0]),
+            )
+        glb = scene.export(file_type="glb")
+        self.assertLess(len(glb), 50_000)
+        self.put(h, sid, glb, fmt="glb")
+        old = scan_mesh_service.MAX_CONVERT_VERTICES
+        scan_mesh_service.MAX_CONVERT_VERTICES = (
+            1000  # 200 instâncias x 8 vértices = 1600
+        )
+        try:
+            r = self.client.get(f"/api/v1/scans/{sid}/mesh?as=ply", headers=h)
+            self.assertEqual(r.status_code, 413)
+        finally:
+            scan_mesh_service.MAX_CONVERT_VERTICES = old
+
     def test_scan_without_model_is_404_and_requires_login(self):
         h, org = self.account("h@x.pt", "Quinta H")
         sid = self.scan(h, org)

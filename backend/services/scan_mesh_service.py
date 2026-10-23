@@ -77,10 +77,25 @@ def get_mesh(db: Session, scan: AnimalScan) -> AnimalScanMesh:
     return row
 
 
-# Conversões recentes em memória (o mesmo modelo é pedido várias vezes seguidas).
+# Conversões recentes em memória (o mesmo modelo é pedido várias vezes seguidas),
+# com teto em BYTES, não só em itens: um PLY de texto pode ter vários MB.
 _ply_cache: OrderedDict[tuple[UUID, datetime], bytes] = OrderedDict()
 _ply_lock = Lock()
-_PLY_CACHE_ITEMS = 8
+_PLY_CACHE_MAX_BYTES = 64 * 1024 * 1024
+
+# Limites da conversão. Um GLB de 15 MB pode repetir a mesma malha milhares de
+# vezes (instâncias) ou trazer uma textura enorme: sem isto, achatar o modelo
+# podia gastar memória e CPU sem fim. As malhas reais ficam muito abaixo
+# (a maior da sessão de campo tem ~100 mil vértices e textura de 4096 px).
+MAX_CONVERT_VERTICES = 2_000_000
+MAX_TEXTURE_PIXELS = 4096 * 4096
+MAX_PLY_BYTES = 40 * 1024 * 1024
+
+
+def _too_big() -> HTTPException:
+    return HTTPException(
+        status.HTTP_413_CONTENT_TOO_LARGE, "Modelo 3D demasiado grande para converter"
+    )
 
 
 def as_ply(mesh: AnimalScanMesh) -> bytes:
@@ -99,21 +114,45 @@ def as_ply(mesh: AnimalScanMesh) -> bytes:
     import trimesh  # só quando é preciso converter
 
     try:
-        m = trimesh.load(
-            io.BytesIO(mesh.data), file_type=mesh.mesh_format, force="mesh"
+        scene = trimesh.load(
+            io.BytesIO(mesh.data), file_type=mesh.mesh_format, force="scene"
         )
-        try:
-            m.visual = m.visual.to_color()  # textura -> cor por vértice
-        except Exception:
-            pass  # sem textura: fica só a forma
+        # Conta os vértices de TODAS as instâncias antes de achatar a cena.
+        total = 0
+        for node in scene.graph.nodes_geometry:
+            _, geom_name = scene.graph[node]
+            g = scene.geometry.get(geom_name)
+            total += len(getattr(g, "vertices", ()))
+            if total > MAX_CONVERT_VERTICES:
+                raise _too_big()
+        m = (
+            scene.to_geometry()
+            if hasattr(scene, "to_geometry")
+            else scene.dump(concatenate=True)
+        )
+        img = getattr(
+            getattr(getattr(m, "visual", None), "material", None), "image", None
+        )
+        if img is None or img.width * img.height <= MAX_TEXTURE_PIXELS:
+            try:
+                m.visual = m.visual.to_color()  # textura -> cor por vértice
+            except Exception:
+                pass  # sem textura: fica só a forma
         out = m.export(file_type="ply", encoding="ascii")
+    except HTTPException:
+        raise
     except Exception as exc:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "Não foi possível converter o modelo 3D",
         ) from exc
+    if len(out) > MAX_PLY_BYTES:
+        raise _too_big()
     with _ply_lock:
         _ply_cache[key] = out
-        while len(_ply_cache) > _PLY_CACHE_ITEMS:
+        while (
+            sum(len(v) for v in _ply_cache.values()) > _PLY_CACHE_MAX_BYTES
+            and len(_ply_cache) > 1
+        ):
             _ply_cache.popitem(last=False)
     return out
