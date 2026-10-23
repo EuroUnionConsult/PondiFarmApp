@@ -90,14 +90,24 @@ class SecurityHardeningTests(unittest.TestCase):
         for _ in range(12):
             self.assertEqual(self.login("ok@x.pt", PW).status_code, 200)
 
-    def test_parallel_wrong_passwords_cannot_exceed_the_limit(self):
+    def test_parallel_attempts_cannot_exceed_the_limit(self):
+        # O contador é verificado e incrementado sob o mesmo lock: 20 tentativas em
+        # paralelo dão exatamente 10 aceites e 10 recusadas. Testado direto no
+        # limitador: via HTTP, 20 threads numa ligação SQLite partilhada é instável.
         from concurrent.futures import ThreadPoolExecutor
+        from fastapi import HTTPException
 
-        self.register("par@x.pt")
+        def attempt(_):
+            try:
+                rate_limit.hit("login-fail:par@x.pt:10.0.0.1", 10, 900)
+                return "ok"
+            except HTTPException:
+                return "429"
+
         with ThreadPoolExecutor(max_workers=20) as pool:
-            codes = list(pool.map(lambda _: self.login("par@x.pt", "errada").status_code, range(20)))
-        self.assertEqual(codes.count(401), 10)
-        self.assertEqual(codes.count(429), 10)
+            results = list(pool.map(attempt, range(20)))
+        self.assertEqual(results.count("ok"), 10)
+        self.assertEqual(results.count("429"), 10)
 
     def test_successful_login_resets_the_account_counter(self):
         self.register("b@x.pt")

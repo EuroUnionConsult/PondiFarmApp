@@ -114,6 +114,8 @@ class AnimalScanResponse(APIModel):
     raw_result_json: dict[str, Any] | list[Any] | None = None
     client_scan_id: str | None = None
     notes: str | None = None
+    # O scan tem um modelo 3D guardado (GET /scans/{id}/mesh devolve-o).
+    has_mesh: bool = False
     created_at: datetime
     updated_at: datetime
 

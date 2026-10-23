@@ -11,13 +11,16 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     JSON,
+    LargeBinary,
     String,
     UniqueConstraint,
+    exists,
     text,
 )
 from sqlalchemy.dialects.mssql import UNIQUEIDENTIFIER
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
 from core.database import Base
@@ -549,3 +552,52 @@ class AnimalDocument(Base):
     organization: Mapped[Organization] = relationship()
     animal: Mapped[Animal] = relationship(back_populates="documents")
     uploaded_by_user: Mapped[User | None] = relationship()
+
+
+# Formatos de malha aceites. O scanner grava PLY (com cor por vértice) e OBJ;
+# GLB é o que o visualizador da versão web lê melhor.
+MESH_FORMATS = ("ply", "obj", "glb")
+# As malhas do scanner têm ~0,1–0,3 MB; o teto deixa margem para modelos maiores.
+MESH_MAX_BYTES = 15 * 1024 * 1024
+
+
+class AnimalScanMesh(Base):
+    """Modelo 3D de um scan (um por scan), para o ver noutros aparelhos.
+
+    Fica na base de dados e não num blob storage porque as malhas do scanner são
+    pequenas (~0,2 MB; 290 animais ≈ 60 MB). Se os modelos crescerem (USDZ do
+    modo Studio), muda-se só o serviço que os guarda.
+    """
+
+    __tablename__ = "animal_scan_meshes"
+    __table_args__ = (
+        CheckConstraint(
+            "mesh_format IN ('ply', 'obj', 'glb')",
+            name="chk_animal_scan_meshes_format",
+        ),
+    )
+
+    scan_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("animal_scans.id"), primary_key=True
+    )
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("organizations.id"), nullable=False, index=True
+    )
+    mesh_format: Mapped[str] = mapped_column(String(8), nullable=False)
+    size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    uploaded_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+# Se o scan tem modelo 3D, calculado na própria query (EXISTS), sem carregar a malha.
+AnimalScan.has_mesh = column_property(
+    exists().where(AnimalScanMesh.scan_id == AnimalScan.id)
+)

@@ -49,6 +49,10 @@ export interface ScanRecord {
   remoteId?: string;            // id do scan no backend
   remoteAnimalId?: string;      // id do animal no backend
   syncError?: string;           // mensagem se syncState === 'error'
+  // --- Modelo 3D na nuvem ---
+  // Ausente = a malha ainda não subiu (inclui scans sincronizados antes desta versão).
+  // 'error' = falha permanente (ficheiro em falta, formato recusado): não repetir.
+  meshSyncState?: 'synced' | 'error';
   // --- Dono (segurança) ---
   // Conta e organização da sessão em que o scan foi feito. Num aparelho partilhado
   // (sobretudo no browser), outra conta não vê nem envia estes scans para a sua organização.
