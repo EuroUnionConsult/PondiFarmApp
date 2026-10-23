@@ -50,7 +50,10 @@ async function setToken(t: string): Promise<void> {
 }
 
 export async function clearToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
+  // Nunca lança: se o Keychain recusar apagar, o logout tem de sair na mesma.
+  // Nesse caso sobrescreve com vazio, que o getToken() lê como sem sessão.
+  try { await SecureStore.deleteItemAsync(TOKEN_KEY); }
+  catch { try { await SecureStore.setItemAsync(TOKEN_KEY, ''); } catch {} }
 }
 
 /** Cabeçalho Authorization se houver token (para anexar em requests autenticados). */
