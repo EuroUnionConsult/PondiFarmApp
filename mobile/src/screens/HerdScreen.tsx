@@ -13,7 +13,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { fonts, type Palette } from '../lib/theme';
+import { estimateWeightKg } from '../lib/weightModel';
 import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
+import { useAuth } from '../lib/AuthContext';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
 import ScreenBackground from '../components/ScreenBackground';
@@ -68,6 +70,9 @@ export default function HerdScreen() {
   // utilizador conclui que perdeu os animais.
   const [cloudOffline, setCloudOffline] = useState(false);
 
+  // Recarrega o ecrã aberto quando muda o acesso (aprovado, removido, outra organização).
+  const { user } = useAuth();
+  const access = `${user?.membershipStatus ?? ''}|${user?.organizationId ?? ''}`;
   const load = useCallback(async () => {
     const cached = await getCachedCloudAnimals();
     if (cached.length) { setCloud(cached); setCloudLoaded(true); }   // instantâneo
@@ -89,7 +94,8 @@ export default function HerdScreen() {
         fetchCloudAnimals().then(setCloud).catch(() => {});
       }
     }).catch(() => {});
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access]);
 
   const cloudFiltered = useMemo(
     () => cloud.filter(c => {
@@ -282,9 +288,9 @@ export default function HerdScreen() {
                     </View>
                     <View style={styles.rowMetric}>
                       <Text style={styles.rowMetricValue}>
-                        {rec.measurements.chest_girth_cm.toFixed(0)}
+                        {isCow ? Math.round(estimateWeightKg(rec.measurements, rec.breed, rec.animalCategory ?? 'unknown')) : '—'}
                       </Text>
-                      <Text style={styles.rowMetricUnit}>cm girth</Text>
+                      <Text style={styles.rowMetricUnit}>kg</Text>
                     </View>
                     {isCow && effectiveSyncState(rec) !== 'synced' && (
                       <Ionicons

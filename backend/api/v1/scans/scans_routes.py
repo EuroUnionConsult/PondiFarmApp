@@ -163,18 +163,23 @@ async def upload_scan_mesh(
 @scans_router.get("/scans/{scan_id}/mesh", summary="Download the 3D model of a scan")
 def get_scan_mesh(
     scan_id: UUID,
+    as_format: Literal["ply"] | None = Query(default=None, alias="as"),
     db: Session = Depends(get_db),
     current: CurrentUser = Depends(get_current_user),
 ):
+    """`?as=ply` devolve o modelo convertido para PLY (o iPhone não abre GLB)."""
     scan = scan_service.get_scan_entity(db, scan_id)
     _ensure_animal_in_org(db, current, scan.animal_id)
     mesh = scan_mesh_service.get_mesh(db, scan)
+    fmt, data = mesh.mesh_format, mesh.data
+    if as_format == "ply":
+        fmt, data = "ply", scan_mesh_service.as_ply(mesh)
     return Response(
-        content=mesh.data,
-        media_type=scan_mesh_service.MEDIA_TYPES[mesh.mesh_format],
+        content=data,
+        media_type=scan_mesh_service.MEDIA_TYPES[fmt],
         headers={
-            "X-Mesh-Format": mesh.mesh_format,
-            "Content-Disposition": f'inline; filename="scan-{scan_id}.{mesh.mesh_format}"',
+            "X-Mesh-Format": fmt,
+            "Content-Disposition": f'inline; filename="scan-{scan_id}.{fmt}"',
             # Privado: só o browser de quem tem sessão guarda; o modelo não muda sem novo upload.
             "Cache-Control": "private, max-age=3600",
         },

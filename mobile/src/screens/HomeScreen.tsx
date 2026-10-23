@@ -12,6 +12,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { Palette } from '../lib/theme';
 import { listRecords, countPendingSync, type ScanRecord } from '../lib/storage';
+import { estimateWeightKg } from '../lib/weightModel';
 import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, type Profile } from '../lib/profile';
 import ScreenBackground from '../components/ScreenBackground';
@@ -41,6 +42,9 @@ export default function HomeScreen() {
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
+  // Muda quando o Líder aprova, remove ou a pessoa troca de organização: o ecrã
+  // aberto recarrega o rebanho sozinho (o useFocusEffect corre de novo).
+  const access = `${user?.membershipStatus ?? ''}|${user?.organizationId ?? ''}`;
   const [profile, setProfile] = useState<Profile | null>(null);
 
   // Relido sempre que a Home volta a aparecer: o nome edita-se no Perfil.
@@ -62,7 +66,8 @@ export default function HomeScreen() {
     setBackendOk(health);
     try { setCloud(await fetchCloudAnimals()); } catch { /* mantém o cache em falha de rede */ }
     finally { setCloudLoaded(true); }
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -74,9 +79,9 @@ export default function HomeScreen() {
 
   const cows = records.filter(r => r.category === 'cow');
   const totalAnimals = [...new Set(cows.map(r => r.animalId).filter(Boolean))].length;
-  const avgGirth = records.length
-    ? Math.round(records.reduce((s, r) => s + r.measurements.chest_girth_cm, 0) / records.length)
-    : 0;
+  // Peso estimado de um scan local (o mesmo modelo que o sync envia para a nuvem).
+  const localKg = (r: ScanRecord) => Math.round(estimateWeightKg(r.measurements, r.breed, r.animalCategory ?? 'unknown'));
+  const localWeights = cows.map(localKg).filter(w => Number.isFinite(w) && w > 0);
 
   const cloudCount = cloud.length;
   const cloudWeights = cloud.map(c => c.weightKg).filter((w): w is number => w != null);
@@ -84,12 +89,18 @@ export default function HomeScreen() {
     ? Math.round(cloudWeights.reduce((a, b) => a + b, 0) / cloudWeights.length)
     : 0;
 
-  // Headline metric: weight (the product) when there are cloud animals; else local girth.
+  // Headline metric: SEMPRE o peso (é o produto). Da nuvem quando há estimativas;
+  // sem nuvem (à espera de aprovação, offline sem cache, ainda a carregar) usa a
+  // estimativa dos scans deste telemóvel. Antes caía para o perímetro torácico e o
+  // ecrã inicial passava a dizer «Mean chest girth» (relato do Valter, 23/10).
+  const localMeanKg = localWeights.length
+    ? Math.round(localWeights.reduce((a, b) => a + b, 0) / localWeights.length)
+    : 0;
   const hasCloud = cloudCount > 0;
-  const heroLabel = hasCloud ? 'Mean weight' : 'Mean chest girth';
-  const heroValue = hasCloud ? (cloudMeanKg > 0 ? String(cloudMeanKg) : '—')
-                             : (avgGirth > 0 ? String(avgGirth) : '—');
-  const heroUnit = hasCloud ? 'kg' : 'cm';
+  const heroLabel = 'Mean weight';
+  const heroKg = cloudMeanKg > 0 ? cloudMeanKg : localMeanKg;
+  const heroValue = heroKg > 0 ? String(heroKg) : '—';
+  const heroUnit = 'kg';
   const totalAnimalsUnified = totalAnimals + cloudCount;
   const pendingSync = countPendingSync(records);
   // Ring = sync progress of local scans (100% when nothing is waiting to upload).
@@ -231,9 +242,9 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.rowMetric}>
                   <Text style={styles.rowMetricValue}>
-                    {rec.measurements.chest_girth_cm.toFixed(0)}
+                    {isCow ? localKg(rec) : '—'}
                   </Text>
-                  <Text style={styles.rowMetricUnit}>cm girth</Text>
+                  <Text style={styles.rowMetricUnit}>kg</Text>
                 </View>
                 <Text style={styles.rowChevron}>›</Text>
               </PressableScale>

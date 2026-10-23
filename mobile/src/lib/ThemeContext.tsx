@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { Appearance, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ios, iosDark, type Palette } from './theme';
 
@@ -26,6 +27,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       .then(v => { if (v === 'dark' || v === 'light') setModeState(v); })
       .catch(() => {});
   }, []);
+
+  // Os alertas e menus nativos do iOS (Alert.alert, ActionSheet) seguem o tema
+  // do SISTEMA, não o do app: com o app escuro e o iPhone claro, o «Ask to join?»
+  // saía claro. Isto aplica o tema escolhido às janelas nativas do app.
+  useEffect(() => {
+    if (Platform.OS !== 'web') Appearance.setColorScheme?.(mode);
+  }, [mode]);
 
   const setMode = useCallback((m: ThemeMode) => {
     setModeState(m);

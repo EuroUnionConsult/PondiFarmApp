@@ -29,7 +29,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const t = await auth.getToken();
       if (t) {
         setToken(t);
-        setUser(await auth.fetchMe());
+        // reloadMe (não só fetchMe): quem foi aprovado, removido ou mudou de
+        // organização com a app FECHADA abre já com o token certo. Antes ficava
+        // «Member» com o token antigo e tudo dava 403 até voltar ao 1.º plano.
+        await reloadMe();
       }
       setLoading(false);
     })();
@@ -108,13 +111,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await auth.clearToken();
     // O cache da nuvem é por organização, mas não deve sobreviver ao logout:
     // parar o auto-sync antes evita que um push em curso o volte a escrever.
     stopAutoSync();
-    await clearCloudCache();
-    setToken(null);
-    setUser(null);
+    try {
+      await auth.clearToken();
+      await clearCloudCache();
+    } finally {
+      // Sai SEMPRE do ecrã da app, mesmo que limpar o armazenamento falhe.
+      setToken(null);
+      setUser(null);
+    }
   }, []);
 
   return (
