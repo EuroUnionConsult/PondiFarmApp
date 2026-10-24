@@ -52,7 +52,7 @@ export default function WeatherIcon({ kind, size = 34, chip = false, dot = false
   const blue = dark ? '#7FB0E6' : '#2563A8', navy = dark ? '#9DBCE0' : '#1B3A57';
   const hot = kind === 'hot';
   // Ids únicos por ícone: com vários na página, um id repetido apontava para o gradiente errado.
-  const uid = useRef(`wx${Math.random().toString(36).slice(2, 8)}`).current;
+  const uid = `wx${React.useId().replace(/[^a-zA-Z0-9]/g, '')}`;
 
   const spin = useLoop(16000, run && (kind === 'sun' || hot));
   const breath = useLoop(2400, run && (kind === 'sun' || hot));

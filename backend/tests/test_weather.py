@@ -2,7 +2,7 @@
 
 import os
 import unittest
-from unittest import mock
+import unittest.mock
 
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ.setdefault("JWT_SECRET", "segredo-so-para-testes")
@@ -103,7 +103,9 @@ class WeatherRouteTests(toa.OrganizationAccessTests):
             "location": {"lat": 39.82, "lon": -7.49, "label": "Castelo Branco"},
             "alerts": [],
         }
-        with mock.patch.object(wx, "forecast_for", return_value=dict(fake)) as f:
+        with unittest.mock.patch.object(
+            wx, "forecast_for", return_value=dict(fake)
+        ) as f:
             got = self.client.get(url, headers=self.h(member))
         self.assertEqual(got.status_code, 200, got.text)
         f.assert_called_once_with(39.82, -7.49, "Castelo Branco", None)
