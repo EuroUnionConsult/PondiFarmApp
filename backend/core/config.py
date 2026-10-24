@@ -4,7 +4,6 @@ import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from urllib.parse import quote_plus
 
 from sqlalchemy.engine import URL
 
@@ -71,9 +70,12 @@ def _build_database_url() -> str:
         f"TrustServerCertificate={trust_certificate};"
         "Connection Timeout=10;"
     )
+    # Sem quote_plus: URL.create já codifica ao renderizar. O SQLAlchemy 2.0 voltava
+    # a descodificar o odbc_connect e escondia a dupla codificação; o 2.1 entrega-o ao
+    # driver tal como está e a produção não arrancava (IM002, 24/10/2026).
     return URL.create(
         "mssql+pyodbc",
-        query={"odbc_connect": quote_plus(odbc_connection_string)},
+        query={"odbc_connect": odbc_connection_string},
     ).render_as_string(hide_password=False)
 
 
