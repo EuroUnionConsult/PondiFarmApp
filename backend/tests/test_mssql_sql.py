@@ -53,3 +53,42 @@ class MssqlCompatibilityTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AzureSqlUrlTests(unittest.TestCase):
+    """O URL do Azure SQL tem de chegar ao pyodbc como string ODBC limpa.
+
+    A 24/10/2026 o SQLAlchemy 2.1 deixou de descodificar `odbc_connect`; com a string
+    codificada duas vezes o driver recebia «DRIVER%3D%7B...» e a produção não
+    arrancava (IM002). Este teste corre o caminho completo: URL -> texto -> URL ->
+    argumentos do driver.
+    """
+
+    @unittest.skipIf(
+        __import__("sqlalchemy").__version__.startswith("2.0"),
+        "o 2.0 descodificava o odbc_connect (o requirements fixa a 2.1)",
+    )
+    def test_odbc_connect_reaches_driver_unencoded(self):
+        from unittest import mock
+
+        from sqlalchemy.dialects.mssql import pyodbc
+        from sqlalchemy.engine import make_url
+
+        from core import config
+
+        env = {
+            "AZURE_SQL_SERVER": "tcp:exemplo.database.windows.net",
+            "AZURE_SQL_DATABASE": "pondifarm",
+            "AZURE_SQL_USERNAME": "app",
+            "AZURE_SQL_PASSWORD": "p&w=d;r%d+",
+        }
+        with mock.patch.dict(os.environ, env, clear=False):
+            os.environ.pop("DATABASE_URL", None)
+            url = config._build_database_url()
+        args, _ = pyodbc.dialect().create_connect_args(make_url(url))
+        odbc = args[0]
+        self.assertTrue(
+            odbc.startswith("DRIVER={ODBC Driver 18 for SQL Server};"), odbc[:60]
+        )
+        self.assertIn("SERVER=tcp:exemplo.database.windows.net,1433;", odbc)
+        self.assertIn("PWD=p&w=d;r%d+;", odbc)
