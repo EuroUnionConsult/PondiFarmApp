@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.9.0...v0.10.0) (2026-10-24)
+
+
+### Features
+
+* organization history, animal sex, farm weather and 3D views ([#128](https://github.com/EuroUnionConsult/PondiFarmApp/issues/128)) ([1132360](https://github.com/EuroUnionConsult/PondiFarmApp/commit/1132360b14ab2877b4d2c5ff7de04c4e2b89cd3c))
+
 ## [0.9.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.8.0...v0.9.0) (2026-10-23)
 
 
