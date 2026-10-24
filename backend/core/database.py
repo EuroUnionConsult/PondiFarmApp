@@ -107,6 +107,24 @@ def _ensure_animals_created_by_column(connection: Connection) -> None:
         )
 
 
+def _ensure_organization_farm_location_columns(connection: Connection) -> None:
+    """Localização da quinta (previsão do tempo). Aditiva e idempotente: anulável."""
+    inspector = inspect(connection)
+    existing = {column["name"] for column in inspector.get_columns("organizations")}
+    text_type = (
+        "NVARCHAR(255)" if connection.dialect.name == "mssql" else "VARCHAR(255)"
+    )
+    for name, kind in (
+        ("farm_lat", "FLOAT"),
+        ("farm_lon", "FLOAT"),
+        ("farm_label", text_type),
+    ):
+        if name not in existing:
+            connection.execute(
+                text(f"ALTER TABLE organizations ADD {name} {kind} NULL")
+            )
+
+
 def _ensure_client_scan_id_column(connection: Connection) -> None:
     """Idempotência do push (C4): coluna + índice único filtrado em animal_scans.
     Dois pushes do mesmo scan local (retry após timeout) não criam duplicata."""
@@ -133,7 +151,13 @@ def _ensure_client_scan_id_column(connection: Connection) -> None:
 def ensure_schema_compatibility(bind: Engine) -> None:
     inspector = inspect(bind)
     table_names = set(inspector.get_table_names())
-    if not table_names & {"species", "breeds", "animal_scans", "animals"}:
+    if not table_names & {
+        "species",
+        "breeds",
+        "animal_scans",
+        "animals",
+        "organizations",
+    }:
         return
 
     with bind.begin() as connection:
@@ -146,6 +170,8 @@ def ensure_schema_compatibility(bind: Engine) -> None:
             _ensure_thoracic_depth_column(connection)
         if "animals" in table_names:
             _ensure_animals_created_by_column(connection)
+        if "organizations" in table_names:
+            _ensure_organization_farm_location_columns(connection)
 
 
 def get_engine() -> Engine:

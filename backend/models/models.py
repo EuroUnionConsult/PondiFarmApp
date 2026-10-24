@@ -62,6 +62,12 @@ class Organization(Base):
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Localização da quinta para a previsão do tempo (o Líder marca-a uma vez).
+    # Guardada arredondada a 0,01° (~1 km): o modelo do tempo tem ~9 km de
+    # resolução, e o ponto exato da exploração nunca fica gravado.
+    farm_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    farm_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    farm_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
