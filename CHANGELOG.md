@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.10.0...v0.10.1) (2026-10-24)
+
+
+### Bug Fixes
+
+* **backend:** pass odbc_connect unencoded (SQLAlchemy 2.1 no longer decodes it) ([#130](https://github.com/EuroUnionConsult/PondiFarmApp/issues/130)) ([bfb2f21](https://github.com/EuroUnionConsult/PondiFarmApp/commit/bfb2f21938ea30d9f1f9338c4fd87e4484f5acfc))
+
 ## [0.10.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.9.0...v0.10.0) (2026-10-24)
 
 
