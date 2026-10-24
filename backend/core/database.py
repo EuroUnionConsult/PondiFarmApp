@@ -95,6 +95,18 @@ def _ensure_thoracic_depth_column(connection: Connection) -> None:
         )
 
 
+def _ensure_animals_created_by_column(connection: Connection) -> None:
+    """Quem criou o animal (decide o sexo). Aditiva e idempotente: anulável, sem
+    backfill — não há registo de quem criou os animais antigos, e NULL diz isso."""
+    inspector = inspect(connection)
+    existing = {column["name"] for column in inspector.get_columns("animals")}
+    if "created_by_user_id" not in existing:
+        kind = "UNIQUEIDENTIFIER" if connection.dialect.name == "mssql" else "CHAR(36)"
+        connection.execute(
+            text(f"ALTER TABLE animals ADD created_by_user_id {kind} NULL"),
+        )
+
+
 def _ensure_client_scan_id_column(connection: Connection) -> None:
     """Idempotência do push (C4): coluna + índice único filtrado em animal_scans.
     Dois pushes do mesmo scan local (retry após timeout) não criam duplicata."""
@@ -121,7 +133,7 @@ def _ensure_client_scan_id_column(connection: Connection) -> None:
 def ensure_schema_compatibility(bind: Engine) -> None:
     inspector = inspect(bind)
     table_names = set(inspector.get_table_names())
-    if not table_names & {"species", "breeds", "animal_scans"}:
+    if not table_names & {"species", "breeds", "animal_scans", "animals"}:
         return
 
     with bind.begin() as connection:
@@ -132,6 +144,8 @@ def ensure_schema_compatibility(bind: Engine) -> None:
         if "animal_scans" in table_names:
             _ensure_client_scan_id_column(connection)
             _ensure_thoracic_depth_column(connection)
+        if "animals" in table_names:
+            _ensure_animals_created_by_column(connection)
 
 
 def get_engine() -> Engine:

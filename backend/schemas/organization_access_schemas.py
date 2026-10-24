@@ -51,3 +51,13 @@ class MemberResponse(APIModel):
 
 class TransferLeadershipRequest(APIModel):
     user_id: UUID
+
+
+class OrganizationEventResponse(APIModel):
+    """Um evento do histórico da organização (só o Líder vê)."""
+
+    id: UUID
+    type: str
+    actor_name: str | None
+    subject_name: str | None
+    created_at: datetime
