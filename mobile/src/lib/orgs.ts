@@ -83,3 +83,37 @@ export const transferLeadership = (orgId: string, userId: string) =>
 
 export const leaveOrganization = (orgId: string) =>
   call<void>('POST', `/api/v1/organizations/${orgId}/leave`);
+
+// --- Histórico da organização (só o Líder) ---------------------------------
+
+export type OrgEventType =
+  | 'created' | 'join_requested' | 'join_cancelled' | 'approved'
+  | 'rejected' | 'removed' | 'left' | 'leader_transferred';
+
+export interface OrgEvent {
+  id: string;
+  type: OrgEventType | string;
+  actorName: string | null;
+  subjectName: string | null;
+  createdAt: string;
+}
+
+export const listEvents = (orgId: string, limit = 30) =>
+  call<OrgEvent[]>('GET', `/api/v1/organizations/${orgId}/events?limit=${limit}`);
+
+/** A frase do histórico, igual na app e na web. */
+export function describeEvent(e: OrgEvent): string {
+  const who = e.actorName || 'Someone';
+  const whom = e.subjectName || 'a member';
+  switch (e.type) {
+    case 'created': return `${who} created the organization`;
+    case 'join_requested': return `${who} asked to join`;
+    case 'join_cancelled': return `${who} cancelled the request to join`;
+    case 'approved': return `${who} approved ${whom}`;
+    case 'rejected': return `${who} declined ${whom}’s request`;
+    case 'removed': return `${who} removed ${whom}`;
+    case 'left': return `${who} left the organization`;
+    case 'leader_transferred': return `${who} made ${whom} the leader`;
+    default: return `${who}: ${e.type}`;
+  }
+}

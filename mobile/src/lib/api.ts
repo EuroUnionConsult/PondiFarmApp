@@ -101,6 +101,28 @@ export interface CloudAnimal {
   /** Último scan válido e se tem modelo 3D na nuvem. */
   latestScanId?: string | null;
   hasMesh?: boolean;
+  /** Sexo (todos veem) e quem criou o animal no primeiro scan (só essa pessoa o escolhe). */
+  sex?: AnimalSex;
+  createdByUserId?: string | null;
+}
+
+export type AnimalSex = 'female' | 'male' | 'unknown';
+
+/** Quem pode escolher o sexo: quem criou o animal; nos antigos, sem criador registado, o Líder. */
+export function canEditSex(a: CloudAnimal, user: { id?: string | null; role?: string | null } | null): boolean {
+  if (!user?.id) return false;
+  return a.createdByUserId ? a.createdByUserId === user.id : user.role === 'leader';
+}
+
+/** Grava o sexo do animal na nuvem. O servidor confirma a regra acima (403 se não puder). */
+export async function updateAnimalSex(animalId: string, sex: AnimalSex): Promise<void> {
+  const headers = await authHeaders();
+  const res = await fetch(`${await getBackendUrl()}/api/v1/animals/${animalId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...headers },
+    body: JSON.stringify({ sex }),
+  });
+  if (!res.ok) throw new Error(res.status === 403 ? 'Only the person who scanned this animal can set its sex.' : `HTTP ${res.status}`);
 }
 
 function numOrNull(v: unknown): number | null {
@@ -227,6 +249,8 @@ async function loadCloudAnimals(): Promise<CloudAnimal[]> {
         notes: a.notes ?? null,
         latestScanId: s?.id ? String(s.id) : null,
         hasMesh: Boolean(s?.hasMesh),
+        sex: a.sex === 'female' || a.sex === 'male' ? a.sex : 'unknown',
+        createdByUserId: a.createdByUserId ?? null,
       } as CloudAnimal;
   });
   // Cacheia por org (mostra instantâneo na próxima navegação).
