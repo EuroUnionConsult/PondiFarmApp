@@ -21,6 +21,8 @@ import { SkeletonRows } from '../components/Skeleton';
 import PressableScale from '../components/PressableScale';
 import FadeInView from '../components/FadeInView';
 import PendingApprovalBanner from '../components/PendingApprovalBanner';
+import WeatherIcon from '../components/WeatherIcon';
+import { useWeather } from '../lib/weather';
 import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
@@ -55,6 +57,10 @@ export default function HomeScreen() {
   );
 
   const avatarInitials = initials(profile, user?.name);
+  // Tempo da quinta: ícone animado ao lado do avatar e o aviso mais importante.
+  const { weather, unread } = useWeather();
+  const wxNow = weather?.location ? weather.current : undefined;
+  const topAlert = weather?.alerts?.[0];
   const { scrollY, onScroll } = useScrollY();
 
   const load = useCallback(async () => {
@@ -132,6 +138,21 @@ export default function HomeScreen() {
                 : 'Limousine pilot · offline'}
           </Text>
         </View>
+        <View style={styles.headRight}>
+        {weather && (
+          <PressableScale
+            onPress={() => nav.navigate('Weather')}
+            hitSlop={6}
+            scaleTo={0.9}
+            accessibilityRole="button"
+            accessibilityLabel={wxNow ? `Weather: ${Math.round(wxNow.temp)} degrees${unread ? ', important alert to read' : ''}` : 'Weather: set the farm location'}
+            style={{ marginRight: 10 }}
+          >
+            {wxNow
+              ? <WeatherIcon kind={wxNow.kind} size={25} box={36} chip dot={unread} />
+              : <View style={styles.wxEmpty}><Ionicons name="partly-sunny-outline" size={19} color={ios.secondaryLabel} /></View>}
+          </PressableScale>
+        )}
         <SyncRing size={40}>
           <PressableScale
             style={styles.avatar}
@@ -148,9 +169,24 @@ export default function HomeScreen() {
             )}
           </PressableScale>
         </SyncRing>
+        </View>
       </View>
 
       <PendingApprovalBanner />
+
+      {/* Aviso de bem-estar mais importante das próximas 24 h (toca para ver o tempo). */}
+      {topAlert && wxNow && (
+        <FadeInView index={0} style={styles.group}>
+          <PressableScale style={styles.wxAlert} onPress={() => nav.navigate('Weather')} scaleTo={0.985} accessibilityRole="button">
+            <WeatherIcon kind={wxNow.kind} size={26} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.wxAlertTitle}>{topAlert.title}</Text>
+              <Text style={styles.wxAlertText} numberOfLines={2}>{topAlert.text.split(/\.\s/)[0]}.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />
+          </PressableScale>
+        </FadeInView>
+      )}
 
       <FadeInView index={0} style={styles.group}>
         {/* Cartão SÓLIDO (como o «Today»): o vidro nativo do iOS 26 aqui ficava quase
@@ -339,6 +375,18 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     fontSize: 13, color: ios.tertiaryLabel,
     marginTop: 4, letterSpacing: -0.05,
   },
+  // Tempo e avatar centrados na mesma linha; o avatar (40) um pouco maior que o tempo (36).
+  headRight: { flexDirection: 'row', alignItems: 'center' },
+  wxEmpty: {
+    width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: ios.secondarySystemGroupedBackground, borderWidth: StyleSheet.hairlineWidth, borderColor: ios.separator,
+  },
+  wxAlert: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 16,
+    backgroundColor: 'rgba(194,97,31,0.08)', borderWidth: 1, borderColor: 'rgba(194,97,31,0.3)',
+  },
+  wxAlertTitle: { fontSize: 15, fontWeight: '700', color: ios.orangeText },
+  wxAlertText: { fontSize: 13, color: ios.secondaryLabel, marginTop: 1, lineHeight: 18 },
   avatar: {
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: ios.accentFill,

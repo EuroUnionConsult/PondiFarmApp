@@ -24,6 +24,7 @@ import {
 import type { RootStackParamList } from '../navigation/types';
 import SyncRing from '../components/SyncRing';
 import { trackCloud } from '../lib/activity';
+import { useWeather } from '../lib/weather';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -63,6 +64,8 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
   const [requests, setRequests] = useState<PendingJoinRequest[]>([]);
   const [events, setEvents] = useState<OrgEvent[]>([]);
   const [allEvents, setAllEvents] = useState(false);
+  const { weather } = useWeather();
+  const farm = weather?.location ?? null;
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -225,6 +228,20 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
               <Text style={styles.rowVal}>Not available yet</Text>
             )}
           </View>
+          {orgId && !isPending && (
+            <>
+              <View style={styles.divider} />
+              {/* Onde fica a quinta (previsão do tempo). Só o Líder muda. */}
+              <PressableScale style={styles.row} disabled={!isLeader} onPress={() => nav.navigate('FarmLocation')} scaleTo={0.985}
+                accessibilityRole={isLeader ? 'button' : 'text'} accessibilityLabel="Farm location">
+                <Text style={styles.rowKey}>Farm location</Text>
+                <Text style={[styles.rowVal, !farm && isLeader && { color: ios.accent }]} numberOfLines={1}>
+                  {farm?.label ?? (farm ? `${farm.lat.toFixed(2)}, ${farm.lon.toFixed(2)}` : isLeader ? 'Set' : 'Not set')}
+                </Text>
+                {isLeader && <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />}
+              </PressableScale>
+            </>
+          )}
           {isPending && (
             <>
               <View style={styles.divider} />
