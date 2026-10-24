@@ -19,6 +19,9 @@ import AnimalDetailScreen from '../screens/AnimalDetailScreen';
 import LoginScreen from '../screens/LoginScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import OrganizationGateScreen from '../screens/OrganizationGateScreen';
+import WeatherScreen from '../screens/WeatherScreen';
+import FarmLocationScreen from '../screens/FarmLocationScreen';
+import { WeatherProvider } from '../lib/weather';
 
 import type { RootStackParamList, TabParamList } from './types';
 
@@ -108,6 +111,16 @@ function RootNavigator() {
           component={AnimalDetailScreen}
           options={{ animation: 'slide_from_right' }}
         />
+        <Stack.Screen
+          name="Weather"
+          component={WeatherScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="FarmLocation"
+          component={FarmLocationScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
@@ -116,7 +129,10 @@ function RootNavigator() {
 export default function AppNavigator() {
   return (
     <AuthProvider>
-      <RootNavigator />
+      {/* Tempo da quinta: atualiza a cada 30 min e ao voltar ao 1.º plano. */}
+      <WeatherProvider>
+        <RootNavigator />
+      </WeatherProvider>
     </AuthProvider>
   );
 }

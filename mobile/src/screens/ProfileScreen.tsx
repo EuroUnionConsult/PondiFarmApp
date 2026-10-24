@@ -19,18 +19,37 @@ import { useAuth } from '../lib/AuthContext';
 import { initials, loadProfile, saveProfile, type Profile } from '../lib/profile';
 import {
   approveRequest, cancelMyRequest, leaveOrganization, listPendingRequests, listPeople, rejectRequest,
-  removePerson, transferLeadership, type OrgPerson, type PendingJoinRequest,
+  removePerson, transferLeadership, listEvents, describeEvent, type OrgEvent, type OrgPerson, type PendingJoinRequest,
 } from '../lib/orgs';
 import type { RootStackParamList } from '../navigation/types';
 import SyncRing from '../components/SyncRing';
 import { trackCloud } from '../lib/activity';
+import { useWeather } from '../lib/weather';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 
 export default function ProfileScreen() {
   const { colors: ios } = useTheme();
-  const styles = useMemo(() => makeStyles(ios), [ios]);
+  // Ícone de cada tipo de evento do histórico.
+const EVENT_ICON: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  created: 'flag-outline',
+  join_requested: 'person-add-outline',
+  join_cancelled: 'close-circle-outline',
+  approved: 'checkmark-circle-outline',
+  rejected: 'remove-circle-outline',
+  removed: 'person-remove-outline',
+  left: 'exit-outline',
+  leader_transferred: 'ribbon-outline',
+};
+
+// «23 Oct, 14:05» (data/hora do servidor em UTC, mostrada na hora local).
+function fmtWhen(iso: string): string {
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(iso) ? iso : `${iso}Z`);
+  return d.toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
   const { user, logout, refreshMe } = useAuth();
@@ -43,6 +62,10 @@ export default function ProfileScreen() {
   const [editing, setEditing] = useState(false);
   const [people, setPeople] = useState<OrgPerson[]>([]);
   const [requests, setRequests] = useState<PendingJoinRequest[]>([]);
+  const [events, setEvents] = useState<OrgEvent[]>([]);
+  const [allEvents, setAllEvents] = useState(false);
+  const { weather } = useWeather();
+  const farm = weather?.location ?? null;
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,12 +77,15 @@ export default function ProfileScreen() {
     setLoading(true);
     setError(null);
     try {
-      const [p, r] = await trackCloud(Promise.all([
+      const [p, r, ev] = await trackCloud(Promise.all([
         listPeople(orgId),
         isLeader ? listPendingRequests(orgId) : Promise.resolve([] as PendingJoinRequest[]),
+        // Histórico só para o Líder; um backend antigo (sem a rota) não parte o Perfil.
+        isLeader ? listEvents(orgId).catch(() => [] as OrgEvent[]) : Promise.resolve([] as OrgEvent[]),
       ]));
       setPeople(p);
       setRequests(r);
+      setEvents(ev);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -202,6 +228,20 @@ export default function ProfileScreen() {
               <Text style={styles.rowVal}>Not available yet</Text>
             )}
           </View>
+          {orgId && !isPending && (
+            <>
+              <View style={styles.divider} />
+              {/* Onde fica a quinta (previsão do tempo). Só o Líder muda. */}
+              <PressableScale style={styles.row} disabled={!isLeader} onPress={() => nav.navigate('FarmLocation')} scaleTo={0.985}
+                accessibilityRole={isLeader ? 'button' : 'text'} accessibilityLabel="Farm location">
+                <Text style={styles.rowKey}>Farm location</Text>
+                <Text style={[styles.rowVal, !farm && isLeader && { color: ios.accent }]} numberOfLines={1}>
+                  {farm?.label ?? (farm ? `${farm.lat.toFixed(2)}, ${farm.lon.toFixed(2)}` : isLeader ? 'Set' : 'Not set')}
+                </Text>
+                {isLeader && <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />}
+              </PressableScale>
+            </>
+          )}
           {isPending && (
             <>
               <View style={styles.divider} />
@@ -305,6 +345,37 @@ export default function ProfileScreen() {
           </FadeInView>
         )}
 
+        {/* Histórico da organização (só o Líder): quem entrou, saiu, foi removido, mudou de líder. */}
+        {orgId && isLeader && events.length > 0 && (
+          <FadeInView index={3}>
+            <Text style={styles.sectionHeader}>Activity</Text>
+            <View style={styles.card}>
+              {(allEvents ? events : events.slice(0, 5)).map((e, i) => (
+                <View key={e.id}>
+                  {i > 0 && <View style={styles.divider} />}
+                  <View style={styles.eventRow}>
+                    <View style={styles.eventIcon}>
+                      <Ionicons name={EVENT_ICON[e.type] ?? 'ellipse-outline'} size={16} color={ios.secondaryLabel} />
+                    </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <Text style={styles.eventText}>{describeEvent(e)}</Text>
+                      <Text style={styles.eventWhen}>{fmtWhen(e.createdAt)}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))}
+              {!allEvents && events.length > 5 && (
+                <>
+                  <View style={styles.divider} />
+                  <PressableScale style={styles.row} onPress={() => setAllEvents(true)} scaleTo={0.985} accessibilityRole="button">
+                    <Text style={[styles.rowKey, { color: ios.accent }]}>Show all activity</Text>
+                  </PressableScale>
+                </>
+              )}
+            </View>
+          </FadeInView>
+        )}
+
         {error && <Text style={styles.error}>{error}</Text>}
 
         {/* App */}
@@ -388,6 +459,10 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   approveText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   reject: { borderRadius: 10, paddingHorizontal: 12, minHeight: 36, justifyContent: 'center', backgroundColor: ios.dangerLight },
   rejectText: { color: ios.danger, fontSize: 15, fontWeight: '700' },
+  eventRow: { paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  eventIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: ios.systemGroupedBackground, alignItems: 'center', justifyContent: 'center' },
+  eventText: { fontSize: 15, color: ios.label },
+  eventWhen: { fontSize: 13, color: ios.secondaryLabel, marginTop: 2 },
   footer: { paddingHorizontal: 32, paddingTop: 8, fontSize: 13, color: ios.secondaryLabel },
   error: { color: ios.danger, fontSize: 14, textAlign: 'center', marginTop: 16, paddingHorizontal: 24 },
 });

@@ -87,5 +87,7 @@ class AnimalResponse(APIModel):
     birth_date: date | None = None
     photo_url: str | None = None
     notes: str | None = None
+    # Quem pode escolher o sexo: o criador; sem criador registado, o Líder.
+    created_by_user_id: UUID | None = None
     created_at: datetime
     updated_at: datetime

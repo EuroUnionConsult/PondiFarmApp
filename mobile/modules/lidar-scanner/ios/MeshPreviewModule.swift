@@ -8,6 +8,12 @@ public class MeshPreviewModule: Module {
       Prop("source") { (view: MeshPreviewView, uri: String) in
         view.load(uri)
       }
+      Prop("mode") { (view: MeshPreviewView, mode: String) in
+        view.setMode(mode)
+      }
+      Prop("dark") { (view: MeshPreviewView, dark: Bool) in
+        view.setDark(dark)
+      }
     }
   }
 }

@@ -62,6 +62,12 @@ class Organization(Base):
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Localização da quinta para a previsão do tempo (o Líder marca-a uma vez).
+    # Guardada arredondada a 0,01° (~1 km): o modelo do tempo tem ~9 km de
+    # resolução, e o ponto exato da exploração nunca fica gravado.
+    farm_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    farm_lon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    farm_label: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,
@@ -213,6 +219,61 @@ class OrganizationJoinRequest(Base):
     )
 
 
+# Tipos de evento do histórico da organização.
+EVENT_CREATED = "created"
+EVENT_JOIN_REQUESTED = "join_requested"
+EVENT_JOIN_CANCELLED = "join_cancelled"
+EVENT_APPROVED = "approved"
+EVENT_REJECTED = "rejected"
+EVENT_REMOVED = "removed"
+EVENT_LEFT = "left"
+EVENT_LEADER_TRANSFERRED = "leader_transferred"
+ORGANIZATION_EVENT_TYPES = (
+    EVENT_CREATED,
+    EVENT_JOIN_REQUESTED,
+    EVENT_JOIN_CANCELLED,
+    EVENT_APPROVED,
+    EVENT_REJECTED,
+    EVENT_REMOVED,
+    EVENT_LEFT,
+    EVENT_LEADER_TRANSFERRED,
+)
+
+
+class OrganizationEvent(Base):
+    """Histórico da organização: quem entrou, saiu, foi removido ou passou a
+    liderança, e quando. Só se acrescenta, nunca se altera. Os nomes ficam
+    gravados no momento do evento para o histórico continuar legível mesmo que
+    a conta seja apagada ou mude de nome."""
+
+    __tablename__ = "organization_events"
+    __table_args__ = (
+        CheckConstraint(
+            "type IN (" + ", ".join(f"'{t}'" for t in ORGANIZATION_EVENT_TYPES) + ")",
+            name="chk_organization_events_type",
+        ),
+        Index("ix_organization_events_org_created", "organization_id", "created_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(GUID(), primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        GUID(), ForeignKey("organizations.id"), nullable=False
+    )
+    type: Mapped[str] = mapped_column(String(30), nullable=False)
+    # Quem fez (o Líder que aprovou, quem saiu...) e a quem aconteceu.
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id"), nullable=True
+    )
+    actor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    subject_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id"), nullable=True
+    )
+    subject_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=datetime.utcnow
+    )
+
+
 class Species(Base):
     __tablename__ = "species"
     __table_args__ = (
@@ -310,6 +371,11 @@ class Animal(Base):
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     photo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     notes: Mapped[str | None] = mapped_column(String(1000), nullable=True)
+    # Quem criou o animal (o primeiro scan). Só essa pessoa escolhe o sexo; os animais
+    # anteriores a esta coluna ficam NULL e aí decide o Líder.
+    created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        GUID(), ForeignKey("users.id"), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
         nullable=False,

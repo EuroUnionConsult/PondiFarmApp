@@ -80,7 +80,7 @@ def create_animal(
 ):
     # A org vem SEMPRE do token — o cliente não escolhe em que org cria.
     payload.organization_id = current.organization_id
-    return animal_service.create_animal(db, payload)
+    return animal_service.create_animal(db, payload, created_by=current.user.id)
 
 
 @animals_router.get("/animals/{animal_id}", response_model=AnimalResponse)
@@ -103,6 +103,16 @@ def update_animal(
 ):
     animal = animal_service.get_animal_entity(db, animal_id)
     _ensure_same_org(current, animal.organization_id)
+    # O sexo só o escolhe quem criou o animal (o primeiro scan); nos animais antigos,
+    # sem criador registado, o Líder. Todos o veem.
+    if payload.sex is not None and payload.sex != animal.sex:
+        creator = animal.created_by_user_id
+        allowed = creator == current.user.id or (creator is None and current.is_leader)
+        if not allowed:
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Só quem fez o scan pode escolher o sexo deste animal",
+            )
     # Não permite mover o animal para outra organização.
     if payload.organization_id is not None:
         _ensure_same_org(current, payload.organization_id)

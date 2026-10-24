@@ -9,6 +9,8 @@ export type RootStackParamList = {
   AnimalDetail: { animal: CloudAnimal };
   Profile: undefined;
   Settings: undefined;
+  Weather: undefined;
+  FarmLocation: undefined;
 };
 
 export type TabParamList = {

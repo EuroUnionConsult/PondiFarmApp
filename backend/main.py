@@ -21,6 +21,7 @@ from api.v1.organizations_members.organizations_members_routes import (
 )
 from api.v1.predictions.prediction_routes import predictions_router
 from api.v1.auth.auth_routes import auth_router
+from api.v1.weather.weather_routes import weather_router
 from core.database import get_db, initialize_database
 from core.errors import register_exception_handlers
 
@@ -112,6 +113,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router)
     # Antes de organizations_router: /organizations/search colidia com /{organization_id}.
     app.include_router(organization_access_router)
+    app.include_router(weather_router)
     app.include_router(organizations_router)
     app.include_router(users_router)
     app.include_router(organizations_member_router)

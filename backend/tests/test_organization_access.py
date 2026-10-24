@@ -430,3 +430,153 @@ class OrganizationAccessTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    # --- histórico da organização: cada mudança fica registada, só o Líder lê ---
+
+    def events(self, token, org_id):
+        r = self.client.get(
+            f"/api/v1/organizations/{org_id}/events", headers=self.h(token)
+        )
+        self.assertEqual(r.status_code, 200, r.text)
+        return r.json()
+
+    def test_history_records_every_change(self):
+        leader, org = self.leader_and_org()
+        # pedido recusado, pedido cancelado, aprovado e depois sai, aprovado e removido
+        refused_token, refused_req = self.pending("recusado@x.pt", org, name="Recusado")
+        self.client.post(
+            f"/api/v1/organizations/{org}/join-requests/{refused_req}/reject",
+            headers=self.h(leader),
+        )
+        gave_up, _ = self.pending("desistiu@x.pt", org, name="Desistiu")
+        self.client.delete(
+            "/api/v1/organizations/join-requests/mine", headers=self.h(gave_up)
+        )
+        leaver = self.member(leader, org, email="sai@x.pt")
+        self.client.post(f"/api/v1/organizations/{org}/leave", headers=self.h(leaver))
+        removed = self.member(leader, org, email="removido@x.pt")
+        removed_id = self.me(removed)["id"]
+        r = self.client.delete(
+            f"/api/v1/organizations/{org}/people/{removed_id}", headers=self.h(leader)
+        )
+        self.assertEqual(r.status_code, 204)
+        heir = self.member(leader, org, email="herdeiro@x.pt")
+        heir_id = self.me(heir)["id"]
+        r = self.client.post(
+            f"/api/v1/organizations/{org}/transfer-leadership",
+            json={"userId": heir_id},
+            headers=self.h(leader),
+        )
+        self.assertEqual(r.status_code, 204)
+
+        new_leader = self.refresh(heir)
+        evs = self.events(new_leader, org)
+        types = [e["type"] for e in reversed(evs)]  # do mais antigo ao mais recente
+        self.assertEqual(
+            types,
+            [
+                "created",
+                "join_requested",
+                "rejected",
+                "join_requested",
+                "join_cancelled",
+                "join_requested",
+                "approved",
+                "left",
+                "join_requested",
+                "approved",
+                "removed",
+                "join_requested",
+                "approved",
+                "leader_transferred",
+            ],
+        )
+        removed_ev = next(e for e in evs if e["type"] == "removed")
+        self.assertEqual(
+            (removed_ev["actorName"], removed_ev["subjectName"]), ("Talys", "Novo")
+        )
+        self.assertEqual(evs[0]["type"], "leader_transferred")  # mais recente primeiro
+        self.assertNotIn("subjectUserId", evs[0])  # só nomes saem, nunca ids/emails
+
+    def test_history_is_leader_only_and_scoped(self):
+        leader, org = self.leader_and_org()
+        member = self.member(leader, org)
+        r = self.client.get(
+            f"/api/v1/organizations/{org}/events", headers=self.h(member)
+        )
+        self.assertEqual(r.status_code, 403)
+        other = self.register("outro@x.pt", org="Outra Quinta", name="Outro")
+        r = self.client.get(
+            f"/api/v1/organizations/{org}/events", headers=self.h(other)
+        )
+        self.assertEqual(r.status_code, 403)
+        r = self.client.get(f"/api/v1/organizations/{org}/events")
+        self.assertEqual(r.status_code, 401)
+
+    # --- sexo do animal: só quem criou (o primeiro scan) escolhe; todos veem -------
+
+    def _animal_by(self, token, leader):
+        sp = self.client.post(
+            "/api/v1/species", json={"name": "Bovine"}, headers=self.h(leader)
+        )
+        self.assertIn(sp.status_code, (200, 201), sp.text)
+        br = self.client.post(
+            f"/api/v1/species/{sp.json()['id']}/breeds",
+            json={"name": "Limousine"},
+            headers=self.h(leader),
+        )
+        self.assertIn(br.status_code, (200, 201), br.text)
+        r = self.client.post(
+            "/api/v1/animals",
+            json={
+                "organizationId": self.me(token)["organizationId"],
+                "speciesId": sp.json()["id"],
+                "breedId": br.json()["id"],
+                "name": "Estrela",
+                "sex": "unknown",
+            },
+            headers=self.h(token),
+        )
+        self.assertEqual(r.status_code, 201, r.text)
+        return r.json()
+
+    def patch_sex(self, token, animal_id, sex):
+        return self.client.patch(
+            f"/api/v1/animals/{animal_id}", json={"sex": sex}, headers=self.h(token)
+        )
+
+    def test_only_scan_creator_sets_sex(self):
+        leader, org = self.leader_and_org()
+        member = self.member(leader, org)
+        animal = self._animal_by(member, leader)
+        self.assertEqual(animal["createdByUserId"], self.me(member)["id"])
+        # O Líder vê, mas não muda o sexo de um animal que outra pessoa criou.
+        self.assertEqual(self.patch_sex(leader, animal["id"], "male").status_code, 403)
+        r = self.patch_sex(member, animal["id"], "female")
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["sex"], "female")
+        seen = self.client.get(
+            f"/api/v1/animals/{animal['id']}", headers=self.h(leader)
+        )
+        self.assertEqual(seen.json()["sex"], "female")
+        # Outros campos continuam a poder ser editados por quem já podia.
+        ok = self.client.patch(
+            f"/api/v1/animals/{animal['id']}",
+            json={"notes": "nota"},
+            headers=self.h(leader),
+        )
+        self.assertEqual(ok.status_code, 200, ok.text)
+
+    def test_legacy_animal_without_creator_is_set_by_leader(self):
+        leader, org = self.leader_and_org()
+        member = self.member(leader, org)
+        animal = self._animal_by(member, leader)
+        with self.Session() as db:
+            from models.models import Animal
+
+            db.get(
+                Animal, __import__("uuid").UUID(animal["id"])
+            ).created_by_user_id = None
+            db.commit()
+        self.assertEqual(self.patch_sex(member, animal["id"], "male").status_code, 403)
+        self.assertEqual(self.patch_sex(leader, animal["id"], "male").status_code, 200)

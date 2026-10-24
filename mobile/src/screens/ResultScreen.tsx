@@ -6,6 +6,7 @@ import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
+import CattleIcon from '../components/CattleIcon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -157,11 +158,9 @@ export default function ResultScreen() {
         {/* Category badge */}
         <View style={styles.badgeRow}>
           <View style={[styles.badge, isCow ? styles.badgeCow : styles.badgeExtra]}>
-            <Ionicons
-              name={isCow ? 'paw' : 'cube-outline'}
-              size={13}
-              color={isCow ? ios.accent : ios.secondaryLabel}
-            />
+            {isCow
+              ? <CattleIcon size={14} color={ios.accent} />
+              : <Ionicons name="cube-outline" size={13} color={ios.secondaryLabel} />}
             <Text style={[styles.badgeText, isCow ? styles.badgeTextCow : styles.badgeTextExtra]}>
               {isCow ? 'Cattle' : 'Extra'}
             </Text>

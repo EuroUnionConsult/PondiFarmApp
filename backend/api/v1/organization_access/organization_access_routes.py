@@ -25,6 +25,7 @@ from schemas.organization_access_schemas import (
     JoinRequestResponse,
     MemberResponse,
     OrganizationCreateRequest,
+    OrganizationEventResponse,
     OrganizationSearchResult,
     PendingRequestResponse,
     TransferLeadershipRequest,
@@ -213,3 +214,17 @@ def transfer(
     _own_org(leader, organization_id)
     svc.transfer_leadership(db, leader.user, organization_id, payload.user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@organization_access_router.get(
+    "/{organization_id}/events", response_model=list[OrganizationEventResponse]
+)
+def list_events(
+    organization_id: UUID,
+    limit: int = Query(default=50, ge=1, le=svc.EVENTS_LIMIT_MAX),
+    leader: CurrentUser = Depends(require_leader),
+    db: Session = Depends(get_db),
+):
+    """Histórico: entradas, saídas, remoções e mudanças de líder (mais recente primeiro)."""
+    _own_org(leader, organization_id)
+    return svc.list_events(db, organization_id, limit)

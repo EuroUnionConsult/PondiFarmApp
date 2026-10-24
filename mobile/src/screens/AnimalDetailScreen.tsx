@@ -1,7 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, Platform,
+  View, ScrollView, StyleSheet, TouchableOpacity, Platform, Alert,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { useAuth } from '../lib/AuthContext';
+import { canEditSex, updateAnimalSex, type AnimalSex } from '../lib/api';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import { breedLabel } from '../lib/breeds';
@@ -21,6 +24,29 @@ export default function AnimalDetailScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const { animal } = useRoute<DetailRoute>().params;
+  const { user } = useAuth();
+  // Sexo: todos veem; só quem criou o animal (o primeiro scan) escolhe.
+  const [sex, setSex] = useState<AnimalSex>(animal.sex ?? 'unknown');
+  const editable = canEditSex(animal, user);
+  const chooseSex = () => {
+    const pick = (next: AnimalSex) => {
+      if (next === sex) return;
+      const before = sex;
+      setSex(next);
+      void Haptics.selectionAsync();
+      updateAnimalSex(animal.id, next).catch((e) => {
+        setSex(before);
+        Alert.alert('Sex not saved', String(e?.message ?? e));
+      });
+    };
+    Alert.alert('Sex of the animal', 'Only you can change it, because you scanned this animal. Everyone in the organization sees it.', [
+      { text: 'Female', onPress: () => pick('female') },
+      { text: 'Male', onPress: () => pick('male') },
+      { text: 'Not set', onPress: () => pick('unknown') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+  const sexColor = sex === 'female' ? ios.orangeText : ios.navy;
 
   const measures: { label: string; value: string }[] = [
     animal.bodyLengthCm != null
@@ -45,10 +71,34 @@ export default function AnimalDetailScreen() {
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       >
         <View style={styles.titleWrap}>
-          <Text style={styles.title}>{animal.name}</Text>
-          <View style={styles.cloudTag}>
-            <Ionicons name="cloud-done-outline" size={13} color={ios.accent} />
-            <Text style={styles.cloudTagText}>Synced</Text>
+          <View style={styles.titleRow}>
+            <Text style={[styles.title, { flexShrink: 1 }]}>{animal.name}</Text>
+            {sex !== 'unknown' && (
+              <Ionicons name={sex} size={26} color={sexColor} style={styles.sexIcon}
+                accessibilityLabel={sex === 'female' ? 'Female' : 'Male'} />
+            )}
+          </View>
+          <View style={styles.tags}>
+            <View style={styles.cloudTag}>
+              <Ionicons name="cloud-done-outline" size={13} color={ios.accent} />
+              <Text style={styles.cloudTagText}>Synced</Text>
+            </View>
+            {(sex !== 'unknown' || editable) && (
+              <TouchableOpacity
+                disabled={!editable}
+                onPress={chooseSex}
+                activeOpacity={0.6}
+                accessibilityRole={editable ? 'button' : 'text'}
+                accessibilityLabel={editable ? 'Choose the sex of the animal' : undefined}
+                style={[styles.sexTag, sex === 'unknown' && styles.sexTagEmpty]}
+              >
+                {sex !== 'unknown' && <Ionicons name={sex} size={13} color={sexColor} />}
+                <Text style={[styles.sexTagText, { color: sex === 'unknown' ? ios.accent : sexColor }]}>
+                  {sex === 'female' ? 'Female' : sex === 'male' ? 'Male' : 'Set sex'}
+                </Text>
+                {editable && <Ionicons name="chevron-down" size={12} color={ios.secondaryLabel} />}
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -134,6 +184,15 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     fontSize: 30, fontWeight: '700',
     letterSpacing: -0.8, color: ios.label, lineHeight: 34,
   },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  sexIcon: { marginTop: 4 },
+  tags: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  sexTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: ios.segmentFill,
+  },
+  sexTagEmpty: { borderWidth: 1, borderStyle: 'dashed', borderColor: ios.accent, backgroundColor: 'transparent' },
+  sexTagText: { fontSize: 12.5, fontWeight: '600' },
   cloudTag: {
     flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'flex-start',
     backgroundColor: ios.accentLight, borderRadius: 999,

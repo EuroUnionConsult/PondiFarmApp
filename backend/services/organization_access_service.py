@@ -6,6 +6,8 @@ Regras (plano de 21/10/2026, vault `pondifarm_plano_organizacoes_2026-10-21.md`)
 - Quem pede entrada fica em `organization_join_requests`, nunca em
   `organization_members`: um pendente não tem acesso a dados.
 - Uma conta pertence a uma só organização ativa de cada vez.
+- Cada mudança fica no histórico (`organization_events`), gravado na MESMA
+  transação da mudança: nunca há ação sem registo nem registo sem ação.
 """
 
 from __future__ import annotations
@@ -18,6 +20,14 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from models.models import (
+    EVENT_APPROVED,
+    EVENT_CREATED,
+    EVENT_JOIN_CANCELLED,
+    EVENT_JOIN_REQUESTED,
+    EVENT_LEADER_TRANSFERRED,
+    EVENT_LEFT,
+    EVENT_REJECTED,
+    EVENT_REMOVED,
     JOIN_APPROVED,
     JOIN_CANCELLED,
     JOIN_PENDING,
@@ -25,6 +35,7 @@ from models.models import (
     ROLE_LEADER,
     ROLE_MEMBER,
     Organization,
+    OrganizationEvent,
     OrganizationJoinRequest,
     OrganizationMember,
     User,
@@ -32,6 +43,7 @@ from models.models import (
 
 SEARCH_MIN_CHARS = 3
 SEARCH_LIMIT = 10
+EVENTS_LIMIT_MAX = 200
 
 
 def _conflict(msg: str) -> HTTPException:
@@ -40,6 +52,39 @@ def _conflict(msg: str) -> HTTPException:
 
 def _not_found(msg: str) -> HTTPException:
     return HTTPException(status.HTTP_404_NOT_FOUND, msg)
+
+
+def _log(
+    db: Session,
+    organization_id: uuid.UUID,
+    type_: str,
+    actor: User | None,
+    subject: User | None = None,
+) -> None:
+    """Acrescenta um evento ao histórico. Não faz commit: entra no da ação."""
+    db.add(
+        OrganizationEvent(
+            organization_id=organization_id,
+            type=type_,
+            actor_user_id=actor.id if actor else None,
+            actor_name=actor.name if actor else None,
+            subject_user_id=subject.id if subject else None,
+            subject_name=subject.name if subject else None,
+        )
+    )
+
+
+def list_events(
+    db: Session, organization_id: uuid.UUID, limit: int = 50
+) -> list[OrganizationEvent]:
+    """Histórico da organização, do mais recente para o mais antigo."""
+    return (
+        db.query(OrganizationEvent)
+        .filter(OrganizationEvent.organization_id == organization_id)
+        .order_by(OrganizationEvent.created_at.desc())
+        .limit(max(1, min(limit, EVENTS_LIMIT_MAX)))
+        .all()
+    )
 
 
 def _live_org(db: Session, organization_id: uuid.UUID) -> Organization:
@@ -106,6 +151,7 @@ def create_organization(db: Session, user: User, name: str) -> Organization:
     db.add(
         OrganizationMember(organization_id=org.id, user_id=user.id, role=ROLE_LEADER)
     )
+    _log(db, org.id, EVENT_CREATED, user)
     db.commit()
     db.refresh(org)
     return org
@@ -143,6 +189,7 @@ def request_to_join(
         organization_id=organization_id, user_id=user.id, status=JOIN_PENDING
     )
     db.add(req)
+    _log(db, organization_id, EVENT_JOIN_REQUESTED, user)
     db.commit()
     db.refresh(req)
     return req
@@ -155,6 +202,7 @@ def cancel_my_request(db: Session, user: User) -> None:
     req.status = JOIN_CANCELLED
     req.decided_at = datetime.utcnow()
     req.decided_by_user_id = user.id
+    _log(db, req.organization_id, EVENT_JOIN_CANCELLED, user)
     db.commit()
 
 
@@ -211,6 +259,13 @@ def decide_request(
     req.status = JOIN_APPROVED if approve else JOIN_REJECTED
     req.decided_at = datetime.utcnow()
     req.decided_by_user_id = leader.id
+    _log(
+        db,
+        organization_id,
+        EVENT_APPROVED if approve else EVENT_REJECTED,
+        leader,
+        db.get(User, req.user_id),
+    )
     db.commit()
     db.refresh(req)
     return req
@@ -248,6 +303,7 @@ def remove_member(
         raise _conflict("O líder não se pode remover; passe primeiro a liderança")
     row = _active_member(db, organization_id, user_id)
     row.deleted_at = datetime.utcnow()
+    _log(db, organization_id, EVENT_REMOVED, leader, db.get(User, user_id))
     db.commit()
 
 
@@ -263,6 +319,7 @@ def transfer_leadership(
     current.role = ROLE_MEMBER
     db.flush()
     target.role = ROLE_LEADER
+    _log(db, organization_id, EVENT_LEADER_TRANSFERRED, leader, db.get(User, user_id))
     db.commit()
 
 
@@ -271,4 +328,5 @@ def leave_organization(db: Session, user: User, organization_id: uuid.UUID) -> N
     if row.role == ROLE_LEADER:
         raise _conflict("O líder não pode sair; passe primeiro a liderança")
     row.deleted_at = datetime.utcnow()
+    _log(db, organization_id, EVENT_LEFT, user)
     db.commit()

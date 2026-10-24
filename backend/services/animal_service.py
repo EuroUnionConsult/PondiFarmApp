@@ -38,7 +38,9 @@ def _validate_species_and_breed(
         )
 
 
-def create_animal(db: Session, payload: AnimalCreate) -> AnimalResponse:
+def create_animal(
+    db: Session, payload: AnimalCreate, created_by: UUID | None = None
+) -> AnimalResponse:
     organization_service.get_organization_entity(db, payload.organization_id)
     _validate_species_and_breed(db, payload.species_id, payload.breed_id)
 
@@ -62,6 +64,7 @@ def create_animal(db: Session, payload: AnimalCreate) -> AnimalResponse:
         name=payload.name.strip(),
         tag_code=tag_code,
         sex=payload.sex,
+        created_by_user_id=created_by,
         birth_date=payload.birth_date,
         photo_url=payload.photo_url,
         notes=payload.notes,
