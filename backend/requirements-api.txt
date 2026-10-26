@@ -15,4 +15,4 @@ numpy==1.26.4
 scikit-learn==1.9.1
 Pillow==13.0.0
 # Converte GLB/OBJ em PLY para o visualizador do iPhone (GET /scans/{id}/mesh?as=ply).
-trimesh==4.5.3
+trimesh==5.1.1
