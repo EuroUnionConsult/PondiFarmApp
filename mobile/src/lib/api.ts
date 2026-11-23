@@ -302,6 +302,56 @@ export async function fetchAnimalScans(animalId: string): Promise<ScanPoint[]> {
     .sort((a, b) => a.at - b.at);
 }
 
+/** Um scan do histórico do animal, com as medidas (para comparar com o anterior). */
+export interface HistoryScan {
+  id: string; at: number; weightKg: number | null;
+  chestCm: number | null; lengthCm: number | null; withersCm: number | null;
+}
+/** Tempo à hora de um scan (ERA5 / previsão recente, do servidor). */
+export interface ScanWx { scanId: string; tempC: number | null; humidity: number | null; thi: number | null; band: string | null; heatStress: boolean; rain24hMm: number | null }
+export interface ScanWxInterval { fromScanId: string; toScanId: string; days: number; avgMaxTempC: number | null; heatDays: number | null; rainMm: number | null }
+export interface ScanHistoryData { scans: HistoryScan[]; weather: Record<string, ScanWx>; intervals: ScanWxInterval[]; hasLocation: boolean; weatherFailed: boolean }
+
+/**
+ * Histórico do animal para a ficha: scans (mais antigo → mais recente) e o tempo de
+ * cada um. Se o tempo falhar, os scans aparecem na mesma (`weatherFailed`).
+ */
+export async function fetchScanHistory(animalId: string): Promise<ScanHistoryData> {
+  const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
+  const id = encodeURIComponent(animalId);
+  const all: any[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const res = await fetchWithTimeout(`${base}/api/v1/animals/${id}/scans?page=${page}&limit=100`, 20000);
+    if (!res.ok) throw new Error(`scans HTTP ${res.status}`);
+    const body = await res.json();
+    const lote: any[] = Array.isArray(body) ? body : (body.items ?? body.data ?? []);
+    all.push(...lote);
+    if (lote.length < 100) break;
+  }
+  const scans: HistoryScan[] = all
+    .filter((s) => !HIDDEN_SCAN_STATUSES.has(String(s?.scanStatus ?? s?.scan_status ?? '')))
+    .map((s) => ({
+      id: String(s.id), at: Date.parse(s.scannedAt ?? s.scanned_at ?? s.createdAt),
+      weightKg: numOrNull(s.estimatedWeight), chestCm: numOrNull(s.chestCircumference),
+      lengthCm: numOrNull(s.bodyLength), withersCm: numOrNull(s.withersHeight),
+    }))
+    .filter((p) => Number.isFinite(p.at))
+    .sort((a, b) => a.at - b.at);
+  const weather: Record<string, ScanWx> = {};
+  let intervals: ScanWxInterval[] = [], hasLocation = true, weatherFailed = false;
+  try {
+    const res = await fetchWithTimeout(`${base}/api/v1/animals/${id}/scan-weather`, 25000);
+    if (!res.ok) throw new Error(`scan-weather HTTP ${res.status}`);
+    const body = await res.json();
+    hasLocation = body.location != null;
+    for (const w of body.scans ?? []) weather[String(w.scanId)] = w;
+    intervals = body.intervals ?? [];
+  } catch {
+    weatherFailed = true;
+  }
+  return { scans, weather, intervals, hasLocation, weatherFailed };
+}
+
 /**
  * Descarrega o modelo 3D de um scan para a cache do telemóvel e devolve o ficheiro.
  * Pede sempre PLY (`?as=ply`): o visualizador do iPhone não abre GLB, e o servidor

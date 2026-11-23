@@ -824,3 +824,150 @@ def place_name(lat: float, lon: float) -> str | None:
         if isinstance(r, dict)
         else None
     )
+
+
+# ── Tempo em cada scan (histórico do animal) ─────────────────────────────────
+ERA5_LAG_DAYS = (
+    6  # o ERA5 chega com ~5 dias de atraso; os dias mais recentes vêm da previsão
+)
+SCAN_WX_VARS = "temperature_2m,relative_humidity_2m,precipitation"
+
+
+def _hourly_rows(d: dict) -> dict[str, tuple[float | None, float | None, float]]:
+    h = d.get("hourly") or {}
+    out: dict[str, tuple[float | None, float | None, float]] = {}
+    for ts, tc, rh, pr in zip(
+        h.get("time", []),
+        h.get("temperature_2m", []),
+        h.get("relative_humidity_2m", []),
+        h.get("precipitation", []),
+    ):
+        out[ts[:13]] = (tc, rh, float(pr or 0.0))
+    return out
+
+
+def _scan_hours(lat: float, lon: float, start: date, end: date, today: date) -> dict:
+    """Horas (UTC) de `start` a `end`: ERA5 até há 6 dias, previsão (`past_days`) depois.
+    No máximo dois pedidos, seja qual for o número de scans."""
+    rows: dict = {}
+    era5_end = min(end, today - timedelta(days=ERA5_LAG_DAYS))
+    if start <= era5_end:
+        rows.update(
+            _hourly_rows(
+                _get(
+                    ARCHIVE_URL,
+                    {
+                        "latitude": lat,
+                        "longitude": lon,
+                        "start_date": start.isoformat(),
+                        "end_date": era5_end.isoformat(),
+                        "hourly": SCAN_WX_VARS,
+                        "models": "era5",
+                        "timezone": "GMT",
+                    },
+                )
+            )
+        )
+    if end > era5_end:
+        recent_from = max(start, era5_end + timedelta(days=1))
+        rows.update(
+            _hourly_rows(
+                _get(
+                    FORECAST_URL,
+                    {
+                        "latitude": lat,
+                        "longitude": lon,
+                        "past_days": min(92, (today - recent_from).days + 1),
+                        "forecast_days": 1,
+                        "hourly": SCAN_WX_VARS,
+                        "timezone": "GMT",
+                    },
+                )
+            )
+        )
+    return rows
+
+
+def _r(v: float | None, n: int = 1) -> float | None:
+    return None if v is None else round(v, n)
+
+
+def scan_weather(
+    lat: float,
+    lon: float,
+    scans: list[tuple[str, datetime]],
+    today: date | None = None,
+) -> dict:
+    """Tempo à hora de cada scan e resumo entre scans consecutivos.
+
+    `scans`: (id, scanned_at em UTC), por qualquer ordem. Devolve-os do mais antigo
+    para o mais recente. Horas em falta dão `null` (nunca inventa valores)."""
+    today = today or datetime.utcnow().date()
+    ordered = sorted(scans, key=lambda s: s[1])
+    if not ordered:
+        return {"scans": [], "intervals": [], "stale": False}
+    lat, lon = round_coord(lat), round_coord(lon)
+    start = ordered[0][1].date() - timedelta(days=1)  # chuva nas 24 h antes
+    end = min(ordered[-1][1].date(), today)
+    recent = end > today - timedelta(days=ERA5_LAG_DAYS)
+    rows, stale = _cached(
+        ("scanwx", lat, lon, start, end),
+        FORECAST_TTL if recent else SEASON_TTL,
+        lambda: _scan_hours(lat, lon, start, end, today),
+        stale_max=STALE_MAX,
+    )
+
+    def hour_key(t: datetime) -> str:
+        return t.strftime("%Y-%m-%dT%H")
+
+    out_scans = []
+    for sid, at in ordered:
+        tc, rh, _ = rows.get(hour_key(at), (None, None, 0.0))
+        rain = [
+            rows[k][2]
+            for k in (hour_key(at - timedelta(hours=i)) for i in range(1, 25))
+            if k in rows
+        ]
+        t = thi(tc, rh) if tc is not None and rh is not None else None
+        out_scans.append(
+            {
+                "scanId": sid,
+                "scannedAt": at.isoformat(),
+                "tempC": _r(tc),
+                "humidity": _r(rh, 0),
+                "thi": _r(t),
+                "band": thi_band(t) if t is not None else None,
+                "heatStress": t is not None and t >= THI_ALERT,
+                "rain24hMm": _r(sum(rain)) if rain else None,
+            }
+        )
+
+    intervals = []
+    for (a_id, a_at), (b_id, b_at) in zip(ordered, ordered[1:]):
+        days: dict[str, list[tuple[float, float, float]]] = {}
+        for k, (tc, rh, pr) in rows.items():
+            if tc is None or rh is None:
+                continue
+            if hour_key(a_at) <= k < hour_key(b_at):
+                days.setdefault(k[:10], []).append((tc, thi(tc, rh), pr))
+        intervals.append(
+            {
+                "fromScanId": a_id,
+                "toScanId": b_id,
+                "days": (b_at.date() - a_at.date()).days,
+                "avgMaxTempC": _r(
+                    sum(max(h[0] for h in v) for v in days.values()) / len(days)
+                )
+                if days
+                else None,
+                "heatDays": sum(
+                    1 for v in days.values() if max(h[1] for h in v) >= THI_ALERT
+                )
+                if days
+                else None,
+                "rainMm": _r(sum(h[2] for v in days.values() for h in v))
+                if days
+                else None,
+            }
+        )
+    return {"scans": out_scans, "intervals": intervals, "stale": stale}

@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
+from datetime import timezone
 from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import Field
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.database import get_db
@@ -18,7 +20,7 @@ from core.deps import (
     get_current_user,
     require_leader,
 )
-from models.models import Organization
+from models.models import Animal, AnimalScan, Organization
 from schemas.base import APIModel
 from services import weather_service as wx
 
@@ -78,6 +80,49 @@ def get_weather(
             e, "weather", "Couldn't reach the forecast service. Try again shortly."
         ) from e
     data["canSetLocation"] = current.is_leader
+    return data
+
+
+@weather_router.get("/animals/{animal_id}/scan-weather")
+def get_scan_weather(
+    animal_id: UUID,
+    current: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Tempo à hora de cada scan do animal e entre scans (ERA5 + previsão recente).
+
+    Sem localização da quinta: `location: null` e listas vazias (a app pede para a marcar)."""
+    animal = db.get(Animal, animal_id)
+    if animal is None or getattr(animal, "deleted_at", None) is not None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Animal não encontrado")
+    _own_org(current, animal.organization_id)
+    org = db.get(Organization, animal.organization_id)
+    if org is None or org.farm_lat is None or org.farm_lon is None:
+        return {"location": None, "scans": [], "intervals": [], "stale": False}
+    rows = db.execute(
+        select(AnimalScan.id, AnimalScan.scanned_at).where(
+            AnimalScan.animal_id == animal_id,
+            AnimalScan.deleted_at.is_(None),
+        )
+    ).all()
+    scans = [
+        (
+            str(i),
+            at.astimezone(timezone.utc).replace(tzinfo=None) if at.tzinfo else at,
+        )
+        for i, at in rows
+    ]
+    try:
+        data = wx.scan_weather(org.farm_lat, org.farm_lon, scans)
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        raise _upstream(
+            e, "scan-weather", "Couldn't reach the weather service. Try again shortly."
+        ) from e
+    data["location"] = {
+        "lat": org.farm_lat,
+        "lon": org.farm_lon,
+        "label": org.farm_label,
+    }
     return data
 
 

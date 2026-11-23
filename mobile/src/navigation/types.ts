@@ -3,7 +3,8 @@ import type { CloudAnimal } from '../lib/api';
 
 export type RootStackParamList = {
   Main: undefined;
-  Scan: undefined;
+  /** Com animal: «Scan again» — ID e raça já preenchidos. */
+  Scan: { animalId?: string; breed?: string } | undefined;
   ObjectCapture: undefined;
   Result: { record: ScanRecord };
   AnimalDetail: { animal: CloudAnimal };

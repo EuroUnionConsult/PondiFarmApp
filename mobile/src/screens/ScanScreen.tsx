@@ -7,7 +7,7 @@ import { useCameraPermissions } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { fonts, type Palette } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
@@ -82,10 +82,19 @@ const BREEDS = [
   { key: 'default',    label: 'Other' },
 ];
 
+/** Raça do animal na nuvem («Limousin») → chave da lista (só as 5 primeiras letras contam). */
+function breedKey(name?: string): string | undefined {
+  if (!name) return undefined;
+  const n = name.trim().toLowerCase().slice(0, 5);
+  return BREEDS.find((b) => b.key.slice(0, 5) === n)?.key ?? 'default';
+}
+
 function PreScanModal({
-  visible, onConfirm, onCancel,
+  visible, onConfirm, onCancel, initialId, initialBreed,
 }: {
   visible: boolean;
+  initialId?: string;
+  initialBreed?: string;
   onConfirm: (category: ScanCategory, animalId: string, breed: string) => void;
   onCancel: () => void;
 }) {
@@ -93,8 +102,9 @@ function PreScanModal({
   const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const [category, setCategory] = useState<ScanCategory>('cow');
-  const [animalId, setAnimalId] = useState('');
-  const [breed, setBreed] = useState('limousine');
+  const [animalId, setAnimalId] = useState(initialId ?? '');
+  const [breed, setBreed] = useState(initialBreed ?? 'limousine');
+  const again = !!initialId;
 
   const isCow = category === 'cow';
 
@@ -106,10 +116,12 @@ function PreScanModal({
       >
         <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 24 }]}>
           <View style={styles.modalHandle} />
-          <Text style={styles.modalTitle}>New scan</Text>
+          <Text style={styles.modalTitle}>{again ? `Scan ${initialId} again` : 'New scan'}</Text>
           <Text style={styles.modalSub}>
             {isCow
-              ? 'Animal ID is optional. Leave blank to auto-generate.'
+              ? again
+                ? 'Tip: scan in the same pose and place as last time, so the measurements compare fairly.'
+                : 'Animal ID is optional. Leave blank to auto-generate.'
               : 'Extra captures (objects / people) need no ID or breed.'}
           </Text>
 
@@ -205,6 +217,7 @@ export default function ScanScreen() {
   const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<Nav>();
+  const again = useRoute<RouteProp<RootStackParamList, 'Scan'>>().params;
   const [permission, requestPermission] = useCameraPermissions();
   const [scanning, setScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -377,6 +390,8 @@ export default function ScanScreen() {
         visible={showPreScan}
         onConfirm={handlePreScanConfirm}
         onCancel={() => nav.goBack()}
+        initialId={again?.animalId}
+        initialBreed={breedKey(again?.breed)}
       />
 
       <LidarScannerView
