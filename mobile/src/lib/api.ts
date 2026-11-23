@@ -4,6 +4,7 @@ import { authHeaders, getOrganizationId } from './auth';
 import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY, CLOUD_CACHE_KEY } from './config';
 import { trackCloud } from './activity';
 import { errorMessage, reportError } from './errorReport';
+import { trackServerRequest } from './serverWake';
 
 const DEFAULT_HEADERS = { 'bypass-tunnel-reminder': 'true' } as const;
 
@@ -58,7 +59,13 @@ async function fetchUmaVez(url: string, ms: number): Promise<Response> {
 /** Prazo da segunda tentativa, dimensionado para acordar a base serverless. */
 const COLD_START_TIMEOUT_MS = 60000;
 
-async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+/** Pedido com repetição a frio; ao fim de 3 s pendente acende «Connecting to the server…». */
+function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  return trackServerRequest(fetchComRepeticao(url, ms));
+}
+
+/** Repete uma vez a frio e regista no relatório de erros as falhas de rede e 5xx/429. */
+async function fetchComRepeticao(url: string, ms: number): Promise<Response> {
   let res: Response;
   try {
     try {
@@ -129,11 +136,11 @@ export function canEditSex(a: CloudAnimal, user: { id?: string | null; role?: st
 /** Grava o sexo do animal na nuvem. O servidor confirma a regra acima (403 se não puder). */
 export async function updateAnimalSex(animalId: string, sex: AnimalSex): Promise<void> {
   const headers = await authHeaders();
-  const res = await fetch(`${await getBackendUrl()}/api/v1/animals/${animalId}`, {
+  const res = await trackServerRequest(fetch(`${await getBackendUrl()}/api/v1/animals/${animalId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify({ sex }),
-  });
+  }));
   if (!res.ok) throw new Error(res.status === 403 ? 'Only the person who scanned this animal can set its sex.' : `HTTP ${res.status}`);
 }
 
@@ -300,6 +307,56 @@ export async function fetchAnimalScans(animalId: string): Promise<ScanPoint[]> {
     .map((s) => ({ at: Date.parse(s.scannedAt ?? s.scanned_at ?? s.createdAt), weightKg: numOrNull(s.estimatedWeight), bodyLengthCm: numOrNull(s.bodyLength) }))
     .filter((p) => Number.isFinite(p.at))
     .sort((a, b) => a.at - b.at);
+}
+
+/** Um scan do histórico do animal, com as medidas (para comparar com o anterior). */
+export interface HistoryScan {
+  id: string; at: number; weightKg: number | null;
+  chestCm: number | null; lengthCm: number | null; withersCm: number | null;
+}
+/** Tempo à hora de um scan (ERA5 / previsão recente, do servidor). */
+export interface ScanWx { scanId: string; tempC: number | null; humidity: number | null; thi: number | null; band: string | null; heatStress: boolean; rain24hMm: number | null }
+export interface ScanWxInterval { fromScanId: string; toScanId: string; days: number; avgMaxTempC: number | null; heatDays: number | null; rainMm: number | null }
+export interface ScanHistoryData { scans: HistoryScan[]; weather: Record<string, ScanWx>; intervals: ScanWxInterval[]; hasLocation: boolean; weatherFailed: boolean }
+
+/**
+ * Histórico do animal para a ficha: scans (mais antigo → mais recente) e o tempo de
+ * cada um. Se o tempo falhar, os scans aparecem na mesma (`weatherFailed`).
+ */
+export async function fetchScanHistory(animalId: string): Promise<ScanHistoryData> {
+  const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
+  const id = encodeURIComponent(animalId);
+  const all: any[] = [];
+  for (let page = 1; page <= 5; page++) {
+    const res = await fetchWithTimeout(`${base}/api/v1/animals/${id}/scans?page=${page}&limit=100`, 20000);
+    if (!res.ok) throw new Error(`scans HTTP ${res.status}`);
+    const body = await res.json();
+    const lote: any[] = Array.isArray(body) ? body : (body.items ?? body.data ?? []);
+    all.push(...lote);
+    if (lote.length < 100) break;
+  }
+  const scans: HistoryScan[] = all
+    .filter((s) => !HIDDEN_SCAN_STATUSES.has(String(s?.scanStatus ?? s?.scan_status ?? '')))
+    .map((s) => ({
+      id: String(s.id), at: Date.parse(s.scannedAt ?? s.scanned_at ?? s.createdAt),
+      weightKg: numOrNull(s.estimatedWeight), chestCm: numOrNull(s.chestCircumference),
+      lengthCm: numOrNull(s.bodyLength), withersCm: numOrNull(s.withersHeight),
+    }))
+    .filter((p) => Number.isFinite(p.at))
+    .sort((a, b) => a.at - b.at);
+  const weather: Record<string, ScanWx> = {};
+  let intervals: ScanWxInterval[] = [], hasLocation = true, weatherFailed = false;
+  try {
+    const res = await fetchWithTimeout(`${base}/api/v1/animals/${id}/scan-weather`, 25000);
+    if (!res.ok) throw new Error(`scan-weather HTTP ${res.status}`);
+    const body = await res.json();
+    hasLocation = body.location != null;
+    for (const w of body.scans ?? []) weather[String(w.scanId)] = w;
+    intervals = body.intervals ?? [];
+  } catch {
+    weatherFailed = true;
+  }
+  return { scans, weather, intervals, hasLocation, weatherFailed };
 }
 
 /**

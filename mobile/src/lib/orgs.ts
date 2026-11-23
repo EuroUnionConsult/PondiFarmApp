@@ -1,6 +1,7 @@
 // Organizações com Líder: pesquisar, criar, pedir entrada e — para o Líder —
 // aprovar, recusar, remover e passar a liderança. Rotas do backend de 21/10/2026.
 import { getBackendUrl } from './api';
+import { trackServerRequest } from './serverWake';
 import { authHeaders } from './auth';
 
 export interface OrgSearchResult {
@@ -29,7 +30,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20000);
   try {
-    const res = await fetch(`${base}${path}`, {
+    const res = await trackServerRequest(fetch(`${base}${path}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
@@ -38,7 +39,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: controller.signal,
-    });
+    }));
     if (res.status === 204) return undefined as T;
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
