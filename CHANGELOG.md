@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.2](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.10.1...v0.10.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **backend:** harden postcode parsing, log values and upstream caches ([e3d6d80](https://github.com/EuroUnionConsult/PondiFarmApp/commit/e3d6d805b769475ebac80cdaef039ce5c0eeb2d5))
+* **weather:** retries, stale fallback, offline PT postcodes and error logging ([15c0552](https://github.com/EuroUnionConsult/PondiFarmApp/commit/15c0552c196ce65fced0709d076c06426f2f32ae))
+* **weather:** retries, stale fallback, offline PT postcodes and error logging ([6df0cd8](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6df0cd862d58a7f3c1a001fde9f576cc1b4e5518))
+
 ## [0.10.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.10.0...v0.10.1) (2026-10-24)
 
 
