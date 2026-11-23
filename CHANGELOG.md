@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.11.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.10.2...v0.11.0) (2026-11-23)
+
+
+### Features
+
+* growth card, growth & weather and scan again to the same animal ([d1f8926](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d1f892682e6133c325b57d187c6a6dcb92f2c2eb))
+* scan history with weather at each scan ([d0c1068](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d0c1068a3852264fac10e78e6246d71d7bd8c683))
+* scan history with weather at each scan, plus performance improvements ([ab8694e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/ab8694e06eead2df9bf4ee04e3e497ce9cd821e0))
+
+
+### Performance Improvements
+
+* server wake notice, virtualized herd list and gzip responses ([222d807](https://github.com/EuroUnionConsult/PondiFarmApp/commit/222d807a15b4e256490cd956eb0e83dcc9acd372))
+* **weather:** skeleton while the first forecast loads; weather calls count for the wake notice ([e09a62e](https://github.com/EuroUnionConsult/PondiFarmApp/commit/e09a62e6bf1a491227a85176e1d4da808ccfb947))
+
 ## [0.10.2](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.10.1...v0.10.2) (2026-11-23)
 
 
