@@ -13,7 +13,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { type Palette } from '../lib/theme';
 import type { RootStackParamList } from '../navigation/types';
-import WeightHistory from '../components/WeightHistory';
 import ScanHistory from '../components/ScanHistory';
 import Scan3DCard from '../components/Scan3DCard';
 
@@ -136,14 +135,9 @@ export default function AnimalDetailScreen() {
         <Text style={styles.sectionHeader}>Scans</Text>
         <View style={[styles.card, { padding: 16 }]}>
           <ScanHistory animalId={animal.id} name={animal.name}
-            onScanAgain={() => (nav as any).navigate('Scan', { animalId: animal.name, breed: animal.breed })} />
+            onScanAgain={() => (nav as any).navigate('Scan', { animalId: animal.tagCode ?? animal.name, breed: animal.breed, remoteAnimalId: animal.id })} />
         </View>
 
-        {/* Evolução do peso ao longo dos scans */}
-        <Text style={styles.sectionHeader}>Weight over time</Text>
-        <View style={[styles.card, { padding: 16 }]}>
-          <WeightHistory animalId={animal.id} />
-        </View>
 
         {/* Medidas morfométricas */}
         {measures.length > 0 && (

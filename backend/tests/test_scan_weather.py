@@ -137,6 +137,33 @@ class ScanWeatherRouteTests(toa.OrganizationAccessTests):
         db.close()
         return aid
 
+    def test_scan_again_attaches_to_the_same_animal(self):
+        """«Scan again»: o app envia para /animals/{id}/scans do animal da ficha
+        (remoteAnimalId). Não cria animal novo; o histórico ganha um scan."""
+        leader, org = self.leader_and_org()
+        aid = self._animal(org)
+        h = self.h(leader)
+        animals = f"/api/v1/organizations/{org}/animals?limit=100"
+        before = self.client.get(animals, headers=h).json()
+        n_before = len(before if isinstance(before, list) else before["items"])
+        body = {
+            "scanSource": "lidar",
+            "scanStatus": "completed",
+            "clientScanId": "again-1",
+            "scannedAt": "2026-11-20T11:05:00Z",
+            "estimatedWeight": 561,
+            "chestCircumference": 198,
+        }
+        r = self.client.post(f"/api/v1/animals/{aid}/scans", json=body, headers=h)
+        self.assertEqual(r.status_code, 201, r.text)
+        # Repetir o envio (retry do sync) não duplica: clientScanId é idempotente.
+        self.client.post(f"/api/v1/animals/{aid}/scans", json=body, headers=h)
+        after = self.client.get(animals, headers=h).json()
+        n_after = len(after if isinstance(after, list) else after["items"])
+        self.assertEqual(n_after, n_before)
+        scans = self.client.get(f"/api/v1/animals/{aid}/scans", headers=h).json()
+        self.assertEqual(len(scans), 3)  # 2 do seed + 1
+
     def test_without_farm_location_returns_nulls(self):
         leader, org = self.leader_and_org()
         aid = self._animal(org)

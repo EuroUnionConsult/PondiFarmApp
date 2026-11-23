@@ -20,6 +20,7 @@ import {
   type ScanCompleteEvent,
   type ScanProgressEvent,
 } from '../../modules/lidar-scanner';
+import { scanAgainTarget } from '../lib/scanHistory';
 import { saveRecord, type ScanRecord, type ScanCategory } from '../lib/storage';
 import { pushRecord } from '../lib/sync';
 import type { RootStackParamList } from '../navigation/types';
@@ -330,6 +331,7 @@ export default function ScanScreen() {
       // (o push gera uma tag única por scan — nunca junta animais diferentes).
       animalId: isCow ? ((animalId || '').trim() || undefined) : undefined,
       breed: isCow ? breed : undefined,
+      remoteAnimalId: isCow ? scanAgainTarget(again, animalId) : undefined,
       measurements,
       vertexCount,
       faceCount,
