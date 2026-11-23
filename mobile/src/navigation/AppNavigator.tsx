@@ -12,6 +12,7 @@ import HomeScreen from '../screens/HomeScreen';
 import HerdScreen from '../screens/HerdScreen';
 import AnalyticsScreen from '../screens/AnalyticsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import WhatsNewScreen from '../screens/WhatsNewScreen';
 import ScanScreen from '../screens/ScanScreen';
 import ObjectCaptureScreen from '../screens/ObjectCaptureScreen';
 import ResultScreen from '../screens/ResultScreen';
@@ -108,6 +109,11 @@ function RootNavigator() {
         <Stack.Screen
           name="Settings"
           component={SettingsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="WhatsNew"
+          component={WhatsNewScreen}
           options={{ animation: 'slide_from_right' }}
         />
         <Stack.Screen

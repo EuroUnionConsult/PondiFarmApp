@@ -15,6 +15,7 @@ This is **PondiFarmApp**, a monorepo by Euro Union Consult (EUC) for livestock b
 - Respect the monorepo layout: backend changes go under `backend/`, mobile changes under `mobile/`, CI under `.github/`.
 - For large binary assets (model weights, datasets), confirm a matching pattern exists in [`.gitattributes`](./.gitattributes) so the file is stored via Git LFS.
 - Run available linters and type-checkers before declaring a task complete.
+- Every release adds its user-facing changes to `mobile/src/lib/whatsNew.ts` (the in-app «What's new» screen), in plain English, one line per change, tagged `scan`, `herd`, `weather` or `team`. release-please does **not** do this: `npm run whatsnew:check` (in `mobile/`) fails while `APP_VERSION` has no entry. Entries for the next version can be added before the release PR; they stay hidden until `APP_VERSION` reaches them. Keep the file identical in PondiFarmWeb-Desk (`src/lib/whatsNew.ts`).
 
 ## 2. Never do
 
