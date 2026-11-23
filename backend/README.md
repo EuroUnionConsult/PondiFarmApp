@@ -4,7 +4,7 @@ FastAPI service for the PondiFarmApp pipeline. Receives an image, runs object de
 
 ## Stack
 
-- Python 3.9+
+- Python 3.10+ (`azure-monitor-opentelemetry` needs 3.10 or newer; CI uses 3.11)
 - FastAPI 0.111
 - SQLAlchemy 2.0
 - Pydantic
@@ -465,6 +465,30 @@ lists additionally support `animalId` and `upcomingOnly`.
 - PATCH accepts only `documentType`, `issuedAt`, and `expiresAt`.
 - Authorization hooks are prepared with TODO markers until authenticated
   organization membership is available.
+
+## Logging, telemetry and client error reports
+
+- Application loggers live under `pondifarm.*` (`pondifarm.weather`, `pondifarm.client`,
+  `pondifarm.errors`, ...). They write to **stdout** in `key=value` form, which is what
+  Azure App Service keeps (Log stream / container logs). `LOG_LEVEL` (default `INFO`).
+- **Application Insights**: set `APPLICATIONINSIGHTS_CONNECTION_STRING` and the API calls
+  `configure_azure_monitor()` at startup (`core/observability.py`). Without it nothing is
+  exported (local runs, tests). Warnings and errors from `pondifarm.*` are exported with
+  their structured fields as custom dimensions; request traces are sampled with
+  `APPINSIGHTS_SAMPLING_RATIO` (default `0.25`); logs are not sampled. Emails,
+  JWT/Bearer tokens are masked, query strings are stripped from request telemetry, and
+  outbound calls (place searches, coordinates) are not traced.
+- **Upstream calls** (Open-Meteo, Nominatim) retry up to 4 times on timeouts, connection
+  errors, 429 and 5xx, with exponential backoff, jitter, `Retry-After` and a bounded
+  total time. Nominatim requests are spaced at least 1 s apart. The forecast falls back
+  to the last good one (`"stale": true`) when Open-Meteo fails.
+- **Client errors**: `POST /api/v1/client-errors` (auth optional, rate-limited per IP,
+  8 KB body cap) with `platform` (`ios` | `web-desktop` | `web-mobile`), `appVersion`,
+  `screen`, `message`, `kind`, `httpStatus`, `endpoint`, `timestamp`. Each report becomes
+  a `pondifarm.client` warning; with a token the user and organization ids are recorded
+  (never the email). No database table.
+- **Postcodes**: Portuguese postal codes resolve offline from `data/pt_postcodes.tsv.gz`
+  (GeoNames, CC BY 4.0 — see `data/README.md`).
 
 ## Tests
 

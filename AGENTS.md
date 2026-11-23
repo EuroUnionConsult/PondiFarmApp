@@ -35,7 +35,7 @@ This is **PondiFarmApp**, a monorepo by Euro Union Consult (EUC) for livestock b
 
 ### Backend (Python / FastAPI)
 
-- Language: Python 3.9+.
+- Language: Python 3.10+ (`azure-monitor-opentelemetry` needs 3.10 or newer; CI uses 3.11).
 - Lint: `ruff check backend/` and `ruff format backend/`.
 - Local run: `uvicorn main:app --reload` inside `backend/` with a virtual environment activated.
 - Endpoints are versioned (`/api/v1/...`).

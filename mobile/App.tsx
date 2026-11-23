@@ -4,7 +4,11 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_700Bold } from '@expo-google-fonts/inter';
 import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
+import { installGlobalErrorHandlers } from './src/lib/errorReport';
 import { ThemeScanProvider } from './src/components/ThemeScan';
+
+// Erros JavaScript não apanhados vão para o log do servidor (POST /api/v1/client-errors).
+installGlobalErrorHandlers();
 
 // Barra de estado conforme o tema (o ecrã do scan põe a sua, clara, por cima).
 function ThemedStatusBar() {

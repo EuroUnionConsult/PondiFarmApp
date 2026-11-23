@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -10,7 +10,7 @@ import FarmMap from '../components/FarmMap';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
-import { reversePlace, saveFarmLocation, searchPlaces, useWeather, type Place } from '../lib/weather';
+import { POSTCODE_CREDIT, saveFarmLocation, searchMessage, usePinLabel, usePlaceSearch, useWeather } from '../lib/weather';
 
 /**
  * Onde fica a quinta (só o Líder). Três formas no mesmo ecrã: o GPS do telemóvel,
@@ -25,34 +25,24 @@ export default function FarmLocationScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const { user } = useAuth();
-  const { weather, refresh } = useWeather();
+  const { weather, applyLocation } = useWeather();
   const start = weather?.location ?? null;
   const [pin, setPin] = useState(start ? { lat: start.lat, lon: start.lon } : PORTUGAL);
-  const [label, setLabel] = useState<string | null>(start?.label ?? null);
+  const place = usePinLabel(start?.label ?? null);
+  const label = place.label;
   const [touched, setTouched] = useState(false);
-  const [q, setQ] = useState('');
-  const [results, setResults] = useState<Place[]>([]);
-  const [searching, setSearching] = useState(false);
+  // Pesquisa enquanto escreve; Enter/Pesquisar procura mais longe. Ver usePlaceSearch.
+  const search = usePlaceSearch();
+  const { q, results } = search;
+  const searchMsg = searchMessage(search);
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Pesquisa enquanto escreve (com pausa, para não pedir a cada letra).
-  useEffect(() => {
-    if (timer.current) clearTimeout(timer.current);
-    if (q.trim().length < 3) { setResults([]); return; }
-    timer.current = setTimeout(() => {
-      setSearching(true);
-      searchPlaces(q).then(setResults).catch(() => setResults([])).finally(() => setSearching(false));
-    }, 450);
-  }, [q]);
 
   const movePin = (lat: number, lon: number, knownLabel?: string | null) => {
     setPin({ lat, lon }); setTouched(true); setErr(null);
-    if (knownLabel) { setLabel(knownLabel); return; }
-    setLabel(null);
-    reversePlace(lat, lon).then((p) => setLabel(p.label)).catch(() => {});
+    if (knownLabel) place.setKnown(knownLabel);
+    else place.lookup(lat, lon);
   };
 
   const useMine = async () => {
@@ -72,9 +62,11 @@ export default function FarmLocationScreen() {
     if (!user?.organizationId) return;
     setSaving(true); setErr(null);
     try {
-      await saveFarmLocation(user.organizationId, { lat: pin.lat, lon: pin.lon, label });
+      const saved = await saveFarmLocation(user.organizationId, { lat: pin.lat, lon: pin.lon, label });
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await refresh();
+      // Fecha já: a página do tempo mostra o sítio novo e «Updating forecast…»
+      // enquanto a previsão chega (antes ficava aqui à espera, sem retorno).
+      applyLocation(saved);
       nav.goBack();
     } catch (e: any) {
       setErr(String(e?.message ?? e));
@@ -104,20 +96,25 @@ export default function FarmLocationScreen() {
           <Ionicons name="search" size={18} color={ios.secondaryLabel} />
           <TextInput
             value={q}
-            onChangeText={setQ}
-            placeholder="Search a place or postcode, e.g. 6000-458"
+            onChangeText={search.setQ}
+            onSubmitEditing={search.submit}
+            enterKeyHint="search"
+            placeholder="Place or postcode (6000-458)"
             placeholderTextColor={ios.tertiaryLabel}
             style={styles.input}
             autoCorrect={false}
             returnKeyType="search"
           />
-          {searching && <ActivityIndicator size="small" color={ios.accent} />}
+          {search.status === 'searching' && <ActivityIndicator size="small" color={ios.accent} accessibilityLabel="Searching" />}
         </View>
+        {searchMsg && (
+          <Text style={search.status === 'error' ? styles.err : styles.searchMsg} accessibilityLiveRegion="polite">{searchMsg}</Text>
+        )}
         {results.length > 0 && (
           <View style={styles.card}>
             {results.map((r, i) => (
               <TouchableOpacity key={`${r.lat},${r.lon},${i}`} style={[styles.result, i > 0 && styles.divider]}
-                onPress={() => { movePin(r.lat, r.lon, r.label); setResults([]); setQ(''); }} activeOpacity={0.6}>
+                onPress={() => { movePin(r.lat, r.lon, r.label); search.clear(); }} activeOpacity={0.6}>
                 <Ionicons name="location-outline" size={18} color={ios.accent} />
                 <Text style={styles.resultText} numberOfLines={2}>{r.label}</Text>
               </TouchableOpacity>
@@ -133,11 +130,14 @@ export default function FarmLocationScreen() {
         <View style={[styles.card, styles.chosen]}>
           <Ionicons name="pin" size={20} color={ios.accent} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.chosenTitle}>{label ?? (touched || start ? 'Finding the place name…' : 'No location yet')}</Text>
+            <Text style={styles.chosenTitle}>
+              {label ?? (place.failed ? 'Place name unavailable — you can still save' : touched || start ? 'Finding the place name…' : 'No location yet')}
+            </Text>
             <Text style={styles.chosenSub}>{pin.lat.toFixed(2)}, {pin.lon.toFixed(2)} · saved rounded to about 1 km</Text>
           </View>
         </View>
         {err && <Text style={styles.err}>{err}</Text>}
+        <Text style={styles.credit}>{POSTCODE_CREDIT}</Text>
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
@@ -171,6 +171,8 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   chosenTitle: { fontSize: 16, fontWeight: '700', color: ios.label },
   chosenSub: { fontSize: 12.5, color: ios.secondaryLabel, marginTop: 2 },
   err: { color: ios.danger, fontSize: 14, marginHorizontal: 20, marginTop: 10 },
+  searchMsg: { color: ios.secondaryLabel, fontSize: 14, marginHorizontal: 20, marginTop: 10, lineHeight: 19 },
+  credit: { color: ios.tertiaryLabel, fontSize: 11.5, marginHorizontal: 20, marginTop: 14 },
   footer: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 10, backgroundColor: ios.systemGroupedBackground },
   save: { backgroundColor: ios.accentFill, borderRadius: 14, height: 52, alignItems: 'center', justifyContent: 'center' },
   saveText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },

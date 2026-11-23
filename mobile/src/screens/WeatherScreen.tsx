@@ -11,7 +11,7 @@ import ScreenBackground from '../components/ScreenBackground';
 import FadeInView from '../components/FadeInView';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
-import { BAND_LABEL, KIND_LABEL, useWeather, type Weather, type WeatherAlert } from '../lib/weather';
+import { BAND_LABEL, KIND_LABEL, forecastNotice, useWeather, type Weather, type WeatherAlert } from '../lib/weather';
 import type { RootStackParamList } from '../navigation/types';
 
 /**
@@ -24,7 +24,8 @@ export default function WeatherScreen() {
   const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { weather, loading, error, refresh, markSeen } = useWeather();
+  const { weather, loading, error, updating, refresh, markSeen } = useWeather();
+  const notice = forecastNotice(weather, error, updating);
   const [chartW, setChartW] = useState(0);
 
   // Ver a página conta como ler os avisos: o ponto laranja apaga.
@@ -52,10 +53,22 @@ export default function WeatherScreen() {
               {w.location.label ?? 'Farm'} · {w.replay ? `replay of a real day (${w.replay}), ERA5 / Copernicus` : `ECMWF forecast${w.updatedAt ? `, updated ${hhmm(w.updatedAt)}` : ''}`}
             </Text>
           )}
-          {error && w && <Text style={styles.stale}>Showing the last forecast saved. {error}</Text>}
+          {notice && (
+            <View style={styles.noticeRow} accessibilityLiveRegion="polite">
+              {updating && <ActivityIndicator size="small" color={ios.orangeText} />}
+              <Text style={styles.stale}>{notice}</Text>
+            </View>
+          )}
         </View>
 
         {!w && (loading ? <ActivityIndicator style={{ marginTop: 40 }} color={ios.accent} /> : <Text style={styles.empty}>{error ?? 'No forecast yet.'}</Text>)}
+
+        {/* Sítio novo guardado: ainda sem previsão (o aviso acima diz «Updating forecast…»; aqui, se falhou). */}
+        {w?.location && !cur && !updating && (
+          loading
+            ? <ActivityIndicator style={{ marginTop: 40 }} color={ios.accent} />
+            : <Text style={styles.empty}>{error ?? 'No forecast yet.'}</Text>
+        )}
 
         {w && !w.location && (
           <View style={[styles.card, styles.noLoc]}>
@@ -275,7 +288,8 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   titleWrap: { paddingHorizontal: 20, paddingBottom: 10 },
   title: { fontSize: 34, fontWeight: '800', color: ios.label, letterSpacing: -0.6 },
   sub: { fontSize: 14, color: ios.secondaryLabel, marginTop: 4, lineHeight: 19 },
-  stale: { fontSize: 12.5, color: ios.orangeText, marginTop: 6 },
+  noticeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+  stale: { fontSize: 12.5, color: ios.orangeText, flexShrink: 1 },
   empty: { textAlign: 'center', marginTop: 40, color: ios.secondaryLabel },
   card: { marginHorizontal: 16, marginBottom: 12, borderRadius: 16, backgroundColor: ios.secondarySystemGroupedBackground, overflow: 'hidden' },
   pad: { padding: 16 },
