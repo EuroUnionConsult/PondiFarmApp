@@ -4,6 +4,7 @@ import { authHeaders, getOrganizationId } from './auth';
 import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY, CLOUD_CACHE_KEY } from './config';
 import { trackCloud } from './activity';
 import { errorMessage, reportError } from './errorReport';
+import { trackServerRequest } from './serverWake';
 
 const DEFAULT_HEADERS = { 'bypass-tunnel-reminder': 'true' } as const;
 
@@ -58,7 +59,13 @@ async function fetchUmaVez(url: string, ms: number): Promise<Response> {
 /** Prazo da segunda tentativa, dimensionado para acordar a base serverless. */
 const COLD_START_TIMEOUT_MS = 60000;
 
-async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+/** Pedido com repetição a frio; ao fim de 3 s pendente acende «Connecting to the server…». */
+function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  return trackServerRequest(fetchComRepeticao(url, ms));
+}
+
+/** Repete uma vez a frio e regista no relatório de erros as falhas de rede e 5xx/429. */
+async function fetchComRepeticao(url: string, ms: number): Promise<Response> {
   let res: Response;
   try {
     try {
@@ -129,11 +136,11 @@ export function canEditSex(a: CloudAnimal, user: { id?: string | null; role?: st
 /** Grava o sexo do animal na nuvem. O servidor confirma a regra acima (403 se não puder). */
 export async function updateAnimalSex(animalId: string, sex: AnimalSex): Promise<void> {
   const headers = await authHeaders();
-  const res = await fetch(`${await getBackendUrl()}/api/v1/animals/${animalId}`, {
+  const res = await trackServerRequest(fetch(`${await getBackendUrl()}/api/v1/animals/${animalId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...headers },
     body: JSON.stringify({ sex }),
-  });
+  }));
   if (!res.ok) throw new Error(res.status === 403 ? 'Only the person who scanned this animal can set its sex.' : `HTTP ${res.status}`);
 }
 

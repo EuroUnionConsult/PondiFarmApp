@@ -1,5 +1,6 @@
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -28,6 +29,13 @@ from core.errors import register_exception_handlers
 from core.observability import configure_logging, configure_telemetry
 
 _telemetry_on = False
+
+# Formatos que já vêm comprimidos: gzip só gastava CPU (documentos dos animais).
+GZIP_EXCLUDED_CONTENT_TYPES = DEFAULT_EXCLUDED_CONTENT_TYPES + (
+    "application/pdf",
+    "image/heic",
+    "image/heif",
+)
 
 
 def create_app() -> FastAPI:
@@ -67,6 +75,15 @@ def create_app() -> FastAPI:
         # O site lê o formato do modelo 3D neste cabeçalho (GET /scans/{id}/mesh).
         expose_headers=["X-Mesh-Format"],
     )
+    # Respostas grandes vão comprimidas (o rebanho em JSON tem ~100 KB e cai para
+    # ~10 KB; os modelos PLY/OBJ também encolhem). Abaixo de 1 KB não compensa.
+    # Imagens, PDF e ZIP já vêm comprimidos: passam como estão.
+    app.add_middleware(
+        GZipMiddleware,
+        minimum_size=1024,
+        compresslevel=6,
+        exclude_content_types=GZIP_EXCLUDED_CONTENT_TYPES,
+    )
 
     register_exception_handlers(app)
 
@@ -102,8 +119,10 @@ def create_app() -> FastAPI:
 
     @app.get("/health/db")
     def health_db(db: Session = Depends(get_db)):
-        # Toca o DB (SELECT 1) — mantém o Azure SQL free-tier acordado (keep-alive)
-        # e serve como readiness probe. Sem auth de propósito.
+        # Toca o DB (SELECT 1): readiness probe manual. Sem auth de propósito.
+        # NÃO chamar periodicamente: manter o Azure SQL serverless acordado esgotou
+        # a quota gratuita em agosto. Depois de 60 min parado, o 1.º pedido demora
+        # 30–60 s a acordar a base; as apps mostram «Connecting to the server…».
         db.execute(text("SELECT 1"))
         return {"status": "ok", "db": "ok"}
 

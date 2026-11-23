@@ -9,6 +9,7 @@ import Text from '../components/Text';
 import WeatherIcon from '../components/WeatherIcon';
 import ScreenBackground from '../components/ScreenBackground';
 import FadeInView from '../components/FadeInView';
+import { SkeletonBlock } from '../components/Skeleton';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { BAND_LABEL, KIND_LABEL, forecastNotice, useWeather, type Weather, type WeatherAlert } from '../lib/weather';
@@ -61,12 +62,13 @@ export default function WeatherScreen() {
           )}
         </View>
 
-        {!w && (loading ? <ActivityIndicator style={{ marginTop: 40 }} color={ios.accent} /> : <Text style={styles.empty}>{error ?? 'No forecast yet.'}</Text>)}
+        {/* 1.ª previsão a caminho: a forma da página a pulsar, em vez de um spinner solto. */}
+        {!w && (loading ? <WeatherSkeleton styles={styles} /> : <Text style={styles.empty}>{error ?? 'No forecast yet.'}</Text>)}
 
         {/* Sítio novo guardado: ainda sem previsão (o aviso acima diz «Updating forecast…»; aqui, se falhou). */}
-        {w?.location && !cur && !updating && (
-          loading
-            ? <ActivityIndicator style={{ marginTop: 40 }} color={ios.accent} />
+        {w?.location && !cur && (
+          loading || updating
+            ? <WeatherSkeleton styles={styles} />
             : <Text style={styles.empty}>{error ?? 'No forecast yet.'}</Text>
         )}
 
@@ -215,6 +217,35 @@ function Alerts({ w, styles, ios }: { w: Weather; styles: any; ios: Palette }) {
           </View>
         );
       })}
+    </View>
+  );
+}
+
+/** Esqueleto da previsão: «Now», THI, gráfico das 24 h e os 7 dias, a pulsar. */
+function WeatherSkeleton({ styles }: { styles: any }) {
+  return (
+    <View accessible accessibilityLabel="Loading the forecast">
+      <View style={[styles.card, styles.pad]}>
+        <SkeletonBlock style={{ width: 44, height: 12 }} />
+        <SkeletonBlock style={{ width: 150, height: 54, borderRadius: 12, marginTop: 10 }} />
+        <SkeletonBlock style={{ width: '60%', height: 14, marginTop: 10 }} />
+        <SkeletonBlock style={{ width: '80%', height: 12, marginTop: 12 }} />
+      </View>
+      <View style={[styles.card, styles.pad]}>
+        <SkeletonBlock style={{ width: 130, height: 12 }} />
+        <SkeletonBlock style={{ width: 70, height: 40, borderRadius: 10, marginTop: 10 }} />
+        <SkeletonBlock style={{ height: 8, borderRadius: 4, marginTop: 14 }} />
+      </View>
+      <Text style={styles.section}>Next 24 hours</Text>
+      <View style={[styles.card, styles.pad, { flexDirection: 'row', alignItems: 'flex-end', gap: 6, height: 170 }]}>
+        {[35, 52, 28, 70, 88, 64, 95, 58, 76, 40, 30].map((v, i) => (
+          <SkeletonBlock key={i} style={{ flex: 1, height: `${v}%`, borderRadius: 5 }} />
+        ))}
+      </View>
+      <Text style={styles.section}>Next 7 days</Text>
+      <View style={[styles.card, styles.pad, { gap: 14 }]}>
+        {Array.from({ length: 4 }, (_, i) => <SkeletonBlock key={i} style={{ height: 16, width: `${90 - (i % 2) * 15}%` }} />)}
+      </View>
     </View>
   );
 }

@@ -9,6 +9,7 @@ import { getBackendUrl } from './api';
 import { authHeaders } from './auth';
 import { useAuth } from './AuthContext';
 import { errorMessage, reportError } from './errorReport';
+import { trackServerRequest } from './serverWake';
 
 export type WeatherKind = 'sun' | 'hot' | 'cloudy' | 'rain' | 'storm' | 'wind' | 'night';
 export type ThiBand = 'normal' | 'alert' | 'danger' | 'emergency';
@@ -70,12 +71,13 @@ async function req<T>(method: string, path: string, body?: unknown, opts?: { sig
   let res: Response;
   try {
     const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
-    res = await fetch(`${base}${path}`, {
+    // Também conta para «Connecting to the server…» (o 1.º pedido do dia pode ser este).
+    res = await trackServerRequest(fetch(`${base}${path}`, {
       method,
       headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: opts?.signal,
-    });
+    }));
   } catch (e: any) {
     if (e?.name === 'AbortError') throw e;   // pedido substituído por um mais recente: não é erro
     reportError({ kind: 'network', message: errorMessage(e), endpoint, screen: opts?.screen });
