@@ -22,7 +22,8 @@ DATA_FILE = Path(__file__).resolve().parent.parent / "data" / "pt_postcodes.tsv.
 ATTRIBUTION = "GeoNames (geonames.org), CC BY 4.0"
 
 # 4935-585 · 4935 585 · 4935585 · 4935 (with optional "PT"/"CP" prefix noise trimmed).
-POSTCODE_RE = re.compile(r"^\s*(\d{4})(?:\s*[-‐–—]?\s*(\d{3}))?\s*$")
+POSTCODE_RE = re.compile(r"^(\d{4})(?:[ \-‐–—]?(\d{3}))?$")
+MAX_POSTCODE_LEN = 12
 
 _lock = threading.Lock()
 _loaded = False
@@ -34,7 +35,10 @@ _name_index: dict[str, list[int]] = {}
 
 def parse_postcode(q: str) -> tuple[str, str | None] | None:
     """('4935', '585') · ('4935', None) for a bare 4-digit code · None if not a code."""
-    m = POSTCODE_RE.match(q or "")
+    q = (q or "").strip()
+    if len(q) > MAX_POSTCODE_LEN:
+        return None
+    m = POSTCODE_RE.match(q)
     if not m:
         return None
     return m.group(1), m.group(2)

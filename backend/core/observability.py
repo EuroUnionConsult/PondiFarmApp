@@ -65,13 +65,21 @@ class ScrubFilter(logging.Filter):
         return True
 
 
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _one_line(v: object) -> str:
+    """Valores vindos do cliente não podem partir a linha do log (injeção de log)."""
+    return _CONTROL.sub(lambda m: repr(m.group())[1:-1], str(v))
+
+
 class KeyValueFormatter(logging.Formatter):
     """`2026-11-23 10:00:00 WARNING pondifarm.weather upstream failure provider=… status=…`"""
 
     def format(self, record: logging.LogRecord) -> str:
         base = super().format(record)
         extras = " ".join(
-            f"{k}={v}"
+            f"{k}={_one_line(v)}"
             for k, v in vars(record).items()
             if k not in _STD and not k.startswith("_")
         )

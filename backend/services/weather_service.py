@@ -60,6 +60,8 @@ _cache: dict[
 ] = {}  # key -> (expira, guardado, valor)
 _lock = threading.Lock()
 _nominatim_lock = threading.Lock()
+CACHE_MAX_ENTRIES = 2000
+CACHE_KEEP = 1500
 _nominatim_last = 0.0
 _season_pending: set[tuple] = set()
 _season_failed: dict[tuple, float] = {}
@@ -152,14 +154,22 @@ def _retry_after(r: httpx.Response) -> float | None:
         return None
 
 
-def _nominatim_wait() -> None:
-    """Espaça os pedidos ao Nominatim ≥1 s (política de uso), entre todos os threads."""
+def _nominatim_wait(remaining: float) -> bool:
+    """Espaça os pedidos ao Nominatim ≥1 s (política de uso), entre todos os threads.
+
+    Reserva a vez sob o lock e dorme FORA dele, para não prender outros threads.
+    Devolve False (sem esperar) se a vez reservável já não cabe no tempo que resta."""
     global _nominatim_last
     with _nominatim_lock:
-        gap = NOMINATIM_MIN_INTERVAL - (_clock() - _nominatim_last)
-        if gap > 0:
-            _sleep(gap)
-        _nominatim_last = _clock()
+        now = _clock()
+        slot = max(now, _nominatim_last + NOMINATIM_MIN_INTERVAL)
+        wait = slot - now
+        if wait > remaining - 0.2:
+            return False
+        _nominatim_last = slot
+    if wait > 0:
+        _sleep(wait)
+    return True
 
 
 def _get(
@@ -183,8 +193,8 @@ def _get(
         remaining = deadline - _clock()
         if remaining <= 0.2:
             break
-        if provider == "nominatim":
-            _nominatim_wait()
+        if provider == "nominatim" and not _nominatim_wait(remaining):
+            break
         t0 = _clock()
         retry_in: float | None = None
         status: int | None = None
@@ -304,6 +314,12 @@ def _cached(key: tuple, ttl: int, fetch, *, stale_max: float = 0):
         raise
     with _lock:
         _cache[key] = (now + ttl, now, value)
+        if len(_cache) > CACHE_MAX_ENTRIES:
+            # Pesquisas são texto livre: limitar a memória. Saem primeiro as mais antigas.
+            for k in sorted(_cache, key=lambda k: _cache[k][1])[
+                : len(_cache) - CACHE_KEEP
+            ]:
+                del _cache[k]
     return value, False
 
 

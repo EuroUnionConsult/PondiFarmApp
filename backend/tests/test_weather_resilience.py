@@ -380,3 +380,37 @@ class PlaceSearchTests(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SecurityHardeningTests(unittest.TestCase):
+    def test_postcode_parser_rejects_long_input_fast(self):
+        from services import pt_postcodes
+
+        self.assertEqual(pt_postcodes.parse_postcode(" 4935-585 "), ("4935", "585"))
+        self.assertEqual(pt_postcodes.parse_postcode("4935585"), ("4935", "585"))
+        self.assertIsNone(pt_postcodes.parse_postcode("4" + " " * 50_000 + "x"))
+
+    def test_log_values_cannot_inject_new_lines(self):
+        from core.observability import _one_line
+
+        self.assertEqual(
+            _one_line("a\nfake WARNING line\r"), "a\\nfake WARNING line\\r"
+        )
+
+    def test_nominatim_wait_gives_up_when_slot_exceeds_budget(self):
+        with (
+            unittest.mock.patch.object(wx, "_nominatim_last", 100.0),
+            unittest.mock.patch.object(wx, "_clock", lambda: 100.0),
+            unittest.mock.patch.object(wx, "_sleep", lambda s: None),
+        ):
+            self.assertFalse(wx._nominatim_wait(0.5))
+            self.assertTrue(wx._nominatim_wait(5.0))
+
+    def test_cache_is_bounded(self):
+        wx._cache.clear()
+        try:
+            for i in range(wx.CACHE_MAX_ENTRIES + 10):
+                wx._cached(("t", i), 60, lambda: 1)
+            self.assertLessEqual(len(wx._cache), wx.CACHE_MAX_ENTRIES)
+        finally:
+            wx._cache.clear()

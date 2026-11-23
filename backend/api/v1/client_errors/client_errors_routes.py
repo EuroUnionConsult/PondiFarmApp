@@ -33,7 +33,7 @@ class ClientErrorReport(APIModel):
     app_version: str = Field(max_length=32)
     screen: str | None = Field(default=None, max_length=64)
     message: str = Field(min_length=1, max_length=1000)
-    kind: str | None = Field(default=None, max_length=32)
+    kind: Literal["api", "network", "js", "unhandled-rejection"] | None = None
     http_status: int | None = Field(default=None, ge=0, le=599)
     endpoint: str | None = Field(default=None, max_length=200)
     timestamp: str | None = Field(default=None, max_length=40)
