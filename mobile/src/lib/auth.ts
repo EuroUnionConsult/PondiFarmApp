@@ -1,5 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 import { getBackendUrl } from './api';
+import { trackServerRequest } from './serverWake';
 
 // Token no iOS Keychain (armazenamento seguro nativo) via expo-secure-store.
 // Chave do SecureStore só aceita [A-Za-z0-9._-].
@@ -98,14 +99,16 @@ async function base(): Promise<string> {
 
 async function postJson(path: string, body: unknown): Promise<any> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  // 60 s: depois de uma hora parada, a base serverless leva 30–60 s a acordar e
+  // o login é muitas vezes o 1.º pedido do dia (com 20 s falhava a meio).
+  const timer = setTimeout(() => controller.abort(), 60000);
   try {
-    const res = await fetch(`${await base()}${path}`, {
+    const res = await trackServerRequest(fetch(`${await base()}${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'bypass-tunnel-reminder': 'true' },
       body: JSON.stringify(body),
       signal: controller.signal,
-    });
+    }));
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(typeof data?.detail === 'string' ? data.detail : `HTTP ${res.status}`);
@@ -139,10 +142,10 @@ export async function fetchMe(): Promise<AuthUser | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(`${await base()}/api/v1/auth/me`, {
+    const res = await trackServerRequest(fetch(`${await base()}/api/v1/auth/me`, {
       headers: { ...headers, 'bypass-tunnel-reminder': 'true' },
       signal: controller.signal,
-    });
+    }));
     if (!res.ok) return null;
     return normalizeMe(await res.json());
   } catch {
@@ -157,10 +160,10 @@ export async function fetchMe(): Promise<AuthUser | null> {
 export async function refreshToken(): Promise<void> {
   const headers = await authHeaders();
   if (!headers.Authorization) return;
-  const res = await fetch(`${await base()}/api/v1/auth/token/refresh`, {
+  const res = await trackServerRequest(fetch(`${await base()}/api/v1/auth/token/refresh`, {
     method: 'POST',
     headers: { ...headers, 'bypass-tunnel-reminder': 'true' },
-  });
+  }));
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json();
   if (data?.accessToken) await setToken(data.accessToken);

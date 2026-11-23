@@ -6,6 +6,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
 import { installGlobalErrorHandlers } from './src/lib/errorReport';
 import { ThemeScanProvider } from './src/components/ThemeScan';
+import ServerWakeNotice from './src/components/ServerWakeNotice';
 
 // Erros JavaScript não apanhados vão para o log do servidor (POST /api/v1/client-errors).
 installGlobalErrorHandlers();
@@ -31,6 +32,8 @@ export default function App() {
         <ThemeScanProvider>
           <AppNavigator />
         </ThemeScanProvider>
+        {/* «Connecting to the server…» enquanto a base serverless acorda. */}
+        <ServerWakeNotice />
       </SafeAreaProvider>
     </ThemeProvider>
   );

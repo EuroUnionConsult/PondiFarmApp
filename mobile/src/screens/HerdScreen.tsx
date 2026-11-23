@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import {
-  View, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, Animated,
+  View, StyleSheet, TouchableOpacity, Alert, TextInput, Platform, Animated, RefreshControl,
+  type SectionListRenderItemInfo,
 } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
@@ -26,6 +27,8 @@ import type { RootStackParamList } from '../navigation/types';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 type Section = { title: string; data: ScanRecord[] };
+type ListItem = { kind: 'cloud'; c: CloudAnimal } | { kind: 'local'; rec: ScanRecord };
+type ListSection = { key: string; title: string; data: ListItem[] };
 
 function startOfDay(d: Date) {
   const x = new Date(d);
@@ -64,6 +67,7 @@ export default function HerdScreen() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [query, setQuery] = useState('');
   // Distingue "não há nada para mostrar" de "não consegui perguntar". Sem isto,
   // um servidor inacessível e um rebanho vazio são o mesmo ecrã em branco, e o
@@ -128,7 +132,7 @@ export default function HerdScreen() {
   );
   const sections = useMemo(() => groupRecords(localForList), [localForList]);
 
-  const handleLongPress = (rec: ScanRecord) => {
+  const handleLongPress = useCallback((rec: ScanRecord) => {
     const name = rec.category === 'cow' ? (rec.animalId ?? 'cattle') : 'extra';
     Alert.alert(
       `Remove scan of ${name}?`,
@@ -141,18 +145,119 @@ export default function HerdScreen() {
         } },
       ]
     );
-  };
+  }, [load]);
 
-  return (
-    <View style={{ flex: 1 }}>
-      <ScreenBackground />
-    <Animated.ScrollView
-      onScroll={onScroll}
-      scrollEventThrottle={16}
-      style={[styles.scroll, { backgroundColor: 'transparent' }]}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
-      keyboardShouldPersistTaps="handled"
-    >
+  // Linhas da lista: a nuvem primeiro, depois os scans locais por data. Uma só
+  // SectionList virtualizada: com ~300 animais só se desenham as linhas à vista.
+  const listSections = useMemo<ListSection[]>(() => {
+    const out: ListSection[] = [];
+    if (cloudFiltered.length) {
+      out.push({ key: 'cloud', title: '☁ Cloud · synced', data: cloudFiltered.map((c) => ({ kind: 'cloud', c })) });
+    }
+    for (const sec of sections) {
+      out.push({ key: sec.title, title: sec.title, data: sec.data.map((rec) => ({ kind: 'local', rec })) });
+    }
+    return out;
+  }, [cloudFiltered, sections]);
+
+  const renderItem = useCallback(({ item, index, section }: SectionListRenderItemInfo<ListItem, ListSection>) => {
+    const first = index === 0;
+    const last = index === section.data.length - 1;
+    // O cartão arredondado de cada secção é feito pelas próprias linhas (1.ª e última).
+    const cardStyle = [styles.cardRow, first && styles.cardFirst, last && styles.cardLast];
+    if (item.kind === 'cloud') {
+      const c = item.c;
+      return (
+        <View style={cardStyle}>
+          <PressableScale style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} scaleTo={0.985} accessibilityRole="button">
+            <View style={[styles.rowIcon, { backgroundColor: ios.accentLight }]}>
+              <Ionicons name="cloud-outline" size={16} color={ios.accent} />
+            </View>
+            <View style={styles.rowInfo}>
+              <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
+              <Text style={styles.rowMeta} numberOfLines={1}>
+                {c.breed ? breedLabel(c.breed) : 'Breed n/a'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
+              </Text>
+            </View>
+            <View style={styles.rowMetric}>
+              <Text style={styles.rowMetricValue}>
+                {c.weightKg != null ? c.weightKg.toFixed(0) : '—'}
+              </Text>
+              <Text style={styles.rowMetricUnit}>kg</Text>
+            </View>
+            <Text style={styles.rowChev}>›</Text>
+          </PressableScale>
+          {!last && <View style={styles.rowDivider} />}
+        </View>
+      );
+    }
+    const rec = item.rec;
+    const isCow = rec.category === 'cow';
+    const recBreed = !rec.breed || rec.breed === 'default'
+      ? 'Unspecified breed'
+      : breedLabel(rec.breed);
+    return (
+      <View style={cardStyle}>
+        <PressableScale
+          style={styles.row}
+          onPress={() => nav.navigate('Result', { record: rec })}
+          onLongPress={() => handleLongPress(rec)}
+          delayLongPress={350}
+          scaleTo={0.985}
+        >
+          <View style={[
+            styles.rowIcon,
+            { backgroundColor: isCow ? ios.accentLight : ios.segmentFill },
+          ]}>
+            {isCow
+              ? <CattleIcon size={18} color={ios.accent} />
+              : <Ionicons name="cube-outline" size={16} color={ios.secondaryLabel} />}
+          </View>
+          <View style={styles.rowInfo}>
+            <Text style={styles.rowId} numberOfLines={1}>
+              {isCow ? (rec.animalId ?? 'Cattle') : 'Extra'}
+            </Text>
+            <Text style={styles.rowMeta} numberOfLines={1}>
+              {isCow ? recBreed : 'Object / person'}
+              {'  ·  '}
+              {new Date(rec.scannedAt).toLocaleString('pt-PT', {
+                day: '2-digit', month: 'short',
+                hour: '2-digit', minute: '2-digit',
+              })}
+            </Text>
+          </View>
+          <View style={styles.rowMetric}>
+            <Text style={styles.rowMetricValue}>
+              {isCow ? Math.round(estimateWeightKg(rec.measurements, rec.breed, rec.animalCategory ?? 'unknown')) : '—'}
+            </Text>
+            <Text style={styles.rowMetricUnit}>kg</Text>
+          </View>
+          {isCow && effectiveSyncState(rec) !== 'synced' && (
+            <Ionicons
+              name={effectiveSyncState(rec) === 'error' ? 'alert-circle' : 'time-outline'}
+              size={15}
+              color={effectiveSyncState(rec) === 'error' ? ios.systemRed : ios.orange}
+            />
+          )}
+          <Text style={styles.rowChev}>›</Text>
+        </PressableScale>
+        {!last && <View style={styles.rowDivider} />}
+      </View>
+    );
+  }, [styles, ios, nav, handleLongPress]);
+
+  const renderSectionHeader = useCallback(({ section }: { section: ListSection }) => (
+    <Text style={styles.sectionHeader}>{section.title}</Text>
+  ), [styles]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
+
+  // Elemento (não componente): a caixa de pesquisa não perde o foco a cada letra.
+  const header = (
+    <>
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>Herd</Text>
@@ -168,9 +273,11 @@ export default function HerdScreen() {
             })()}
           </Text>
         </View>
-        <TouchableOpacity style={styles.headerAction} onPress={() => nav.navigate('Scan')} activeOpacity={0.6}>
-          <Ionicons name="add" size={26} color={ios.accent} />
-        </TouchableOpacity>
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity style={styles.headerAction} onPress={() => nav.navigate('Scan')} activeOpacity={0.6}>
+            <Ionicons name="add" size={26} color={ios.accent} />
+          </TouchableOpacity>
+        )}
       </View>
 
       <PendingApprovalBanner />
@@ -200,122 +307,57 @@ export default function HerdScreen() {
           />
         </View>
       </View>
+    </>
+  );
 
-      {cloudFiltered.length > 0 && (
-        <View>
-          <Text style={styles.sectionHeader}>☁ Cloud · synced</Text>
-          <View style={styles.card}>
-            {cloudFiltered.map((c, i, arr) => (
-              <View key={c.id}>
-                <PressableScale style={styles.row} onPress={() => nav.navigate('AnimalDetail', { animal: c })} scaleTo={0.985} accessibilityRole="button">
-                  <View style={[styles.rowIcon, { backgroundColor: ios.accentLight }]}>
-                    <Ionicons name="cloud-outline" size={16} color={ios.accent} />
-                  </View>
-                  <View style={styles.rowInfo}>
-                    <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
-                    <Text style={styles.rowMeta} numberOfLines={1}>
-                      {c.breed ? breedLabel(c.breed) : 'Breed n/a'}{c.tagCode ? '  ·  ' + c.tagCode : ''}
-                    </Text>
-                  </View>
-                  <View style={styles.rowMetric}>
-                    <Text style={styles.rowMetricValue}>
-                      {c.weightKg != null ? c.weightKg.toFixed(0) : '—'}
-                    </Text>
-                    <Text style={styles.rowMetricUnit}>kg</Text>
-                  </View>
-                  <Text style={styles.rowChev}>›</Text>
-                </PressableScale>
-                {i < arr.length - 1 && <View style={styles.rowDivider} />}
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
+  const empty = !cloudLoaded ? (
+    <View style={[styles.card, { marginHorizontal: 16, marginTop: 8 }]}><SkeletonRows n={6} /></View>
+  ) : (
+    <View style={styles.empty}>
+      <CattleIcon size={38} color={ios.tertiaryLabel} />
+      <Text style={styles.emptyTitle}>
+        {query ? 'No matches' : 'No scans yet'}
+      </Text>
+      <Text style={styles.emptySub}>
+        {query
+          ? 'Try a different ID or breed.'
+          : Platform.OS === 'web'
+            ? 'Scans captured with the iPhone app appear here as they sync.'
+            : 'Tap + to record the first scan of the herd.'}
+      </Text>
+    </View>
+  );
 
-      {!cloudLoaded && sections.length === 0 && cloudFiltered.length === 0 ? (
-        <View style={[styles.card, { marginHorizontal: 16, marginTop: 8 }]}><SkeletonRows n={6} /></View>
-      ) : sections.length === 0 && cloudFiltered.length === 0 ? (
-        <View style={styles.empty}>
-          <CattleIcon size={38} color={ios.tertiaryLabel} />
-          <Text style={styles.emptyTitle}>
-            {query ? 'No matches' : 'No scans yet'}
+  return (
+    <View style={{ flex: 1 }}>
+      <ScreenBackground />
+      <Animated.SectionList<ListItem, ListSection>
+        sections={listSections}
+        keyExtractor={(item) => (item.kind === 'cloud' ? `c-${item.c.id}` : `l-${item.rec.id}`)}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        stickySectionHeadersEnabled={false}
+        ListHeaderComponent={header}
+        ListEmptyComponent={empty}
+        ListFooterComponent={sections.length > 0 ? (
+          <Text style={styles.footerHint}>
+            Long-press a row to remove it.
           </Text>
-          <Text style={styles.emptySub}>
-            {query
-              ? 'Try a different ID or breed.'
-              : 'Tap + to record the first scan of the herd.'}
-          </Text>
-        </View>
-      ) : (
-        sections.map(section => (
-          <View key={section.title}>
-            <Text style={styles.sectionHeader}>{section.title}</Text>
-            <View style={styles.card}>
-              {section.data.map((rec, i) => {
-                const isCow = rec.category === 'cow';
-                const recBreed = !rec.breed || rec.breed === 'default'
-                  ? 'Unspecified breed'
-                  : breedLabel(rec.breed);
-                return (
-                <View key={rec.id}>
-                  <PressableScale
-                    style={styles.row}
-                    onPress={() => nav.navigate('Result', { record: rec })}
-                    onLongPress={() => handleLongPress(rec)}
-                    delayLongPress={350}
-                    scaleTo={0.985}
-                  >
-                    <View style={[
-                      styles.rowIcon,
-                      { backgroundColor: isCow ? ios.accentLight : ios.segmentFill },
-                    ]}>
-                      {isCow
-                        ? <CattleIcon size={18} color={ios.accent} />
-                        : <Ionicons name="cube-outline" size={16} color={ios.secondaryLabel} />}
-                    </View>
-                    <View style={styles.rowInfo}>
-                      <Text style={styles.rowId}>
-                        {isCow ? (rec.animalId ?? 'Cattle') : 'Extra'}
-                      </Text>
-                      <Text style={styles.rowMeta} numberOfLines={1}>
-                        {isCow ? recBreed : 'Object / person'}
-                        {'  ·  '}
-                        {new Date(rec.scannedAt).toLocaleString('pt-PT', {
-                          day: '2-digit', month: 'short',
-                          hour: '2-digit', minute: '2-digit',
-                        })}
-                      </Text>
-                    </View>
-                    <View style={styles.rowMetric}>
-                      <Text style={styles.rowMetricValue}>
-                        {isCow ? Math.round(estimateWeightKg(rec.measurements, rec.breed, rec.animalCategory ?? 'unknown')) : '—'}
-                      </Text>
-                      <Text style={styles.rowMetricUnit}>kg</Text>
-                    </View>
-                    {isCow && effectiveSyncState(rec) !== 'synced' && (
-                      <Ionicons
-                        name={effectiveSyncState(rec) === 'error' ? 'alert-circle' : 'time-outline'}
-                        size={15}
-                        color={effectiveSyncState(rec) === 'error' ? ios.systemRed : ios.orange}
-                      />
-                    )}
-                    <Text style={styles.rowChev}>›</Text>
-                  </PressableScale>
-                  {i < section.data.length - 1 && <View style={styles.rowDivider} />}
-                </View>
-              );
-              })}
-            </View>
-          </View>
-        ))
-      )}
-
-      {sections.length > 0 && (
-        <Text style={styles.footerHint}>
-          Long-press a row to remove it.
-        </Text>
-      )}
-    </Animated.ScrollView>
+        ) : null}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ios.accent} />}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        style={[styles.scroll, { backgroundColor: 'transparent' }]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        // iPhone: só as linhas perto do ecrã (memória e arranque). Web: abre com 14
+        // linhas e completa o resto em lotes logo a seguir; no browser, montar linhas
+        // durante o scroll custava mais do que tê-las já no DOM (medido a 4× CPU).
+        initialNumToRender={14}
+        maxToRenderPerBatch={Platform.OS === 'web' ? 60 : 12}
+        windowSize={Platform.OS === 'web' ? 201 : 9}
+      />
       <CompactHeader title="Herd" scrollY={scrollY} />
     </View>
   );
@@ -382,6 +424,14 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  // Cada linha é um bocado do cartão: fundo + margens; a 1.ª e a última arredondam.
+  cardRow: {
+    marginHorizontal: 16,
+    backgroundColor: ios.secondarySystemGroupedBackground,
+    overflow: 'hidden',
+  },
+  cardFirst: { borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  cardLast: { borderBottomLeftRadius: 12, borderBottomRightRadius: 12 },
   row: {
     minHeight: 60,
     paddingHorizontal: 16, paddingVertical: 11,

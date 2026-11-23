@@ -8,6 +8,7 @@ import { getBackendUrl, isCloudSyncEnabled } from './api';
 import { authHeaders, getOrganizationId } from './auth';
 import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from './weightModel';
 import { trackCloud } from './activity';
+import { trackServerRequest } from './serverWake';
 import {
   listRecords, updateRecord, effectiveSyncState, type ScanRecord,
 } from './storage';
@@ -24,11 +25,11 @@ async function authed(path: string, init?: RequestInit, ms = PUSH_TIMEOUT_MS): P
   const timer = setTimeout(() => controller.abort(), ms);
   try {
     const auth = await authHeaders();
-    return await fetch(`${base}${path}`, {
+    return await trackServerRequest(fetch(`${base}${path}`, {
       ...init,
       headers: { ...DEFAULT_HEADERS, 'Content-Type': 'application/json', ...auth, ...(init?.headers ?? {}) },
       signal: controller.signal,
-    });
+    }));
   } finally {
     clearTimeout(timer);
   }
