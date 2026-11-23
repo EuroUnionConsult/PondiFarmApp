@@ -22,12 +22,24 @@ from api.v1.organizations_members.organizations_members_routes import (
 from api.v1.predictions.prediction_routes import predictions_router
 from api.v1.auth.auth_routes import auth_router
 from api.v1.weather.weather_routes import weather_router
+from api.v1.client_errors.client_errors_routes import client_errors_router
 from core.database import get_db, initialize_database
 from core.errors import register_exception_handlers
+from core.observability import configure_logging, configure_telemetry
+
+_telemetry_on = False
 
 
 def create_app() -> FastAPI:
     import os
+
+    global _telemetry_on
+    # Logs no stdout (App Service) e, com APPLICATIONINSIGHTS_CONNECTION_STRING,
+    # no Application Insights. Tem de vir ANTES de FastAPI(): o Azure Monitor
+    # instrumenta a classe FastAPI quando é ligado.
+    configure_logging()
+    if not _telemetry_on:
+        _telemetry_on = configure_telemetry()
 
     # /docs, /redoc e /openapi.json desligados por defeito: o repositório é público
     # e o mapa da API não precisa de estar exposto em produção. Para desenvolver,
@@ -114,6 +126,7 @@ def create_app() -> FastAPI:
     # Antes de organizations_router: /organizations/search colidia com /{organization_id}.
     app.include_router(organization_access_router)
     app.include_router(weather_router)
+    app.include_router(client_errors_router)
     app.include_router(organizations_router)
     app.include_router(users_router)
     app.include_router(organizations_member_router)

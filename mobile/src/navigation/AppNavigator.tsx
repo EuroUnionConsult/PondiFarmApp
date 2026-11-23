@@ -1,5 +1,5 @@
 import React from 'react';
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { useTheme } from '../lib/ThemeContext';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -24,6 +24,10 @@ import FarmLocationScreen from '../screens/FarmLocationScreen';
 import { WeatherProvider } from '../lib/weather';
 
 import type { RootStackParamList, TabParamList } from './types';
+import { activeRouteName, setCurrentScreen } from '../lib/errorReport';
+
+// O ecrã inicial também conta para os relatórios de erro (onStateChange só corre na 1.ª navegação).
+const navRef = createNavigationContainerRef<Record<string, object | undefined>>();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -76,7 +80,7 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navRef} theme={navTheme} onReady={() => setCurrentScreen(navRef.getCurrentRoute()?.name)} onStateChange={(st) => setCurrentScreen(activeRouteName(st))}>
       {/* Voltar atrás deslizando de qualquer ponto do ecrã (não só da borda),
           como nas apps nativas do iOS. */}
       <Stack.Navigator screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>

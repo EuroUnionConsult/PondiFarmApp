@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { authHeaders, getOrganizationId } from './auth';
 import { DEFAULT_BACKEND_URL, DEV_SERVER_KEY, CLOUD_SYNC_KEY, CLOUD_CACHE_KEY } from './config';
 import { trackCloud } from './activity';
+import { errorMessage, reportError } from './errorReport';
 
 const DEFAULT_HEADERS = { 'bypass-tunnel-reminder': 'true' } as const;
 
@@ -58,14 +59,25 @@ async function fetchUmaVez(url: string, ms: number): Promise<Response> {
 const COLD_START_TIMEOUT_MS = 60000;
 
 async function fetchWithTimeout(url: string, ms: number): Promise<Response> {
+  let res: Response;
   try {
-    return await fetchUmaVez(url, ms);
-  } catch (e: any) {
-    // Só o timeout justifica repetir. Um erro de DNS ou de TLS repetido dá o
-    // mesmo erro mais devagar.
-    if (e?.name !== 'AbortError') throw e;
-    return await fetchUmaVez(url, COLD_START_TIMEOUT_MS);
+    try {
+      res = await fetchUmaVez(url, ms);
+    } catch (e: any) {
+      // Só o timeout justifica repetir. Um erro de DNS ou de TLS repetido dá o
+      // mesmo erro mais devagar.
+      if (e?.name !== 'AbortError') throw e;
+      res = await fetchUmaVez(url, COLD_START_TIMEOUT_MS);
+    }
+  } catch (e) {
+    reportError({ kind: 'network', message: errorMessage(e), endpoint: url });
+    throw e;
   }
+  // Erros do servidor ficam registados (os 4xx são respostas normais: sessão, permissões).
+  if (res.status >= 500 || res.status === 429) {
+    reportError({ kind: 'api', message: `HTTP ${res.status}`, httpStatus: res.status, endpoint: url });
+  }
+  return res;
 }
 
 export async function getBackendUrl(): Promise<string> {

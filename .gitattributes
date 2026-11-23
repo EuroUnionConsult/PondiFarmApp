@@ -37,6 +37,7 @@
 *.zip  binary
 *.tar  binary
 *.tgz  binary
+*.gz   binary
 # ── Git LFS — model artefacts ──────────────────────────────────
 # Trained model weights and large pickles.
 *.pt        filter=lfs diff=lfs merge=lfs -text

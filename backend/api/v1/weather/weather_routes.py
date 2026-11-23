@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 import httpx
@@ -22,6 +23,7 @@ from schemas.base import APIModel
 from services import weather_service as wx
 
 weather_router = APIRouter(prefix="/api/v1", tags=["weather"])
+log = logging.getLogger("pondifarm.weather.routes")
 
 
 class FarmLocationRequest(APIModel):
@@ -43,11 +45,18 @@ def _own_org(current: CurrentUser, organization_id: UUID) -> None:
         )
 
 
-def _upstream(e: Exception) -> HTTPException:
-    return HTTPException(
-        status.HTTP_503_SERVICE_UNAVAILABLE,
-        "Weather service unavailable, try again shortly",
+def _upstream(e: Exception, route: str, message: str) -> HTTPException:
+    """503 para o cliente, mas sempre com uma linha no log a dizer o que falhou."""
+    log.error(
+        "upstream error returned as 503",
+        extra={
+            "route": route,
+            "error_type": type(e).__name__,
+            "provider": getattr(e, "provider", None),
+            "status": getattr(e, "status", None),
+        },
     )
+    return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, message)
 
 
 @weather_router.get("/organizations/{organization_id}/weather")
@@ -65,7 +74,9 @@ def get_weather(
     try:
         data = wx.forecast_for(org.farm_lat, org.farm_lon, org.farm_label, replay)
     except (httpx.HTTPError, KeyError, ValueError) as e:
-        raise _upstream(e) from e
+        raise _upstream(
+            e, "weather", "Couldn't reach the forecast service. Try again shortly."
+        ) from e
     data["canSetLocation"] = current.is_leader
     return data
 
@@ -101,13 +112,21 @@ def set_farm_location(
 @weather_router.get("/places/search")
 def search_places(
     q: str = Query(min_length=3, max_length=120),
+    submit: bool = Query(default=False),
     account: CurrentAccount = Depends(get_current_account),
 ):
-    """Lugar por nome ou código postal (PT), para marcar a quinta."""
+    """Lugar por nome ou código postal (PT), para marcar a quinta.
+
+    `submit=true` quando o utilizador carregou em Enter/Pesquisar: só aí se pode
+    recorrer ao Nominatim para nomes (a política dele proíbe autocompletar)."""
     try:
-        return wx.search_places(q)
+        return wx.search_places(q, submit=submit)
     except (httpx.HTTPError, KeyError, ValueError) as e:
-        raise _upstream(e) from e
+        raise _upstream(
+            e,
+            "places_search",
+            "Place search is unavailable right now. Try again shortly.",
+        ) from e
 
 
 @weather_router.get("/places/reverse")

@@ -12,30 +12,79 @@ memória por coordenadas), não um por telemóvel.
 
 from __future__ import annotations
 
+import email.utils
 import hashlib
-import re
+import logging
+import random
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, datetime, timedelta
+from urllib.parse import urlsplit
 
 import httpx
+
+from services import pt_postcodes
+
+log = logging.getLogger("pondifarm.weather")
 
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 AIR_URL = "https://air-quality-api.open-meteo.com/v1/air-quality"
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search"
 NOMINATIM_URL = "https://nominatim.openstreetmap.org"
-USER_AGENT = "PondiFarm/0.9 (+https://pondifarmdesk.trazzidely.com.br)"
+USER_AGENT = "PondiFarm/0.10 (+https://pondifarmdesk.trazzidely.com.br)"
 
 FORECAST_TTL = 30 * 60
 SEASON_TTL = 24 * 60 * 60
-TIMEOUT = httpx.Timeout(10.0)
+PLACES_TTL = 7 * 24 * 60 * 60
+# Previsão antiga ainda é útil se o Open-Meteo falhar: serve-se marcada `stale`.
+STALE_MAX = 12 * 60 * 60
+SEASON_RETRY_AFTER = 30 * 60
+TIMEOUT = 10.0
+
+# Repetições: 4 tentativas no máximo, recuo exponencial com jitter, tempo total limitado.
+MAX_ATTEMPTS = 4
+BACKOFF_BASE = 0.5
+BACKOFF_CAP = 4.0
+TOTAL_BUDGET = 20.0
+RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+# Política do Nominatim: no máximo 1 pedido por segundo (para todo o processo).
+NOMINATIM_MIN_INTERVAL = 1.0
 
 # Livestock Weather Safety Index (LCI/USDA) para bovinos de carne.
 THI_ALERT, THI_DANGER, THI_EMERGENCY = 75.0, 79.0, 84.0
 
-_cache: dict[tuple, tuple[float, dict]] = {}
+_cache: dict[
+    tuple, tuple[float, float, object]
+] = {}  # key -> (expira, guardado, valor)
 _lock = threading.Lock()
+_nominatim_lock = threading.Lock()
+_nominatim_last = 0.0
+_season_pending: set[tuple] = set()
+_season_failed: dict[tuple, float] = {}
+
+# Pontos de injeção para os testes (sem rede, sem esperas reais).
+_transport: httpx.BaseTransport | None = None
+_sleep = time.sleep
+_clock = time.monotonic
+
+
+def _spawn(fn) -> None:
+    threading.Thread(target=fn, daemon=True, name="weather-bg").start()
+
+
+class UpstreamError(httpx.HTTPError):
+    """Falha definitiva de uma fonte externa, depois das repetições."""
+
+    def __init__(self, provider: str, endpoint: str, detail: str, status: int | None):
+        super().__init__(f"{provider} {endpoint}: {detail}")
+        self.provider, self.endpoint, self.detail, self.status = (
+            provider,
+            endpoint,
+            detail,
+            status,
+        )
 
 
 def round_coord(v: float) -> float:
@@ -81,25 +130,181 @@ def weather_kind(
     return "sun" if c <= 2 else "cloudy"  # 2 = parcialmente nublado: ainda sol
 
 
-def _get(url: str, params: dict, headers: dict | None = None) -> dict | list:
-    with httpx.Client(
-        timeout=TIMEOUT, headers={"User-Agent": USER_AGENT, **(headers or {})}
-    ) as c:
-        r = c.get(url, params=params)
-        r.raise_for_status()
-        return r.json()
+def _provider(url: str) -> tuple[str, str]:
+    u = urlsplit(url)
+    host = u.hostname or "?"
+    name = "nominatim" if "nominatim" in host else host.split(".")[0]
+    return name, u.path or "/"
 
 
-def _cached(key: tuple, ttl: int, fetch):
+def _retry_after(r: httpx.Response) -> float | None:
+    v = r.headers.get("Retry-After")
+    if not v:
+        return None
+    try:
+        return max(0.0, float(v))
+    except ValueError:
+        pass
+    try:
+        dt = email.utils.parsedate_to_datetime(v)
+        return max(0.0, dt.timestamp() - time.time())
+    except (TypeError, ValueError):
+        return None
+
+
+def _nominatim_wait() -> None:
+    """Espaça os pedidos ao Nominatim ≥1 s (política de uso), entre todos os threads."""
+    global _nominatim_last
+    with _nominatim_lock:
+        gap = NOMINATIM_MIN_INTERVAL - (_clock() - _nominatim_last)
+        if gap > 0:
+            _sleep(gap)
+        _nominatim_last = _clock()
+
+
+def _get(
+    url: str,
+    params: dict,
+    headers: dict | None = None,
+    *,
+    attempts: int = MAX_ATTEMPTS,
+    budget: float = TOTAL_BUDGET,
+) -> dict | list:
+    """GET JSON com repetições em timeout, erro de ligação, 429 e 5xx.
+
+    Cada falha fica no log (fonte, endpoint, estado/tipo de erro, tentativa, duração).
+    Os parâmetros não vão para o log: as coordenadas já vêm arredondadas, mas as
+    pesquisas são texto livre do utilizador."""
+    provider, endpoint = _provider(url)
+    deadline = _clock() + budget
+    last: Exception | None = None
+    attempt = 0
+    for attempt in range(1, attempts + 1):
+        remaining = deadline - _clock()
+        if remaining <= 0.2:
+            break
+        if provider == "nominatim":
+            _nominatim_wait()
+        t0 = _clock()
+        retry_in: float | None = None
+        status: int | None = None
+        try:
+            with httpx.Client(
+                timeout=min(TIMEOUT, remaining),
+                headers={"User-Agent": USER_AGENT, **(headers or {})},
+                transport=_transport,
+            ) as c:
+                r = c.get(url, params=params)
+            status = r.status_code
+            if status in RETRY_STATUSES:
+                retry_in = _retry_after(r)
+                raise httpx.HTTPStatusError(
+                    f"HTTP {status}", request=r.request, response=r
+                )
+            r.raise_for_status()
+            data = r.json()
+            if attempt > 1:
+                log.info(
+                    "upstream ok after retry",
+                    extra={
+                        "provider": provider,
+                        "endpoint": endpoint,
+                        "attempt": attempt,
+                        "duration_ms": round((_clock() - t0) * 1000),
+                    },
+                )
+            return data
+        except (
+            httpx.TimeoutException,
+            httpx.TransportError,
+            httpx.HTTPStatusError,
+        ) as e:
+            last = e
+            retryable = status is None or status in RETRY_STATUSES
+            log.warning(
+                "upstream failure",
+                extra={
+                    "provider": provider,
+                    "endpoint": endpoint,
+                    "status": status,
+                    "error_type": type(e).__name__,
+                    "attempt": attempt,
+                    "max_attempts": attempts,
+                    "duration_ms": round((_clock() - t0) * 1000),
+                    "retryable": retryable,
+                },
+            )
+            if not retryable or attempt == attempts:
+                break
+            delay = min(BACKOFF_CAP, BACKOFF_BASE * 2 ** (attempt - 1))
+            delay = delay / 2 + random.uniform(0, delay / 2)  # jitter
+            if retry_in is not None:
+                delay = max(delay, retry_in)
+            if _clock() + delay >= deadline:
+                log.warning(
+                    "upstream retry skipped: time budget",
+                    extra={
+                        "provider": provider,
+                        "endpoint": endpoint,
+                        "wait_s": round(delay, 1),
+                    },
+                )
+                break
+            _sleep(delay)
+        except ValueError as e:  # JSON inválido
+            last = e
+            log.warning(
+                "upstream bad payload",
+                extra={
+                    "provider": provider,
+                    "endpoint": endpoint,
+                    "status": status,
+                    "attempt": attempt,
+                },
+            )
+            break
+    status = (
+        last.response.status_code if isinstance(last, httpx.HTTPStatusError) else None
+    )
+    detail = type(last).__name__ if last else "budget exhausted"
+    log.error(
+        "upstream failed",
+        extra={
+            "provider": provider,
+            "endpoint": endpoint,
+            "status": status,
+            "error_type": detail,
+            "attempts_made": attempt,
+        },
+    )
+    raise UpstreamError(provider, endpoint, detail, status) from last
+
+
+def _cached(key: tuple, ttl: int, fetch, *, stale_max: float = 0):
+    """Devolve (valor, stale). Se `fetch` falhar e houver um valor guardado há menos
+    de `stale_max` segundos, devolve-o marcado como antigo em vez de falhar."""
     now = time.time()
     with _lock:
         hit = _cache.get(key)
         if hit and hit[0] > now:
-            return hit[1]
-    value = fetch()
+            return hit[2], False
+    try:
+        value = fetch()
+    except (httpx.HTTPError, KeyError, ValueError) as e:
+        if hit and now - hit[1] <= stale_max:
+            log.warning(
+                "serving stale data",
+                extra={
+                    "cache": key[0],
+                    "age_s": round(now - hit[1]),
+                    "error_type": type(e).__name__,
+                },
+            )
+            return hit[2], True
+        raise
     with _lock:
-        _cache[key] = (now + ttl, value)
-    return value
+        _cache[key] = (now + ttl, now, value)
+    return value, False
 
 
 def _windows(flags: list[bool]) -> list[tuple[int, int]]:
@@ -237,10 +442,31 @@ def _season(lat: float, lon: float, today: date) -> dict | None:
             "dangerDays": sum(1 for v in peak.values() if v >= THI_DANGER),
         }
 
-    try:
-        return _cached(("season", lat, lon, start, end), SEASON_TTL, fetch)
-    except httpx.HTTPError:
-        return None
+    key = ("season", lat, lon, start, end)
+    now = time.time()
+    with _lock:
+        hit = _cache.get(key)
+        if hit and hit[0] > now:
+            return hit[2]
+        # O ERA5 é lento (meses de horas): nunca bloqueia a previsão. O primeiro pedido
+        # para um sítio novo devolve `season: null` e o cálculo segue em segundo plano.
+        if key in _season_pending or _season_failed.get(key, 0) > now:
+            return hit[2] if hit else None
+        _season_pending.add(key)
+
+    def run():
+        try:
+            _cached(key, SEASON_TTL, fetch)
+        except (httpx.HTTPError, KeyError, ValueError) as e:
+            log.warning("season summary failed", extra={"error_type": type(e).__name__})
+            with _lock:
+                _season_failed[key] = time.time() + SEASON_RETRY_AFTER
+        finally:
+            with _lock:
+                _season_pending.discard(key)
+
+    _spawn(run)
+    return hit[2] if hit else None
 
 
 def _day_kind(h: dict, day: str, code: int, pop: int | None, tmax: float) -> str:
@@ -321,23 +547,10 @@ def forecast_for(
     lat, lon = round_coord(lat), round_coord(lon)
 
     def fetch():
-        f = _get(
-            FORECAST_URL,
-            {
-                "latitude": lat,
-                "longitude": lon,
-                "models": "ecmwf_ifs025",
-                "timezone": "auto",
-                "forecast_days": 7,
-                "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,"
-                "wind_speed_10m,wind_gusts_10m,is_day",
-                "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,"
-                "wind_speed_10m,wind_gusts_10m,weather_code,is_day",
-                "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code",
-            },
-        )
-        try:
-            aq = _get(
+        # Previsão e qualidade do ar em paralelo; a do ar tem orçamento curto e é opcional.
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            fut_aq = ex.submit(
+                _get,
                 AIR_URL,
                 {
                     "latitude": lat,
@@ -345,24 +558,47 @@ def forecast_for(
                     "timezone": "auto",
                     "current": "uv_index,european_aqi",
                 },
+                attempts=2,
+                budget=6.0,
             )
-        except httpx.HTTPError:
-            aq = {}
+            fut_f = ex.submit(
+                _get,
+                FORECAST_URL,
+                {
+                    "latitude": lat,
+                    "longitude": lon,
+                    "models": "ecmwf_ifs025",
+                    "timezone": "auto",
+                    "forecast_days": 7,
+                    "current": "temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,"
+                    "wind_speed_10m,wind_gusts_10m,is_day",
+                    "hourly": "temperature_2m,relative_humidity_2m,precipitation_probability,precipitation,"
+                    "wind_speed_10m,wind_gusts_10m,weather_code,is_day",
+                    "daily": "temperature_2m_max,temperature_2m_min,precipitation_probability_max,weather_code",
+                },
+            )
+            try:
+                aq = fut_aq.result()
+            except httpx.HTTPError:
+                aq = {}  # sem UV/AQI, a previsão continua válida
+            f = fut_f.result()
+        if not isinstance(f, dict) or "hourly" not in f or "current" not in f:
+            raise ValueError("forecast payload without hourly/current")
         return {
             "f": f,
-            "aq": aq,
+            "aq": aq if isinstance(aq, dict) else {},
             "at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         }
 
     replay = replay_day if (replay_day and replay_enabled()) else None
-    raw = (
+    raw, stale = (
         _cached(
             ("replay", lat, lon, replay),
             SEASON_TTL,
             lambda: _replay_raw(lat, lon, replay),
         )
         if replay
-        else _cached(("fc", lat, lon), FORECAST_TTL, fetch)
+        else _cached(("fc", lat, lon), FORECAST_TTL, fetch, stale_max=STALE_MAX)
     )
     f, aq = raw["f"], raw["aq"]
     h, cur = f["hourly"], f["current"]
@@ -428,6 +664,8 @@ def forecast_for(
         "location": {"lat": lat, "lon": lon, "label": label},
         "timezone": f.get("timezone"),
         "updatedAt": raw["at"],
+        # true = o Open-Meteo falhou agora; isto é a última previsão boa (ver updatedAt).
+        "stale": stale,
         "current": current,
         "hours": hours,
         "days": days,
@@ -446,51 +684,90 @@ def forecast_for(
     }
 
 
-_PT_POSTCODE = re.compile(r"^\s*(\d{4})-?(\d{3})\s*$")
+def _place(label: str, lat: float, lon: float) -> dict:
+    return {"label": label, "lat": round_coord(lat), "lon": round_coord(lon)}
 
 
-def search_places(query: str) -> list[dict]:
-    """Lugar por nome (Open-Meteo) ou código postal português (OpenStreetMap)."""
-    q = (query or "").strip()
+def _nominatim_search(params: dict) -> list[dict]:
+    """Nominatim com cache (a política de uso pede cache e ≤1 pedido/s)."""
+    key = ("nominatim", tuple(sorted(params.items())))
+
+    def fetch():
+        res = _get(
+            f"{NOMINATIM_URL}/search",
+            {**params, "format": "jsonv2", "addressdetails": 1, "limit": 5},
+        )
+        return [
+            _place(
+                _label_from_address(r.get("address") or {}, r.get("display_name", "")),
+                float(r["lat"]),
+                float(r["lon"]),
+            )
+            for r in (res if isinstance(res, list) else [])
+        ]
+
+    return _cached(key, PLACES_TTL, fetch)[0]
+
+
+def _dedupe(items: list[dict], limit: int) -> list[dict]:
+    out, seen = [], set()
+    for it in items:
+        k = it["label"].casefold()
+        if k not in seen:
+            seen.add(k)
+            out.append(it)
+    return out[:limit]
+
+
+def search_places(query: str, submit: bool = False) -> list[dict]:
+    """Lugar por nome ou código postal português.
+
+    Código postal (4935-585, 4935 585, 4935585 ou 4935): tabela offline da GeoNames
+    primeiro; o Nominatim só se o código não estiver lá.
+    Nome: Open-Meteo (Portugal primeiro) + tabela offline, que conhece freguesias
+    pequenas («Vila Nova de Anha»). Se nada aparecer e o utilizador SUBMETEU a pesquisa
+    (Enter/botão), tenta o Nominatim restrito a PT. Nunca em autocompletar: a política
+    do Nominatim proíbe-o."""
+    q = " ".join((query or "").split())
     if len(q) < 3:
         return []
-    m = _PT_POSTCODE.match(q)
-    if m:
-        # Código postal PT: o OpenStreetMap nem sempre tem os 7 dígitos; tenta depois só os 4.
-        for code in (f"{m.group(1)}-{m.group(2)}", m.group(1)):
-            res = _get(
-                f"{NOMINATIM_URL}/search",
-                {
-                    "postalcode": code,
-                    "country": "pt",
-                    "format": "jsonv2",
-                    "addressdetails": 1,
-                    "limit": 5,
-                },
-            )
+    pc = pt_postcodes.parse_postcode(q)
+    if pc:
+        code4, code3 = pc
+        found = pt_postcodes.lookup(code4, code3)
+        if found:
+            return found
+        for code in ([f"{code4}-{code3}"] if code3 else []) + [code4]:
+            res = _nominatim_search({"postalcode": code, "countrycodes": "pt"})
             if res:
-                return [
-                    {
-                        "label": _label_from_address(
-                            r.get("address") or {}, r.get("display_name", "")
-                        ),
-                        "lat": round_coord(float(r["lat"])),
-                        "lon": round_coord(float(r["lon"])),
-                    }
-                    for r in res
-                ]
+                return res
         return []
-    res = _get(GEOCODE_URL, {"name": q, "count": 6, "language": "en", "format": "json"})
-    return [
-        {
-            "label": ", ".join(
+
+    def om():
+        res = _get(
+            GEOCODE_URL, {"name": q, "count": 10, "language": "en", "format": "json"}
+        )
+        return (res or {}).get("results") or [] if isinstance(res, dict) else []
+
+    rows = _cached(("geocode", q.casefold()), PLACES_TTL, om)[0]
+    rows = sorted(rows, key=lambda r: r.get("country_code") != "PT")  # estável
+    named = [
+        _place(
+            ", ".join(
                 x for x in (r.get("name"), r.get("admin1"), r.get("country")) if x
             ),
-            "lat": round_coord(r["latitude"]),
-            "lon": round_coord(r["longitude"]),
-        }
-        for r in (res.get("results") or [])
+            r["latitude"],
+            r["longitude"],
+        )
+        for r in rows
     ]
+    pt = [p for p, r in zip(named, rows) if r.get("country_code") == "PT"]
+    other = [p for p, r in zip(named, rows) if r.get("country_code") != "PT"]
+    offline = pt_postcodes.search_name(q)
+    out = _dedupe(pt + offline + other, 8)
+    if not out and submit:
+        out = _nominatim_search({"q": q, "countrycodes": "pt"})
+    return out
 
 
 def _label_from_address(a: dict, fallback: str) -> str:
@@ -508,19 +785,24 @@ def _label_from_address(a: dict, fallback: str) -> str:
 
 def place_name(lat: float, lon: float) -> str | None:
     """Nome do lugar para um ponto (GPS ou pino no mapa)."""
+    lat, lon = round_coord(lat), round_coord(lon)
     try:
-        r = _get(
-            f"{NOMINATIM_URL}/reverse",
-            {
-                "lat": round_coord(lat),
-                "lon": round_coord(lon),
-                "zoom": 10,
-                "format": "jsonv2",
-                "addressdetails": 1,
-            },
+        r, _stale = _cached(
+            ("reverse", lat, lon),
+            PLACES_TTL,
+            lambda: _get(
+                f"{NOMINATIM_URL}/reverse",
+                {
+                    "lat": lat,
+                    "lon": lon,
+                    "zoom": 10,
+                    "format": "jsonv2",
+                    "addressdetails": 1,
+                },
+            ),
         )
     except httpx.HTTPError:
-        return None
+        return None  # já ficou no log em _get
     return (
         _label_from_address(r.get("address") or {}, r.get("display_name", ""))
         if isinstance(r, dict)

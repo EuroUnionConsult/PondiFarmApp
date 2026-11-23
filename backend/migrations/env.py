@@ -14,7 +14,9 @@ import models.models  # noqa: F401  (regista as tabelas no metadata)
 
 config = context.config
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # Sem desligar os loggers que já existem (pondifarm.*): o defeito do fileConfig
+    # silenciava-os quando as migrações correm no mesmo processo (ex.: testes).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
