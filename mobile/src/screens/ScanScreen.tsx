@@ -3,7 +3,7 @@ import {
   View, StyleSheet, TouchableOpacity, Platform, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, ScrollView,
 } from 'react-native';
 import Text from '../components/Text';
-import { useCameraPermissions } from 'expo-camera';
+import { useCameraPermissions } from '../lib/cameraPermissions';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
