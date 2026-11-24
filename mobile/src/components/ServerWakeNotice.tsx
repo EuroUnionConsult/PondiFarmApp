@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, StyleSheet, View } from 'react-native';
+import { Animated, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { useServerWaking } from '../lib/serverWake';
 import Text from './Text';
+import PondiLoader from './PondiLoader';
 
 // Aviso calmo no topo enquanto o servidor acorda (ver lib/serverWake.ts). Não
 // bloqueia nada: os toques passam através dele e some quando o pedido termina.
@@ -32,7 +33,7 @@ export default function ServerWakeNotice() {
         accessibilityLiveRegion="polite"
         accessibilityLabel="Connecting to the server. This can take up to a minute after a quiet period."
       >
-        <ActivityIndicator size="small" color={ios.accent} />
+        <PondiLoader size="sm" label="Connecting to the server" />
         <View style={{ flexShrink: 1, minWidth: 0 }}>
           <Text style={styles.title}>Connecting to the server…</Text>
           <Text style={styles.text}>This can take up to a minute after a quiet period.</Text>

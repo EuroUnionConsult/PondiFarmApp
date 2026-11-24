@@ -3,8 +3,7 @@ import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainer
 import { useTheme } from '../lib/ThemeContext';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, ActivityIndicator } from 'react-native';
-import { colors } from '../lib/theme';
+import { View } from 'react-native';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 import GlassTabBar from '../components/GlassTabBar';
 
@@ -26,6 +25,7 @@ import { WeatherProvider } from '../lib/weather';
 
 import type { RootStackParamList, TabParamList } from './types';
 import { activeRouteName, setCurrentScreen } from '../lib/errorReport';
+import PondiLoader from '../components/PondiLoader';
 
 // O ecrã inicial também conta para os relatórios de erro (onStateChange só corre na 1.ª navegação).
 const navRef = createNavigationContainerRef<Record<string, object | undefined>>();
@@ -64,7 +64,7 @@ export function RootNavigator() {
   if (loading) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.systemGroupedBackground }}>
-        <ActivityIndicator color={colors.primary} />
+        <PondiLoader size="lg" />
       </View>
     );
   }

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
-  View, TextInput, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Alert,
+  View, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert,
   KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import {
   MIN_SEARCH_CHARS, cancelMyRequest, createOrganization, requestToJoin, searchOrganizations,
   type OrgSearchResult,
 } from '../lib/orgs';
+import PondiLoader from '../components/PondiLoader';
 
 // Conta com sessão iniciada mas sem organização ativa: escolhe entrar numa que
 // já existe (pesquisa + pedido ao Líder) ou criar uma nova (fica Líder). Com o
@@ -101,7 +102,7 @@ export default function OrganizationGateScreen({ bare = false }: { bare?: boolea
                 As soon as its leader approves, the app opens with the organization’s herd.
               </Text>
               <TouchableOpacity style={styles.primary} onPress={() => run(async () => {})} disabled={busy} activeOpacity={0.85}>
-                {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Check again</Text>}
+                {busy ? <PondiLoader size="sm" tone="onColor" /> : <Text style={styles.primaryText}>Check again</Text>}
               </TouchableOpacity>
               <TouchableOpacity style={styles.secondary} onPress={() => run(cancelMyRequest)} disabled={busy} activeOpacity={0.6}>
                 <Text style={styles.secondaryText}>Cancel request</Text>
@@ -182,7 +183,7 @@ export default function OrganizationGateScreen({ bare = false }: { bare?: boolea
                     onPress={() => run(() => createOrganization(newName))}
                     activeOpacity={0.85}
                   >
-                    {busy ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.primaryText}>Create organization</Text>}
+                    {busy ? <PondiLoader size="sm" tone="onColor" /> : <Text style={styles.primaryText}>Create organization</Text>}
                   </TouchableOpacity>
                 </View>
               )}

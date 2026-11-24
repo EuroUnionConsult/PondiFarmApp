@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Pressable, Platform } from 'react-native';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import Text from './Text';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { fetchScanHistory, type ScanHistoryData, type HistoryScan, type ScanWx } from '../lib/api';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 import { fmtScanDate, fmtScanTime, growthSummary, measureDeltas, shrunk, weatherDiffers, weatherLine, weightDelta, weightMargin } from '../lib/scanHistory';
+import PondiLoader from './PondiLoader';
 
 const cache = new Map<string, ScanHistoryData>();
 
@@ -32,7 +33,7 @@ export default function ScanHistory({ animalId, onScanAgain, name }: { animalId:
   }, [animalId]);
 
   if (failed) return <Text style={s.note}>The scan history could not be loaded.</Text>;
-  if (data === null) return <View style={s.loading}><ActivityIndicator color={c.accent} /></View>;
+  if (data === null) return <View style={s.loading}><PondiLoader size="md" /></View>;
   const scans = data.scans.filter((x) => x.weightKg != null && x.weightKg > 0);
   if (!scans.length) return <Text style={s.note}>No scans with a weight yet.</Text>;
 

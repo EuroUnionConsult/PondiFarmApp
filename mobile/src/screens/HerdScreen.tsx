@@ -23,6 +23,8 @@ import ScreenBackground from '../components/ScreenBackground';
 import CattleIcon from '../components/CattleIcon';
 import { SkeletonRows } from '../components/Skeleton';
 import type { RootStackParamList } from '../navigation/types';
+import EmptyState, { EMPTY_HINT_NATIVE, EMPTY_HINT_WEB } from '../components/EmptyState';
+import RefreshLoader, { REFRESH_TINT } from '../components/RefreshLoader';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -313,19 +315,12 @@ export default function HerdScreen() {
   const empty = !cloudLoaded ? (
     <View style={[styles.card, { marginHorizontal: 16, marginTop: 8 }]}><SkeletonRows n={6} /></View>
   ) : (
-    <View style={styles.empty}>
-      <CattleIcon size={38} color={ios.tertiaryLabel} />
-      <Text style={styles.emptyTitle}>
-        {query ? 'No matches' : 'No scans yet'}
-      </Text>
-      <Text style={styles.emptySub}>
-        {query
-          ? 'Try a different ID or breed.'
-          : Platform.OS === 'web'
-            ? 'Scans captured with the iPhone app appear here as they sync.'
-            : 'Tap + to record the first scan of the herd.'}
-      </Text>
-    </View>
+    <EmptyState
+      style={{ paddingTop: 48 }}
+      title={query ? 'No results' : 'No animals yet'}
+      text={query ? 'Try a different ID or breed.' : Platform.OS === 'web' ? EMPTY_HINT_WEB : EMPTY_HINT_NATIVE}
+      action={!query && Platform.OS !== 'web' ? { label: 'New scan', icon: 'scan-outline', onPress: () => nav.navigate('Scan') } : undefined}
+    />
   );
 
   return (
@@ -344,7 +339,7 @@ export default function HerdScreen() {
             Long-press a row to remove it.
           </Text>
         ) : null}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ios.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={REFRESH_TINT} />}
         onScroll={onScroll}
         scrollEventThrottle={16}
         style={[styles.scroll, { backgroundColor: 'transparent' }]}
@@ -358,6 +353,8 @@ export default function HerdScreen() {
         maxToRenderPerBatch={Platform.OS === 'web' ? 60 : 12}
         windowSize={Platform.OS === 'web' ? 201 : 9}
       />
+      {/* Puxar para atualizar: o PondiLoader no lugar do spinner do sistema. */}
+      <RefreshLoader scrollY={scrollY} refreshing={refreshing} top={insets.top} />
       <CompactHeader title="Herd" scrollY={scrollY} />
     </View>
   );

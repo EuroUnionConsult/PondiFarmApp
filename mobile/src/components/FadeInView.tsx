@@ -1,9 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { Animated, type StyleProp, type ViewStyle } from 'react-native';
 import { stagger, useReducedMotion } from '../lib/motion';
+import { INTRO, entryIntroContentDelay } from '../lib/entryIntro';
 
 // Entrada de uma secção: aparece com fade e sobe 12 px, em cascata pelo `index`.
 // Só na montagem — não repete a cada render. «Reduzir movimento»: só o fade.
+// Durante a animação de abertura (EntryAnimation) espera pela passagem para a app e entra
+// cartão a cartão, com um intervalo maior (INTRO.cardStagger).
 export default function FadeInView({
   index = 0, style, children,
 }: { index?: number; style?: StyleProp<ViewStyle>; children: React.ReactNode }) {
@@ -11,10 +14,11 @@ export default function FadeInView({
   const v = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const intro = entryIntroContentDelay();
     Animated.timing(v, {
       toValue: 1,
-      duration: reduced ? 160 : 320,
-      delay: reduced ? 0 : stagger(index),
+      duration: reduced ? 160 : intro ? 380 : 320,
+      delay: reduced ? 0 : intro ? intro + Math.min(index, 8) * INTRO.cardStagger : stagger(index),
       useNativeDriver: true,
     }).start();
   }, [v, index, reduced]);

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
-  View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Animated, Easing, Image,
+  View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Animated, Easing, Image,
 } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
@@ -11,6 +11,7 @@ import { useAuth } from '../lib/AuthContext';
 import { getDevServerUrl, setDevServerUrl } from '../lib/api';
 import LiquidGlass from '../components/LiquidGlass';
 import ScreenBackground from '../components/ScreenBackground';
+import PondiLoader from '../components/PondiLoader';
 
 export default function LoginScreen() {
   const { colors: ios } = useTheme();
@@ -114,7 +115,7 @@ export default function LoginScreen() {
                 disabled={busy}
                 activeOpacity={0.85}
               >
-                {busy ? <ActivityIndicator color="#fff" /> : (
+                {busy ? <PondiLoader size="sm" tone="onColor" /> : (
                   <Text style={styles.buttonText}>{mode === 'login' ? 'Sign in' : 'Create account'}</Text>
                 )}
               </TouchableOpacity>

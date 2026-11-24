@@ -91,6 +91,11 @@ html, body { background: var(--ground); }
 /* ---------- transições entre páginas ---------- */
 .pf-pagein { animation: pfIn .38s cubic-bezier(.2,.8,.2,1); }
 @keyframes pfIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.pf-afterintro { animation: none; }
+/* Depois da animação de abertura (EntryAnimation): a Home entra bloco a bloco. */
+.pf-afterintro > .pf-page > * { animation: pfIn .38s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--intro-d, 0ms) + var(--i, 0) * 70ms); }
+.pf-afterintro > .pf-page > :nth-child(2) { --i: 1; } .pf-afterintro > .pf-page > :nth-child(3) { --i: 2; }
+.pf-afterintro > .pf-page > :nth-child(4) { --i: 3; } .pf-afterintro > .pf-page > :nth-child(n+5) { --i: 4; }
 @keyframes pfGrowY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes pfGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes pfDot { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
@@ -398,11 +403,10 @@ html, body { background: var(--ground); }
 .pf-locsearch { position: relative; flex: 1; } .pf-locsearch input { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--ctl); background: var(--card); font: inherit; font-size: 14.5px; color: var(--label); }
 .pf-locres { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 1000; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.12); overflow: hidden; }
 .pf-locres button { display: block; width: 100%; text-align: left; padding: 10px 14px; border: 0; background: none; font: inherit; font-size: 14px; color: var(--label); cursor: pointer; } .pf-locres button:hover { background: var(--hover); }
-.pf-locsearch input { padding-right: 40px; } .pf-locspin { position: absolute; right: 13px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--green); animation: pfSpin .8s linear infinite; }
+.pf-locsearch input { padding-right: 40px; }
 .pf-locmsg { padding: 11px 14px; font-size: 13.5px; color: var(--ink2); line-height: 1.45; } .pf-locmsg.err { color: var(--danger); }
 .pf-loccredit { margin-top: 10px; font-size: 11.5px; color: var(--muted); }
-.pf-wx-notice { display: flex; align-items: center; gap: 8px; margin: 14px 4px 16px; font-size: 13.5px; color: var(--warnInk); line-height: 1.4; } .pf-wx-notice .pf-locspin { position: static; margin: 0; flex: none; border-top-color: var(--warnInk); }
-.pf-wx-wait { padding: 34px; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14.5px; } .pf-wx-wait .pf-locspin { position: static; margin: 0; }
+.pf-wx-notice { display: flex; align-items: center; gap: 8px; margin: 14px 4px 16px; font-size: 13.5px; color: var(--warnInk); line-height: 1.4; } .pf-wx-wait { padding: 34px; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14.5px; }
 .pf-locpick { margin-top: 12px; } .pf-locpick b { display: block; font-size: 15.5px; } .pf-locpick span { font-size: 12.5px; color: var(--muted); }
 .pf-pin { background: none; border: 0; }
 .pf-farmloc { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .pf-farmloc .ic { width: 30px; height: 30px; border-radius: 9px; background: var(--greenL); color: var(--green); display: grid; place-items: center; flex: none; } .pf-farmloc .ic svg { width: 17px; height: 17px; }

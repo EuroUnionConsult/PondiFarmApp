@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
@@ -10,11 +10,13 @@ import { RootNavigator } from './src/navigation/AppNavigator';
 import DesktopOrgGate from './src/web/DesktopOrgGate';
 import { AlertHost, installWebAlert } from './src/web/webAlert';
 import ServerWakeNotice from './src/components/ServerWakeNotice';
+import EntryAnimation from './src/components/EntryAnimation';
 import DesktopLogin from './src/web/DesktopLogin';
 import DeviceStage from './src/web/DeviceStage';
 import { loadDeviceMode, NARROW, type DeviceMode } from './src/web/deviceMode';
 import { CSS } from './src/web/styles';
 import { installGlobalErrorHandlers, setReportPlatform } from './src/lib/errorReport';
+import PondiLoader from './src/components/PondiLoader';
 
 // Na web, Alert.alert não fazia nada (react-native-web): passa a abrir um diálogo.
 installWebAlert();
@@ -39,7 +41,7 @@ function WebRoot() {
   useEffect(() => { setReportPlatform(narrow || mode === 'mobile' ? 'web-mobile' : 'web-desktop'); }, [narrow, mode]);
 
   if (loading || mode === null) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--ground)' as any }}><ActivityIndicator color="#2D7D46" /></View>;
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--ground)' as any }}><PondiLoader size="lg" /></View>;
   }
   // Num ecrã estreito (um telemóvel de verdade) a app abre como no iPhone, sem moldura.
   if (narrow) return <View style={{ flex: 1 }}><RootNavigator /></View>;
@@ -60,19 +62,23 @@ export default function App() {
     document.title = 'PondiFarm';
     return () => { el.remove(); };
   }, []);
-  if (!fontsLoaded && !fontError) return null;
+  const ready = fontsLoaded || !!fontError;
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <AuthProvider>
-          <WeatherProvider>
-            <WebRoot />
-          </WeatherProvider>
-          <AlertHost />
-          {/* «Connecting to the server…» enquanto a base serverless acorda (login, arranque, qualquer pedido lento). */}
-          <ServerWakeNotice />
-        </AuthProvider>
-      </SafeAreaProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      {ready && (
+        <ThemeProvider>
+          <AuthProvider>
+            <WeatherProvider>
+              <WebRoot />
+            </WeatherProvider>
+            <AlertHost />
+            {/* «Connecting to the server…» enquanto a base serverless acorda (login, arranque, qualquer pedido lento). */}
+            <ServerWakeNotice />
+          </AuthProvider>
+        </ThemeProvider>
+      )}
+      {/* Abertura «Scan que revela» no 1.º carregamento de cada separador. */}
+      <EntryAnimation />
+    </SafeAreaProvider>
   );
 }

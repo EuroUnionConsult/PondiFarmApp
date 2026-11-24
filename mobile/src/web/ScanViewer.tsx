@@ -5,6 +5,7 @@ import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { MeshFormat } from '../lib/api';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import PondiLoader from '../components/PondiLoader';
 
 // Um GLB enviado pode referir texturas ou buffers por URL. O visualizador só aceita o que
 // vem dentro do próprio ficheiro (data:, blob:): sem isto, abrir um modelo podia fazer o
@@ -121,7 +122,7 @@ export default function ScanViewer({ load, dark }: { load: MeshSource; dark: boo
   return (
     <div className="pf-3d">
       <div ref={host} className="cv" aria-label="3D scan of the animal. Drag to rotate, scroll to zoom" role="img" />
-      {state === 'loading' && <div className="ov"><span className="pf-spin" />Loading the 3D scan…</div>}
+      {state === 'loading' && <div className="ov"><PondiLoader size="md" label="Loading the 3D scan" />Loading the 3D scan…</div>}
       {state === 'error' && <div className="ov">The 3D scan could not be loaded.</div>}
       {state === 'ready' && (
         <div className="bar">

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, StyleSheet, Pressable } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import Text from './Text';
 import { useTheme } from '../lib/ThemeContext';
@@ -7,6 +7,7 @@ import { type Palette } from '../lib/theme';
 import { fetchScanMeshFile } from '../lib/api';
 import { MeshPreviewView } from '../../modules/lidar-scanner';
 import type { MeshViewMode } from '../../modules/lidar-scanner/src/MeshPreviewView';
+import PondiLoader from './PondiLoader';
 
 // Os mesmos três modos da versão web.
 const MODES: { id: MeshViewMode; label: string }[] = [
@@ -36,7 +37,7 @@ export default function Scan3DViewer({ scanId }: { scanId: string }) {
       <View style={styles.viewer}>
         {file ? <MeshPreviewView source={file} mode={mode} dark={theme === 'dark'} style={StyleSheet.absoluteFill} />
           : failed ? <Text style={styles.failedText}>The 3D model could not be loaded.</Text>
-          : <ActivityIndicator color={ios.accent} />}
+          : <PondiLoader size="md" />}
         {file && (
           <View style={styles.modes} accessibilityRole="tablist">
             {MODES.map((m) => {
