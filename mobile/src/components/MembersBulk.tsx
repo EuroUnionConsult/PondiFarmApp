@@ -3,13 +3,14 @@
 // (web/ProfilePage): a lógica (useMembersBulk), a caixa de seleção do telemóvel (SelectBox) e
 // a barra de ações com confirmação, progresso e resumo (BulkActionBar).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Text from './Text';
 import { useTheme } from '../lib/ThemeContext';
 import type { Palette } from '../lib/theme';
 import { trackCloud } from '../lib/activity';
 import { showToast, useToastLift } from './Toast';
+import PondiLoader from './PondiLoader';
 import {
   bulkDecideRequests, bulkRemovePeople, summarizeBulkParts,
   type OrgPerson, type PendingJoinRequest,
@@ -180,7 +181,7 @@ export function BulkActionBar({ bulk, orgName, style }: { bulk: MembersBulk; org
       <View style={st.bar} accessibilityRole={Platform.OS === 'web' ? ('region' as any) : undefined} accessibilityLabel="Selection actions">
         {bulk.running ? (
           <View style={st.runRow} accessibilityLiveRegion="polite">
-            <ActivityIndicator color={c.accent} />
+            <PondiLoader size="sm" label="Working" />
             <Text style={st.count}>{ING[bulk.running]} {bulk.running === 'remove' ? nMem : nReq}…</Text>
           </View>
         ) : ask ? (() => {

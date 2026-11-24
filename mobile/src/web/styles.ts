@@ -265,7 +265,6 @@ html, body { background: var(--ground); }
 .pf-menu { position: absolute; right: 0; top: 42px; z-index: 20; min-width: 230px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 18px 40px rgba(18,36,52,.18); transform-origin: top right; animation: pfPop .18s cubic-bezier(.2,.9,.3,1.2); }
 .pf-menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px 12px; border-radius: 9px; font-size: 14px; color: var(--label); }
 .pf-menu button:hover { background: var(--hover); } .pf-menu button.dang { color: var(--danger); } .pf-menu button.dang:hover { background: var(--dangerBg); }
-.pf-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--greenL); border-top-color: var(--green); animation: pfSpin .8s linear infinite; margin: 0 8px; }
 .pf-acct .row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 16px 20px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-size: 15px; color: var(--label); transition: background .15s; }
 .pf-acct .row:last-child { border-bottom: 0; } .pf-acct .row:hover { background: var(--hover); } .pf-acct .row span:nth-child(2) { flex: 1; }
 .pf-acct .row.dang { color: var(--danger); } .pf-acct .ic { width: 32px; height: 32px; border-radius: 9px; background: var(--soft2); display: flex; align-items: center; justify-content: center; color: var(--ink2); } .pf-acct .ic svg { width: 18px; }

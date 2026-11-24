@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
-  View, Animated, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl,
+  View, Animated, StyleSheet, TouchableOpacity, Alert, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -28,6 +28,8 @@ import { useWeather } from '../lib/weather';
 import { useWhatsNewUnseen } from '../lib/whatsNew';
 import { APP_VERSION } from '../lib/version';
 import { BulkActionBar, SelectBox, canBulkSelectPerson, useMembersBulk } from '../components/MembersBulk';
+import PondiLoader from '../components/PondiLoader';
+import RefreshLoader, { REFRESH_TINT } from '../components/RefreshLoader';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -199,7 +201,7 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + (selecting ? 220 : 40) }}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={ios.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={REFRESH_TINT} />}
       >
         <View style={styles.topRow}>
           <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} hitSlop={8} accessibilityRole="button">
@@ -322,7 +324,7 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
                       <Text style={styles.personName} numberOfLines={1}>{r.userName}</Text>
                       <Text style={styles.personEmail} numberOfLines={1}>{r.userEmail}</Text>
                     </View>
-                    {selecting ? null : busyId === r.id ? <ActivityIndicator color={ios.accent} /> : (
+                    {selecting ? null : busyId === r.id ? <PondiLoader size="sm" label="Working" /> : (
                       <View style={styles.actions}>
                         <TouchableOpacity
                           style={styles.reject}
@@ -378,7 +380,7 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
                         <Text style={styles.personName} numberOfLines={1}>{p.name}{me ? ' (you)' : ''}</Text>
                         <Text style={styles.personEmail} numberOfLines={1}>{p.email}</Text>
                       </View>
-                      {busyId === p.userId ? <ActivityIndicator color={ios.accent} /> : (
+                      {busyId === p.userId ? <PondiLoader size="sm" label="Working" /> : (
                         <>
                           <Text style={styles.personRole}>{p.role === 'leader' ? 'Leader' : 'Member'}</Text>
                           {canManage && !selecting && <Ionicons name="ellipsis-horizontal" size={18} color={ios.tertiaryLabel} />}
@@ -467,6 +469,8 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         </View>
         </FadeInView>
       </Animated.ScrollView>
+      {/* Puxar para atualizar: o PondiLoader no lugar do spinner do sistema. */}
+      <RefreshLoader scrollY={scrollY} refreshing={loading} top={insets.top} />
       <CompactHeader title={displayName || 'Profile'} scrollY={scrollY} threshold={150} />
 
       {/* Barra fixa das ações em massa: «N selected», confirmar, progresso e resumo. */}

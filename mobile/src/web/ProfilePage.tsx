@@ -16,6 +16,7 @@ import { Chevron, DotsIcon, GearIcon, InfoIcon, MoonIcon, PenIcon, SunIcon } fro
 import { APP_VERSION } from '../lib/version';
 import { useWhatsNewUnseen } from '../lib/whatsNew';
 import { BulkActionBar, canBulkSelectPerson, useMembersBulk } from '../components/MembersBulk';
+import PondiLoader from '../components/PondiLoader';
 
 // Perfil da versão de computador: as mesmas ações do ecrã da app (nome, organização,
 // pedidos, membros, sair), com menus e confirmações em vez dos alertas do telemóvel.
@@ -237,7 +238,7 @@ export default function ProfilePage({ goWhatsNew }: { goWhatsNew?: () => void })
                 <div className={`av w7${p.role === 'leader' ? ' lead' : ''}`}>{ini(p.name)}</div>
                 <div className="who"><b className="w6">{p.name}{me && <span className="you w6">you</span>}</b><small>{p.email}{since(p.since) && ` · since ${since(p.since)}`}</small></div>
                 <span className={`pf-role w7${p.role === 'leader' ? '' : ' mem'}`}>{p.role === 'leader' ? 'Leader' : 'Member'}</span>
-                {selecting ? null : isLeader && !me ? (busy === p.userId ? <span className="pf-spin" aria-label="Working" /> :
+                {selecting ? null : isLeader && !me ? (busy === p.userId ? <PondiLoader size={22} label="Working" style={{ marginHorizontal: 8 }} /> :
                   <PersonMenu p={p}
                     onLeader={() => setAsk({ title: `Make ${p.name} the leader?`, body: 'You become a member and can no longer approve requests or manage people.', action: 'Make leader', tone: 'go', run: () => orgId && act(p.userId, () => transferLeadership(orgId, p.userId), true) })}
                     onRemove={() => setAsk({ title: `Remove ${p.name}?`, body: "They lose access to the organization's data right away.", action: 'Remove', run: () => orgId && act(p.userId, () => removePerson(orgId, p.userId), false, true) })} />)
