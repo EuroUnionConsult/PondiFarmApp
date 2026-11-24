@@ -4,6 +4,7 @@ import { WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import { fmtW, type Herd } from './herd';
 import { InfoIcon } from './icons';
 import { Breeds, Histogram, Kpi, Pills, Ring, SkelChart, SkelKpis, SkelRows, mean, median, pos, topBreeds, weights } from './charts';
+import EmptyState, { EMPTY_HINT_WEB } from '../components/EmptyState';
 
 function Coverage({ withW, total }: { withW: number; total: number }) {
   const pct = total ? Math.round((withW / total) * 100) : 0;
@@ -111,7 +112,7 @@ export default function AnalyticsPage({ herd, openAnimal }: { herd: Herd; openAn
                 <div className="t"><span className="w6" style={{ display: 'inline', fontSize: 15, color: 'var(--label)', margin: 0 }}>{a.name}</span><span>{[a.breed, a.tagCode].filter(Boolean).join(' · ')}</span></div>
                 <div className="w w8">{fmtW(a.weightKg)}<span className="w6">kg</span></div>
               </button>))}
-            {herd.animals === null ? <SkelRows n={5} /> : !heaviest.length && <div className="pf-empty">No estimated weights yet.</div>}
+            {herd.animals === null ? <SkelRows n={5} /> : !heaviest.length && <EmptyState compact title="No scans yet" text={EMPTY_HINT_WEB} />}
           </div></div>
       </div>
       <div className="pf-card pf-note pf-disclaimer"><InfoIcon /><span>Weights are estimated by the PondiFarm model ({WEIGHT_MODEL_VERSION}). They are experimental and not validated against a scale.</span></div>

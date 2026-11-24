@@ -31,6 +31,8 @@ export const AREAS: { key: WhatsNewArea; label: string }[] = [
 export const WHATS_NEW: WhatsNewItem[] = [
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'A short animation of the PondiFarm logo when you sign in' },
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'A new PondiFarm loading animation with the cow from our icon' },
+  { version: '0.13.1', date: '2026-11-24', area: 'herd', text: 'Empty lists show the cow from our icon and what to do next' },
+  { version: '0.13.1', date: '2026-11-24', area: 'herd', text: 'Pull down on Home and Herd to refresh, with the new loading animation' },
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'Fixed a console error on the website' },
 
   { version: '0.13.0', date: '2026-11-24', area: 'team', text: 'The website is now built from the same code as the iPhone app, so both always get the same features at the same time' },

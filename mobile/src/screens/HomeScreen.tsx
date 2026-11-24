@@ -27,6 +27,8 @@ import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 import SyncRing from '../components/SyncRing';
+import EmptyState, { EMPTY_HINT_NATIVE, EMPTY_HINT_WEB } from '../components/EmptyState';
+import RefreshLoader, { REFRESH_TINT } from '../components/RefreshLoader';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -125,7 +127,7 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
       onScroll={onScroll}
       scrollEventThrottle={16}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={ios.accent} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={REFRESH_TINT} />}
     >
       <View style={[styles.largeTitle, { paddingTop: insets.top + 8 }]}>
         <View style={{ flex: 1 }}>
@@ -328,11 +330,8 @@ export default function HomeScreen() {
       )}
 
       {today.length === 0 && cloudLoaded && cloud.length === 0 && (
-        <View style={styles.empty}>
-          <Ionicons name="layers-outline" size={36} color={ios.tertiaryLabel} />
-          <Text style={styles.emptyTitle}>Nothing logged yet</Text>
-          <Text style={styles.emptySub}>{Platform.OS === 'web' ? 'Records from your team appear here as they sync' : 'Tap “New scan” to record the first measurement'}</Text>
-        </View>
+        // O «New scan» já está logo abaixo (iPhone): o estado vazio não o repete.
+        <EmptyState style={styles.empty} title="No scans yet" text={Platform.OS === 'web' ? EMPTY_HINT_WEB : EMPTY_HINT_NATIVE} />
       )}
 
       {Platform.OS === 'web' ? (
@@ -353,6 +352,8 @@ export default function HomeScreen() {
       {/* Studio 3D (Object Capture) escondido — fotogrametria lenta + crashes de GPU
           em background. Foco no LiDAR nativo (Caminho B). Código mantido para revisão. */}
     </Animated.ScrollView>
+      {/* Puxar para atualizar: o PondiLoader no lugar do spinner do sistema. */}
+      <RefreshLoader scrollY={scrollY} refreshing={refreshing} top={insets.top} />
       <CompactHeader title="PondiFarm" scrollY={scrollY} />
     </View>
   );
