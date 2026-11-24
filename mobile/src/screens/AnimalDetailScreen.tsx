@@ -7,6 +7,7 @@ import { useAuth } from '../lib/AuthContext';
 import { canEditSex, updateAnimalSex, type AnimalSex } from '../lib/api';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
+import { showToast } from '../components/Toast';
 import { breedLabel } from '../lib/breeds';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,7 +37,7 @@ export default function AnimalDetailScreen() {
       void Haptics.selectionAsync();
       updateAnimalSex(animal.id, next).catch((e) => {
         setSex(before);
-        Alert.alert('Sex not saved', String(e?.message ?? e));
+        showToast({ tone: 'error', title: 'Sex not saved', detail: String(e?.message ?? e) });
       });
     };
     Alert.alert('Sex of the animal', 'Only you can change it, because you scanned this animal. Everyone in the organization sees it.', [

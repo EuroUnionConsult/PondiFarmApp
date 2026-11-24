@@ -17,6 +17,7 @@ from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from models.models import (
@@ -330,3 +331,85 @@ def leave_organization(db: Session, user: User, organization_id: uuid.UUID) -> N
     row.deleted_at = datetime.utcnow()
     _log(db, organization_id, EVENT_LEFT, user)
     db.commit()
+
+
+# --- Ações em massa (só o Líder) --------------------------------------------
+#
+# Cada item corre pelas MESMAS funções das ações individuais (mesmas regras e o
+# mesmo evento no histórico), cada um na sua própria transação: um item que
+# falha é desfeito sozinho e não leva os outros atrás. A resposta diz, item a
+# item, o que aconteceu, com um código estável que a app traduz.
+
+BULK_MAX = 100
+
+REASON_ALREADY_HANDLED = "already_handled"
+REASON_IN_OTHER_ORG = "in_other_organization"
+REASON_NOT_A_MEMBER = "not_a_member"
+REASON_IS_SELF = "is_self"
+REASON_IS_LEADER = "is_leader"
+REASON_ERROR = "error"
+
+
+def _unique(ids: list[uuid.UUID]) -> list[uuid.UUID]:
+    """Sem repetidos, pela ordem em que chegaram."""
+    return list(dict.fromkeys(ids))
+
+
+def bulk_decide_requests(
+    db: Session,
+    leader: User,
+    organization_id: uuid.UUID,
+    request_ids: list[uuid.UUID],
+    approve: bool,
+) -> list[tuple[uuid.UUID, str | None]]:
+    """Aprova ou recusa vários pedidos. Devolve (id, motivo); motivo None = feito."""
+    results: list[tuple[uuid.UUID, str | None]] = []
+    for request_id in _unique(request_ids):
+        try:
+            decide_request(db, leader, organization_id, request_id, approve)
+            results.append((request_id, None))
+        except HTTPException as exc:
+            db.rollback()
+            results.append(
+                (
+                    request_id,
+                    REASON_IN_OTHER_ORG
+                    if exc.status_code == status.HTTP_409_CONFLICT
+                    else REASON_ALREADY_HANDLED,
+                )
+            )
+        except SQLAlchemyError:
+            db.rollback()
+            results.append((request_id, REASON_ERROR))
+    return results
+
+
+def bulk_remove_members(
+    db: Session,
+    leader: User,
+    organization_id: uuid.UUID,
+    user_ids: list[uuid.UUID],
+) -> list[tuple[uuid.UUID, str | None]]:
+    """Remove várias pessoas. Nunca o próprio Líder nem quem seja líder."""
+    results: list[tuple[uuid.UUID, str | None]] = []
+    for user_id in _unique(user_ids):
+        if user_id == leader.id:
+            results.append((user_id, REASON_IS_SELF))
+            continue
+        row = _member_row(db, organization_id, user_id)
+        if row is None or row.deleted_at is not None:
+            results.append((user_id, REASON_NOT_A_MEMBER))
+            continue
+        if row.role == ROLE_LEADER:
+            results.append((user_id, REASON_IS_LEADER))
+            continue
+        try:
+            remove_member(db, leader, organization_id, user_id)
+            results.append((user_id, None))
+        except HTTPException:
+            db.rollback()
+            results.append((user_id, REASON_NOT_A_MEMBER))
+        except SQLAlchemyError:
+            db.rollback()
+            results.append((user_id, REASON_ERROR))
+    return results

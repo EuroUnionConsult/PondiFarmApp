@@ -8,6 +8,7 @@ import { installGlobalErrorHandlers } from './src/lib/errorReport';
 import { ThemeScanProvider } from './src/components/ThemeScan';
 import ServerWakeNotice from './src/components/ServerWakeNotice';
 import EntryAnimation from './src/components/EntryAnimation';
+import { ToastHost } from './src/components/Toast';
 
 // Erros JavaScript não apanhados vão para o log do servidor (POST /api/v1/client-errors).
 installGlobalErrorHandlers();
@@ -36,6 +37,8 @@ export default function App() {
           </ThemeScanProvider>
           {/* «Connecting to the server…» enquanto a base serverless acorda. */}
           <ServerWakeNotice />
+          {/* Avisos rápidos (sucesso/aviso/erro) de qualquer ecrã. */}
+          <ToastHost />
         </ThemeProvider>
       )}
       {/* Abertura «Scan que revela», por cima de tudo em cada arranque (continua o splash). */}

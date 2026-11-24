@@ -36,6 +36,10 @@ export const WHATS_NEW: WhatsNewItem[] = [
   { version: '0.13.1', date: '2026-11-24', area: 'herd', text: 'Pull down on Home and Herd to refresh, with the new loading animation' },
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'Home, Settings and What\'s new stay readable with very large text sizes' },
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'Fixed a console error on the website' },
+  { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'Leaders can select several join requests or members and approve, deny or remove them in one go' },
+  { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'Press and hold a request or member on iPhone to start selecting' },
+  { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'Quick messages now share one PondiFarm style: green when done, orange for a warning, red for an error' },
+  { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'A green dot on your avatar and in Profile shows when there\'s something new to read' },
 
   { version: '0.13.0', date: '2026-11-24', area: 'team', text: 'The website is now built from the same code as the iPhone app, so both always get the same features at the same time' },
   { version: '0.13.0', date: '2026-11-24', area: 'scan', text: '3D models on the website only load content stored inside the model file' },

@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
+import { showToast } from '../components/Toast';
 import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -107,7 +108,7 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Clear', style: 'destructive', onPress: async () => {
           await clearAll();
-          Alert.alert('Done', 'Local scans removed.');
+          showToast({ tone: 'success', title: 'Local scans removed', detail: 'This device no longer keeps saved scans.' });
         } },
       ]
     );

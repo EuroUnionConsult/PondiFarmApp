@@ -15,6 +15,7 @@ import { switchThemeWithScan } from './themeScan';
 import { Chevron, DotsIcon, GearIcon, InfoIcon, MoonIcon, PenIcon, SunIcon } from './icons';
 import { APP_VERSION } from '../lib/version';
 import { useWhatsNewUnseen } from '../lib/whatsNew';
+import { BulkActionBar, canBulkSelectPerson, useMembersBulk } from '../components/MembersBulk';
 
 // Perfil da versão de computador: as mesmas ações do ecrã da app (nome, organização,
 // pedidos, membros, sair), com menus e confirmações em vez dos alertas do telemóvel.
@@ -56,6 +57,15 @@ function PersonMenu({ p, onLeader, onRemove }: { p: OrgPerson; onLeader: () => v
         </div>)}
     </div>
   );
+}
+
+/** Caixa de seleção da versão de computador: um <button role="checkbox"> real (Tab, Espaço, Enter). */
+function CheckBox({ checked, onToggle, label, disabled }: { checked: boolean; onToggle: () => void; label: string; disabled?: boolean }) {
+  return (
+    <button type="button" role="checkbox" aria-checked={checked} aria-label={label} disabled={disabled}
+      className={`pf-check${checked ? ' on' : ''}`} onClick={(e) => { e.stopPropagation(); onToggle(); }}>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke="currentColor" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" /></svg>
+    </button>);
 }
 
 // «23 Oct 2026, 14:05» (o servidor guarda em UTC; mostra-se na hora local).
@@ -105,6 +115,21 @@ export default function ProfilePage({ goWhatsNew }: { goWhatsNew?: () => void })
     } catch (e: any) { setError(String(e?.message ?? e)); setPeople((x) => x ?? []); }
   }, [orgId, isLeader]);
   useEffect(() => { void load(); }, [load]);
+
+  // Seleção em massa (só o Líder): «Select» no cabeçalho de cada secção.
+  const bulk = useMembersBulk({ orgId, requests, people, myId: user?.id, reload: load });
+  const selecting = isLeader && bulk.selecting;
+  const selectLink = (kind: 'request' | 'member') => {
+    const has = kind === 'request' ? bulk.hasRequests : bulk.hasMembers;
+    if (!isLeader || !has) return null;
+    const all = kind === 'request' ? bulk.allRequests : bulk.allMembers;
+    const label = !selecting ? 'Select' : all ? 'Deselect all' : 'Select all';
+    const what = kind === 'request' ? 'requests' : 'members';
+    return (
+      <button className="pf-link w6" disabled={bulk.running !== null}
+        aria-label={label === 'Select' ? `Select ${what}` : `${label} ${what}`}
+        onClick={() => (!selecting ? bulk.start() : kind === 'request' ? bulk.toggleAllRequests() : bulk.toggleAllMembers())}>{label}</button>);
+  };
 
   // A linha sai com animação antes de a lista ser recarregada.
   const act = async (id: string, fn: () => Promise<unknown>, roleMayChange = false, animateOut = false) => {
@@ -178,33 +203,41 @@ export default function ProfilePage({ goWhatsNew }: { goWhatsNew?: () => void })
       </div>
 
       {isLeader && (<>
-        <div className="pf-sect w6">Requests to join · {requests.length}</div>
+        <div className="pf-secthead"><div className="pf-sect w6">Requests to join · {requests.length}</div>{selectLink('request')}</div>
         <div className="pf-card pf-people">
           {requests.length === 0 && <div className="pf-empty" style={{ padding: '22px 24px' }}>No pending requests. When someone asks to join {orgName}, you approve them here.</div>}
           {requests.map((r, i) => (
-            <div key={r.id} className={`pr pf-rise${leaving === r.id ? ' out' : ''}`} style={{ animationDelay: `${i * 40}ms` }}>
+            <div key={r.id} className={`pr pf-rise${leaving === r.id ? ' out' : ''}${selecting ? ' pick' : ''}${bulk.isRequestSelected(r.id) && selecting ? ' sel' : ''}${bulk.running && bulk.isRequestSelected(r.id) ? ' busy' : ''}`} style={{ animationDelay: `${i * 40}ms` }}
+              onClick={selecting && !bulk.running ? (e) => { if (!(e.target as HTMLElement).closest('[role="checkbox"]')) bulk.toggleRequest(r.id); } : undefined}>
+              {selecting && <CheckBox checked={bulk.isRequestSelected(r.id)} onToggle={() => bulk.toggleRequest(r.id)} disabled={bulk.running !== null} label={`Select ${r.userName}`} />}
               <div className="av w7">{ini(r.userName)}</div>
               <div className="who"><b className="w6">{r.userName}</b><small>{r.userEmail}{since(r.createdAt) && ` · asked ${since(r.createdAt)}`}</small></div>
-              <div className="acts">
+              {!selecting && <div className="acts">
                 <button className="pf-btn r-l w7" disabled={busy !== null} onClick={() => orgId && act(r.id, () => rejectRequest(orgId, r.id), false, true)}>Reject</button>
                 <button className="pf-btn g w7" disabled={busy !== null} onClick={() => orgId && act(r.id, () => approveRequest(orgId, r.id), false, true)}>{busy === r.id ? 'Approving…' : 'Approve'}</button>
-              </div>
+              </div>}
             </div>))}
         </div>
       </>)}
 
       {orgId && (<>
-        <div className="pf-sect w6">Members · {people?.length ?? '…'}</div>
+        <div className="pf-secthead"><div className="pf-sect w6">Members · {people?.length ?? '…'}</div>{selectLink('member')}</div>
         <div className="pf-card pf-people">
           {people === null && <SkelRows n={3} />}
           {(people ?? []).map((p, i) => {
             const me = p.userId === user?.id;
+            const canPick = isLeader && canBulkSelectPerson(p, user?.id);
+            const picked = bulk.isMemberSelected(p.userId);
             return (
-              <div key={p.userId} className={`pr pf-rise${leaving === p.userId ? ' out' : ''}`} style={{ animationDelay: `${i * 40}ms` }}>
+              <div key={p.userId} className={`pr pf-rise${leaving === p.userId ? ' out' : ''}${selecting && canPick ? ' pick' : ''}${selecting && picked ? ' sel' : ''}${bulk.running === 'remove' && picked ? ' busy' : ''}`} style={{ animationDelay: `${i * 40}ms` }}
+                onClick={selecting && canPick && !bulk.running ? (e) => { if (!(e.target as HTMLElement).closest('[role="checkbox"]')) bulk.toggleMember(p.userId); } : undefined}>
+                {selecting && (canPick
+                  ? <CheckBox checked={picked} onToggle={() => bulk.toggleMember(p.userId)} disabled={bulk.running !== null} label={`Select ${p.name}`} />
+                  : <span className="pf-boxgap" aria-hidden="true" />)}
                 <div className={`av w7${p.role === 'leader' ? ' lead' : ''}`}>{ini(p.name)}</div>
                 <div className="who"><b className="w6">{p.name}{me && <span className="you w6">you</span>}</b><small>{p.email}{since(p.since) && ` · since ${since(p.since)}`}</small></div>
                 <span className={`pf-role w7${p.role === 'leader' ? '' : ' mem'}`}>{p.role === 'leader' ? 'Leader' : 'Member'}</span>
-                {isLeader && !me ? (busy === p.userId ? <span className="pf-spin" aria-label="Working" /> :
+                {selecting ? null : isLeader && !me ? (busy === p.userId ? <span className="pf-spin" aria-label="Working" /> :
                   <PersonMenu p={p}
                     onLeader={() => setAsk({ title: `Make ${p.name} the leader?`, body: 'You become a member and can no longer approve requests or manage people.', action: 'Make leader', tone: 'go', run: () => orgId && act(p.userId, () => transferLeadership(orgId, p.userId), true) })}
                     onRemove={() => setAsk({ title: `Remove ${p.name}?`, body: "They lose access to the organization's data right away.", action: 'Remove', run: () => orgId && act(p.userId, () => removePerson(orgId, p.userId), false, true) })} />)
@@ -212,7 +245,7 @@ export default function ProfilePage({ goWhatsNew }: { goWhatsNew?: () => void })
               </div>);
           })}
         </div>
-        {isLeader && <p className="pf-foot">Use the menu next to a member to make them leader or remove them.</p>}
+        {isLeader && <p className="pf-foot">{selecting ? 'Tick requests or members, then choose an action below.' : 'Use the menu next to a member to make them leader or remove them, or «Select» to act on several at once.'}</p>}
       </>)}
 
       {/* Histórico (só o Líder): entradas, saídas, remoções e mudanças de líder. */}
@@ -249,6 +282,10 @@ export default function ProfilePage({ goWhatsNew }: { goWhatsNew?: () => void })
           <button className="row dang w6" onClick={() => setAsk({ title: 'Leave organization?', body: `You stop seeing ${user?.organizationName}'s data.`, action: 'Leave', run: () => orgId && act('leave', () => leaveOrganization(orgId), true) })}>Leave organization</button>)}
         <button className="row dang w6" onClick={() => setAsk({ title: 'Sign out?', body: user ? `Sign out of ${user.email} on this browser?` : 'Sign out?', action: 'Sign out', run: () => { void logout(); } })}>Sign out</button>
       </div>
+
+      {/* Barra fixa das ações em massa (o mesmo componente do iPhone). */}
+      {isLeader && bulk.selecting && (
+        <div className="pf-bulkdock"><BulkActionBar bulk={bulk} orgName={user?.organizationName ?? undefined} /></div>)}
 
       {ask && <Confirm title={ask.title} body={ask.body} action={ask.action} tone={ask.tone} onCancel={() => setAsk(null)} onConfirm={() => { const a = ask; setAsk(null); a.run(); }} />}
     </div>

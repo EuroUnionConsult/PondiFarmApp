@@ -11,6 +11,7 @@ import DesktopOrgGate from './src/web/DesktopOrgGate';
 import { AlertHost, installWebAlert } from './src/web/webAlert';
 import ServerWakeNotice from './src/components/ServerWakeNotice';
 import EntryAnimation from './src/components/EntryAnimation';
+import { ToastHost } from './src/components/Toast';
 import DesktopLogin from './src/web/DesktopLogin';
 import DeviceStage from './src/web/DeviceStage';
 import { loadDeviceMode, NARROW, type DeviceMode } from './src/web/deviceMode';
@@ -74,6 +75,8 @@ export default function App() {
             <AlertHost />
             {/* «Connecting to the server…» enquanto a base serverless acorda (login, arranque, qualquer pedido lento). */}
             <ServerWakeNotice />
+            {/* Avisos rápidos (sucesso/aviso/erro) de qualquer ecrã. */}
+            <ToastHost />
           </AuthProvider>
         </ThemeProvider>
       )}

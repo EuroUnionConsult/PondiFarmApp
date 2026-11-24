@@ -462,4 +462,15 @@ html, body { background: var(--ground); }
 .pf-wn-status.in-progress { background: #FBEBDD; color: #9C4C16; }
 .pf-wn-status.planned { background: #E3EBF3; color: #1B3A57; }
 .pf-newdot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+/* Seleção em massa na lista de membros (Perfil). */
+.pf-people .pr.pick { cursor: pointer; } .pf-people .pr.pick:hover { background: var(--greenL); }
+.pf-people .pr.sel { background: var(--greenL); } .pf-people .pr.busy { opacity: .5; }
+.pf-boxgap { width: 30px; flex: none; }
+.pf-check { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 2px solid var(--muted); background: var(--card); color: #fff; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; transition: background .15s, border-color .15s, transform .1s; }
+.pf-check svg { width: 17px; height: 17px; opacity: 0; transition: opacity .12s; }
+.pf-check.on { background: var(--green); border-color: var(--green); } .pf-check.on svg { opacity: 1; }
+.pf-check:hover:not(:disabled) { border-color: var(--green); } .pf-check:active:not(:disabled) { transform: scale(.92); }
+.pf-check:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; } .pf-check:disabled { opacity: .5; cursor: default; }
+.pf-bulkdock { position: sticky; bottom: 16px; z-index: 30; max-width: 640px; margin: 18px auto 0; }
 `;

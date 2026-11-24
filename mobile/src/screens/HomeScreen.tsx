@@ -29,6 +29,7 @@ import type { RootStackParamList } from '../navigation/types';
 import SyncRing from '../components/SyncRing';
 import EmptyState, { EMPTY_HINT_NATIVE, EMPTY_HINT_WEB } from '../components/EmptyState';
 import RefreshLoader, { REFRESH_TINT } from '../components/RefreshLoader';
+import { useWhatsNewUnseen } from '../lib/whatsNew';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -59,6 +60,8 @@ export default function HomeScreen() {
   );
 
   const avatarInitials = initials(profile, user?.name);
+  // Ponto verde no avatar enquanto houver novidades desta versão por abrir.
+  const whatsNewUnseen = useWhatsNewUnseen();
   // Tempo da quinta: ícone animado ao lado do avatar e o aviso mais importante.
   const { weather, unread } = useWeather();
   const wxNow = weather?.location ? weather.current : undefined;
@@ -165,13 +168,14 @@ export default function HomeScreen() {
             hitSlop={8}
             scaleTo={0.9}
             accessibilityRole="button"
-            accessibilityLabel="Open your profile"
+            accessibilityLabel={whatsNewUnseen ? "Open your profile, what's new not opened yet" : 'Open your profile'}
           >
             {avatarInitials ? (
               <Text style={styles.avatarText} maxFontSizeMultiplier={1.15}>{avatarInitials}</Text>
             ) : (
               <Ionicons name="person" size={18} color="#FFFFFF" />
             )}
+            {whatsNewUnseen && <View style={[styles.avatarDot, { borderColor: ios.systemGroupedBackground }]} />}
           </PressableScale>
         </SyncRing>
         </View>
@@ -404,6 +408,10 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     width: 40, height: 40, borderRadius: 20,
     backgroundColor: ios.accentFill,
     alignItems: 'center', justifyContent: 'center',
+  },
+  avatarDot: {
+    position: 'absolute', top: -1, right: -1,
+    width: 13, height: 13, borderRadius: 7, borderWidth: 2, backgroundColor: '#2D7D46',
   },
   avatarText: {
     color: '#FFFFFF', fontSize: 15, fontWeight: '700',
