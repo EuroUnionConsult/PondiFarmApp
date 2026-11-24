@@ -50,6 +50,17 @@ updates:
         update-types:
           - minor
           - patch
+    # Expo-managed packages are pinned by the Expo SDK (54). They are upgraded
+    # together with `npx expo install --fix` during an SDK upgrade, never one by one.
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "@types/react"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
 
   # Root — npm (commitlint / husky toolchain)
   - package-ecosystem: npm
