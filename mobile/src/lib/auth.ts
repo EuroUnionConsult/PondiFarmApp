@@ -5,7 +5,7 @@ import { getBackendUrl } from './api';
 import { trackServerRequest } from './serverWake';
 
 // No browser não há Keychain: o token fica no armazenamento do browser.
-// (O login por cookie da web é um passo seguinte.)
+// É o comportamento atual do site; a passagem para cookie httpOnly está planeada para a 0.14.0.
 const SecureStore = Platform.OS === 'web'
   ? { getItemAsync: (k: string) => AsyncStorage.getItem(k), setItemAsync: (k: string, v: string) => AsyncStorage.setItem(k, v), deleteItemAsync: (k: string) => AsyncStorage.removeItem(k) }
   : NativeSecureStore;

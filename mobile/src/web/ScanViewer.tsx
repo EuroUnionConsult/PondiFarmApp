@@ -6,6 +6,16 @@ import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import type { MeshFormat } from '../lib/api';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 
+// Um GLB enviado pode referir texturas ou buffers por URL. O visualizador só aceita o que
+// vem dentro do próprio ficheiro (data:, blob:): sem isto, abrir um modelo podia fazer o
+// browser pedir URLs externas escolhidas por quem o enviou. PLY e OBJ não carregam nada.
+const EMPTY_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+function embeddedOnly(): THREE.LoadingManager {
+  const m = new THREE.LoadingManager();
+  m.setURLModifier((url) => (/^(data|blob):/i.test(url) ? url : EMPTY_PNG));
+  return m;
+}
+
 type Mode = 'photo' | 'clay' | 'points';
 const MODES: { id: Mode; label: string }[] = [{ id: 'photo', label: 'Photo' }, { id: 'clay', label: 'Clay' }, { id: 'points', label: 'LiDAR' }];
 
@@ -13,7 +23,7 @@ export type MeshSource = () => Promise<{ format: MeshFormat; data: ArrayBuffer }
 
 /** Converte os bytes da malha num objeto 3D. O PLY do scanner traz a cor de cada vértice. */
 async function toObject(format: MeshFormat, data: ArrayBuffer): Promise<THREE.Object3D> {
-  if (format === 'glb') return new Promise((ok, fail) => new GLTFLoader().parse(data, '', (g) => ok(g.scene), fail));
+  if (format === 'glb') return new Promise((ok, fail) => new GLTFLoader(embeddedOnly()).parse(data, '', (g) => ok(g.scene), fail));
   if (format === 'obj') {
     // O OBJ do scanner não traz cor nem material: mostra-se em argila, como na app.
     const obj = new OBJLoader().parse(new TextDecoder().decode(data));
