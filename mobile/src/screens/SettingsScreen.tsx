@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fonts, type Palette } from '../lib/theme';
 import { clearAll } from '../lib/storage';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/types';
 import {
   checkHealth, isCloudSyncEnabled, setCloudSyncEnabled,
   getDevServerUrl, setDevServerUrl,
@@ -19,6 +21,7 @@ import { APP_VERSION } from '../lib/version';
 import { WEIGHT_MODEL_FEATURE_COUNT, WEIGHT_MODEL_VERSION } from '../lib/weightModel';
 import { CFG_KEY, LEGACY_CFG_KEY } from '../lib/config';
 import ScreenBackground from '../components/ScreenBackground';
+import { useWhatsNewUnseen } from '../lib/whatsNew';
 
 interface Config {
   defaultBreed: 'limousine' | 'minhota' | 'alentejana';
@@ -89,7 +92,9 @@ export default function SettingsScreen() {
   };
 
   // Sair da conta está agora no Perfil.
-  const nav = useNavigation();
+  const nav = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  // Ponto verde enquanto a pessoa não abrir o «What's new» desta versão.
+  const whatsNewUnseen = useWhatsNewUnseen();
 
   const handleClearData = () => {
     Alert.alert(
@@ -236,6 +241,18 @@ export default function SettingsScreen() {
       {/* ABOUT ============================================================ */}
       <Text style={styles.sectionHeader}>About</Text>
       <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.row}
+          onPress={() => nav.navigate('WhatsNew')}
+          activeOpacity={0.6}
+          accessibilityRole="button"
+          accessibilityLabel={`What's new in version ${APP_VERSION}${whatsNewUnseen ? ', not opened yet' : ''}`}
+        >
+          <Text style={styles.rowLabel}>{`What's new · ${APP_VERSION}`}</Text>
+          {whatsNewUnseen && <View style={styles.newDot} />}
+          <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />
+        </TouchableOpacity>
+        <View style={styles.rowDivider} />
         {[
           { k: 'Application', v: 'PondiFarm Mobile' },
           { k: 'Version',     v: APP_VERSION },
@@ -391,4 +408,5 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   },
 
   destructiveSpacer: { height: 24 },
+  newDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: ios.accent },
 });
