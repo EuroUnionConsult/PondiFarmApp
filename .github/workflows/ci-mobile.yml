@@ -62,3 +62,35 @@ jobs:
 
       - name: Lint
         run: npx expo lint
+
+  web-export:
+    name: Web build (expo export)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The website (desktop + mobile web) is built from this same app. This catches
+      # native-only imports or web files that stop bundling before they reach Coolify.
+      - name: Export web bundle
+        run: npx expo export --platform web --output-dir dist --clear
+
+      - name: Check lazy chunks and API URL
+        run: |
+          ls dist/_expo/static/js/web/
+          ls dist/_expo/static/js/web/ | grep -q '^ScanViewer-'
+          ls dist/_expo/static/js/web/ | grep -q '^FarmMapLeaflet-'
+          ! grep -rq "localhost:8000" dist/_expo
