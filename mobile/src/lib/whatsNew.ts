@@ -56,6 +56,43 @@ export const WHATS_NEW: WhatsNewItem[] = [
   { version: '0.7.0', date: '2026-10-21', area: 'herd', text: 'Limousine is the default breed' },
 ];
 
+// «Coming next» — o que está a ser feito ou planeado, em linguagem simples (para quem
+// não é programador) mas tecnicamente certa. Sai daqui quando for publicado e passa a
+// entrada de WHATS_NEW da versão em que saiu.
+export type UpcomingStatus = 'in-progress' | 'planned';
+
+export interface UpcomingItem {
+  title: string;
+  area: WhatsNewArea;
+  status: UpcomingStatus;
+  /** Uma ou duas frases, em inglês, a explicar o que muda para quem usa a PondiFarm. */
+  text: string;
+}
+
+export const STATUS_LABEL: Record<UpcomingStatus, string> = {
+  'in-progress': 'In progress',
+  planned: 'Planned',
+};
+
+/** Cores do selo de estado (iguais no tema claro e escuro, como os selos de versão). */
+export const STATUS_COLORS: Record<UpcomingStatus, { bg: string; fg: string }> = {
+  'in-progress': { bg: '#FBEBDD', fg: '#9C4C16' },
+  planned: { bg: '#E3EBF3', fg: '#1B3A57' },
+};
+
+export const UPCOMING: UpcomingItem[] = [
+  { title: 'Weight accuracy with scale weights', area: 'scan', status: 'in-progress', text: 'Calibrating the weight model with real scale weights from farm visits to reduce the current ~10 % margin.' },
+  { title: 'One codebase for web and iPhone', area: 'team', status: 'planned', text: 'The website and the iPhone app will be built from the same code, so both always get the same features at the same time.' },
+  { title: 'Automatic, safer releases', area: 'team', status: 'planned', text: 'New versions go first to a private test copy of PondiFarm (staging) with test data; only after checking it there are they published to everyone.' },
+  { title: 'More secure web sign-in', area: 'team', status: 'planned', text: 'The website will keep your session in a protected cookie that page scripts cannot read, and renew it automatically.' },
+  { title: 'Automatic testing on every change', area: 'team', status: 'planned', text: 'Key flows (sign-in, herd, scan again, postcode search) are tested automatically on web and iPhone before any release.' },
+];
+
+/** «Coming next», com o que está em curso primeiro. */
+export function upcomingSorted(): UpcomingItem[] {
+  return UPCOMING.filter((u) => u.status === 'in-progress').concat(UPCOMING.filter((u) => u.status !== 'in-progress'));
+}
+
 /** Compara versões «x.y.z» (negativo se a < b). */
 export function compareVersions(a: string, b: string): number {
   const pa = a.split('.').map((n) => parseInt(n, 10) || 0);
@@ -72,6 +109,11 @@ export function whatsNewFor(current: string = APP_VERSION, onlyCurrent = false):
   return WHATS_NEW
     .filter((i) => (onlyCurrent ? i.version === current : compareVersions(i.version, current) <= 0))
     .sort((a, b) => compareVersions(b.version, a.version));
+}
+
+/** true quando a versão tem pelo menos uma novidade. */
+export function hasWhatsNewFor(version: string = APP_VERSION): boolean {
+  return WHATS_NEW.some((i) => i.version === version);
 }
 
 /** Entradas de uma área, já ordenadas. */
@@ -99,5 +141,6 @@ export function useWhatsNewUnseen(): boolean {
     listeners.add(l);
     return () => { alive = false; listeners.delete(l); };
   }, []);
-  return seen !== undefined && seen !== APP_VERSION;
+  // Sem entradas para esta versão não há nada de novo a assinalar.
+  return seen !== undefined && seen !== APP_VERSION && hasWhatsNewFor(APP_VERSION);
 }

@@ -28,9 +28,20 @@ for (const e of entries) {
   if (!['scan', 'herd', 'weather', 'team'].includes(e.area)) errors.push(`${at}: unknown area «${e.area}»`);
   if (!e.text.trim()) errors.push(`${e.v}: empty text`);
 }
+// «Coming next» (UPCOMING): título, área, estado e texto obrigatórios.
+const upBody = src.includes('export const UPCOMING') ? src.slice(src.indexOf('export const UPCOMING'), src.indexOf('];', src.indexOf('export const UPCOMING'))) : '';
+const upcoming = [...upBody.matchAll(/\{\s*title:\s*'((?:[^'\\]|\\.)*)',\s*area:\s*'([^']*)',\s*status:\s*'([^']*)',\s*text:\s*'((?:[^'\\]|\\.)*)'\s*\}/g)]
+  .map(([, title, area, status, text]) => ({ title, area, status, text }));
+const upCount = (upBody.match(/\btitle:/g) ?? []).length;
+if (upCount !== upcoming.length) errors.push(`UPCOMING: ${upCount - upcoming.length} entr(y/ies) not in the form { title, area, status, text }`);
+for (const u of upcoming) {
+  if (!u.title.trim() || !u.text.trim()) errors.push(`upcoming «${u.title}»: title and text are required`);
+  if (!['scan', 'herd', 'weather', 'team'].includes(u.area)) errors.push(`upcoming «${u.title}»: unknown area «${u.area}»`);
+  if (!['in-progress', 'planned'].includes(u.status)) errors.push(`upcoming «${u.title}»: status must be in-progress or planned`);
+}
 const mine = entries.filter((e) => e.v === version);
 if (mine.length === 0) {
   errors.push(`version ${version} has no entry in src/lib/whatsNew.ts — add what changed for users (plain words, one line per change)`);
 }
 if (errors.length) { errors.forEach((m) => console.error(`✗ ${m}`)); process.exit(1); }
-console.log(`✓ What's new: ${mine.length} entr${mine.length === 1 ? 'y' : 'ies'} for ${version} (${entries.length} in total)`);
+console.log(`✓ What's new: ${mine.length} entr${mine.length === 1 ? 'y' : 'ies'} for ${version} (${entries.length} in total) · ${upcoming.length} coming next`);

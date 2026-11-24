@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, Platform, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, Platform, TouchableOpacity, Animated, useWindowDimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -10,13 +10,17 @@ import CompactHeader, { useScrollY } from '../components/CompactHeader';
 import ScreenBackground from '../components/ScreenBackground';
 import CattleIcon from '../components/CattleIcon';
 import { APP_VERSION } from '../lib/version';
-import { AREAS, byArea, markWhatsNewSeen, whatsNewFor, type WhatsNewArea } from '../lib/whatsNew';
+import {
+  AREAS, STATUS_COLORS, STATUS_LABEL, byArea, hasWhatsNewFor, markWhatsNewSeen, upcomingSorted, whatsNewFor,
+  type WhatsNewArea,
+} from '../lib/whatsNew';
 
 // «What's new» — conceito C «Árvore por área» (aprovado a 23/11/2026). Um cartão por
 // área com uma linha de ramo à esquerda; cada novidade leva o selo da versão: verde
 // para a versão instalada, azul-marinho claro para as anteriores. Dados em lib/whatsNew.ts.
 
 type Filter = 'all' | WhatsNewArea;
+type Tab = 'released' | 'next';
 
 export function AreaIcon({ area, color, size = 18 }: { area: WhatsNewArea; color: string; size?: number }) {
   if (area === 'herd') return <CattleIcon size={size} color={color} />;
@@ -31,7 +35,12 @@ export default function WhatsNewScreen() {
   const insets = useSafeAreaInsets();
   const nav = useNavigation();
   const { scrollY, onScroll } = useScrollY();
+  // Letra grande (Dynamic Type): o selo cresce com o texto, senão as frases desalinham.
+  const { fontScale } = useWindowDimensions();
+  const badgeWidth = { minWidth: Math.round(52 * Math.max(1, fontScale)) };
   const [filter, setFilter] = useState<Filter>('all');
+  // «Released» (o que já saiu) | «Coming next» (em curso / planeado).
+  const [tab, setTab] = useState<Tab>('released');
 
   // Abrir o ecrã conta como «visto»: o ponto verde das Settings desaparece.
   useEffect(() => { void markWhatsNewSeen(); }, []);
@@ -39,6 +48,9 @@ export default function WhatsNewScreen() {
   const items = useMemo(() => whatsNewFor(APP_VERSION), []);
   const areas = AREAS.filter((a) => (filter === 'all' || a.key === filter) && byArea(items, a.key).length > 0);
   const chips: { key: Filter; label: string }[] = [{ key: 'all', label: 'All' }, ...AREAS];
+  const tabs: { key: Tab; label: string }[] = [{ key: 'released', label: 'Released' }, { key: 'next', label: 'Coming next' }];
+  const upcoming = useMemo(() => upcomingSorted(), []);
+  const areaLabel = (k: WhatsNewArea) => AREAS.find((a) => a.key === k)?.label ?? k;
 
   return (
     <View style={{ flex: 1 }}>
@@ -58,6 +70,26 @@ export default function WhatsNewScreen() {
           <Text style={styles.subtitle}>You have version {APP_VERSION}</Text>
         </View>
 
+        <View style={styles.seg} accessibilityRole="tablist">
+          {tabs.map((t) => {
+            const on = tab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.segBtn, on && styles.segBtnOn]}
+                onPress={() => setTab(t.key)}
+                activeOpacity={0.7}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: on }}
+                aria-selected={on}
+              >
+                <Text style={[styles.segLabel, on && styles.segLabelOn]} numberOfLines={1}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {tab === 'released' && <>
         <View style={styles.chips} accessibilityRole="tablist">
           {chips.map((c) => {
             const on = filter === c.key;
@@ -69,6 +101,7 @@ export default function WhatsNewScreen() {
                 activeOpacity={0.7}
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
+                aria-selected={on}
               >
                 <Text style={[styles.chipLabel, on && styles.chipLabelOn]}>{c.label}</Text>
               </TouchableOpacity>
@@ -88,7 +121,7 @@ export default function WhatsNewScreen() {
                 return (
                   <View key={`${it.version}-${i}`} style={styles.item}>
                     <View style={styles.twig} />
-                    <View style={[styles.badge, isNew ? styles.badgeNew : styles.badgeOld]}>
+                    <View style={[styles.badge, badgeWidth, isNew ? styles.badgeNew : styles.badgeOld]}>
                       <Text style={[styles.badgeText, isNew ? styles.badgeTextNew : styles.badgeTextOld]}>{it.version}</Text>
                     </View>
                     <Text style={styles.itemText}>{it.text}</Text>
@@ -99,10 +132,32 @@ export default function WhatsNewScreen() {
           </View>
         ))}
 
-        <View style={styles.legend}>
-          <View style={[styles.legendDot, { backgroundColor: '#2D7D46' }]} />
-          <Text style={styles.footnote}>Green = new in your version</Text>
-        </View>
+        {hasWhatsNewFor(APP_VERSION) && (
+          <View style={styles.legend}>
+            <View style={[styles.legendDot, { backgroundColor: '#2D7D46' }]} />
+            <Text style={styles.footnote}>Green = new in your version</Text>
+          </View>
+        )}
+        </>}
+
+        {tab === 'next' && <>
+          <Text style={styles.nextIntro}>What we are working on now, and what comes after it.</Text>
+          {upcoming.map((u) => (
+            <View key={u.title} style={styles.card}>
+              <View style={styles.cardHead}>
+                <View style={styles.areaIcon}><AreaIcon area={u.area} color={ios.accent} /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{u.title}</Text>
+                  <Text style={styles.nextArea}>{areaLabel(u.area)}</Text>
+                </View>
+              </View>
+              <View style={[styles.status, { backgroundColor: STATUS_COLORS[u.status].bg }]}>
+                <Text style={[styles.statusText, { color: STATUS_COLORS[u.status].fg }]}>{STATUS_LABEL[u.status]}</Text>
+              </View>
+              <Text style={styles.nextText}>{u.text}</Text>
+            </View>
+          ))}
+        </>}
       </Animated.ScrollView>
       <CompactHeader title="What's new" scrollY={scrollY} />
     </View>
@@ -121,6 +176,26 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     letterSpacing: -0.95, color: ios.label, lineHeight: 36,
   },
   subtitle: { marginTop: 4, fontSize: 15, color: ios.secondaryLabel },
+
+  // Controlo segmentado no topo: «Released» | «Coming next».
+  seg: {
+    flexDirection: 'row', marginHorizontal: 16, marginTop: 16, padding: 3,
+    borderRadius: 12, backgroundColor: ios.segmentFill,
+  },
+  segBtn: { flex: 1, minHeight: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  segBtnOn: {
+    backgroundColor: ios.isDark ? '#2A3B4C' : '#FFFFFF',
+    shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, shadowOffset: { width: 0, height: 1 },
+  },
+  segLabel: { fontSize: 14, fontWeight: '500', color: ios.secondaryLabel },
+  segLabelOn: { color: ios.label, fontWeight: '600' },
+
+  nextIntro: { marginHorizontal: 20, marginTop: 14, fontSize: 15, lineHeight: 20, color: ios.secondaryLabel },
+  nextArea: { marginTop: 1, fontSize: 13, color: ios.secondaryLabel },
+  // Selo de estado: «In progress» laranja, «Planned» azul-marinho (cores em lib/whatsNew.ts).
+  status: { alignSelf: 'flex-start', marginTop: 10, borderRadius: 7, paddingHorizontal: 8, paddingVertical: 3 },
+  statusText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
+  nextText: { marginTop: 8, fontSize: 15, lineHeight: 21, color: ios.label, letterSpacing: -0.2 },
 
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 16, marginTop: 16, marginBottom: 4 },
   chip: {
