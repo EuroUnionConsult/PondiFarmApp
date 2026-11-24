@@ -380,6 +380,20 @@ export async function fetchScanMeshFile(scanId: string): Promise<string> {
   return file;
 }
 
+export type MeshFormat = 'ply' | 'obj' | 'glb';
+
+/**
+ * Versão web: o modelo 3D de um scan (GET /scans/{id}/mesh) em memória, no formato
+ * original (o visualizador three.js lê PLY, OBJ e GLB com a foto).
+ */
+export async function fetchScanMesh(scanId: string): Promise<{ format: MeshFormat; data: ArrayBuffer }> {
+  const base = (await getBackendUrl()).trim().replace(/\/+$/, '');
+  const res = await fetchWithTimeout(`${base}/api/v1/scans/${encodeURIComponent(scanId)}/mesh`, 30000);
+  if (!res.ok) throw new Error(`mesh HTTP ${res.status}`);
+  const fmt = (res.headers.get('X-Mesh-Format') || 'ply').toLowerCase() as MeshFormat;
+  return { format: fmt, data: await res.arrayBuffer() };
+}
+
 export async function clearCloudCache(): Promise<void> {
   try { await AsyncStorage.removeItem(CLOUD_CACHE_KEY); } catch {}
 }

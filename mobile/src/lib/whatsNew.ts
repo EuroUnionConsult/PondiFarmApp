@@ -1,6 +1,6 @@
 // «What's new» — FONTE ÚNICA das novidades mostradas ao utilizador (iPhone, web de
-// telemóvel e web de computador). Ficheiro partilhado: tem de ser IGUAL em
-// PondiFarmApp/mobile/src/lib e em PondiFarmWeb-Desk/src/lib.
+// telemóvel e web de computador). O site é compilado deste mesmo app (App.web.tsx),
+// por isso há um só ficheiro para as três.
 //
 // Cada release acrescenta aqui as suas entradas, em linguagem simples (não as mensagens
 // dos commits). O release-please NÃO o faz sozinho: `npm run whatsnew:check` falha se a
@@ -29,6 +29,9 @@ export const AREAS: { key: WhatsNewArea; label: string }[] = [
 ];
 
 export const WHATS_NEW: WhatsNewItem[] = [
+  { version: '0.13.0', date: '2026-11-24', area: 'team', text: 'The website is now built from the same code as the iPhone app, so both always get the same features at the same time' },
+  { version: '0.13.0', date: '2026-11-24', area: 'scan', text: '3D models on the website only load content stored inside the model file' },
+
   { version: '0.12.0', date: '2026-11-24', area: 'team', text: '«What\'s new» in Settings: every change grouped by area, with a green dot when there is something new' },
   { version: '0.12.0', date: '2026-11-24', area: 'team', text: '«Coming next»: what we are working on now and what comes after' },
 
@@ -85,7 +88,6 @@ export const STATUS_COLORS: Record<UpcomingStatus, { bg: string; fg: string }> =
 
 export const UPCOMING: UpcomingItem[] = [
   { title: 'Weight accuracy with scale weights', area: 'scan', status: 'in-progress', text: 'Calibrating the weight model with real scale weights from farm visits to reduce the current ~10 % margin.' },
-  { title: 'One codebase for web and iPhone', area: 'team', status: 'planned', text: 'The website and the iPhone app will be built from the same code, so both always get the same features at the same time.' },
   { title: 'Automatic, safer releases', area: 'team', status: 'planned', text: 'New versions go first to a private test copy of PondiFarm (staging) with test data; only after checking it there are they published to everyone.' },
   { title: 'More secure web sign-in', area: 'team', status: 'planned', text: 'The website will keep your session in a protected cookie that page scripts cannot read, and renew it automatically.' },
   { title: 'Automatic testing on every change', area: 'team', status: 'planned', text: 'Key flows (sign-in, herd, scan again, postcode search) are tested automatically on web and iPhone before any release.' },

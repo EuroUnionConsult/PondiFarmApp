@@ -46,7 +46,8 @@ function TabNavigator() {
   );
 }
 
-function RootNavigator() {
+// Exportado para a versão web (App.web.tsx), que o põe dentro da moldura do telemóvel.
+export function RootNavigator() {
   const { token, user, loading } = useAuth();
   const { mode, colors: palette } = useTheme();
   // Fundo da navegação = fundo do tema: sem isto, cada transição pisca a branco no escuro.
@@ -81,7 +82,7 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navRef} theme={navTheme} onReady={() => setCurrentScreen(navRef.getCurrentRoute()?.name)} onStateChange={(st) => setCurrentScreen(activeRouteName(st))}>
+    <NavigationContainer ref={navRef} theme={navTheme} onReady={() => setCurrentScreen(navRef.getCurrentRoute()?.name)} onStateChange={(st) => setCurrentScreen(activeRouteName(st))} documentTitle={{ formatter: () => 'PondiFarm' }}>
       {/* Voltar atrás deslizando de qualquer ponto do ecrã (não só da borda),
           como nas apps nativas do iOS. */}
       <Stack.Navigator screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>

@@ -7,10 +7,12 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "whatsnew:check": "node scripts/check-whats-new.mjs"
+    "whatsnew:check": "node scripts/check-whats-new.mjs",
+    "build:web": "expo export --platform web --output-dir dist --clear"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
+    "@expo/metro-runtime": "~6.1.2",
     "@expo/vector-icons": "^15.1.1",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "^7.18.3",
@@ -31,16 +33,22 @@
     "expo-sharing": "~14.0.8",
     "expo-status-bar": "~3.0.9",
     "expo-updates": "~29.0.18",
+    "leaflet": "1.9.4",
     "react": "19.1.0",
+    "react-dom": "19.1.0",
     "react-native": "0.81.5",
     "react-native-maps": "1.20.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
-    "react-native-view-shot": "4.0.3"
+    "react-native-view-shot": "4.0.3",
+    "react-native-web": "^0.21.0",
+    "three": "0.169.0"
   },
   "devDependencies": {
+    "@types/leaflet": "1.9.12",
     "@types/react": "~19.1.10",
+    "@types/three": "0.169.0",
     "babel-preset-expo": "~54.0.10",
     "typescript": "~5.9.2"
   },

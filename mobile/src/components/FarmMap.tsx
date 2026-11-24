@@ -3,7 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import MapView, { Marker, type Region } from 'react-native-maps';
 
 /** Mapa para marcar a quinta (iPhone: Apple Maps, sem chave). O pino arrasta-se;
- *  tocar no mapa também o move. A versão web usa Leaflet (FarmMap.web no Web-Desk). */
+ *  tocar no mapa também o move. A versão web usa Leaflet (FarmMap.web.tsx). */
 export default function FarmMap({ lat, lon, onChange, height = 260 }: {
   lat: number; lon: number; onChange: (lat: number, lon: number) => void; height?: number;
 }) {

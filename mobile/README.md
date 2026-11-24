@@ -2,6 +2,8 @@
 
 Expo / React Native client for the PondiFarmApp pipeline. Communicates with the FastAPI backend and presents the capture → measurement → result flow.
 
+The same app also builds the **website** (react-native-web): a desktop layout (sidebar, herd list with the animal sheet beside it, weather, profile) and, on a narrow screen or after *Switch to mobile version*, the iPhone layout. There is no scanning on the web: 3D capture needs the iPhone LiDAR sensor; scans appear once they sync.
+
 ## Stack
 
 - Expo SDK 54
@@ -16,15 +18,19 @@ Expo / React Native client for the PondiFarmApp pipeline. Communicates with the 
 
 ```
 mobile/
-├── App.tsx               Root component
+├── App.tsx               Root component (iPhone)
+├── App.web.tsx           Root component (website)
+├── public/index.html     Website page template and icons
 ├── index.ts              Entry point
 ├── app.json              Expo configuration
 ├── eas.json              EAS Build profiles
 ├── babel.config.js
 ├── tsconfig.json
 ├── package.json
-└── src/                  Application code
+└── src/                  Application code (src/web/: website-only pages and shell)
 ```
+
+Files named `*.web.ts(x)` replace the file with the same name on the web (for example `FarmMap.web.tsx` uses Leaflet instead of Apple Maps, `Scan3DViewer.web.tsx` uses three.js instead of the native viewer).
 
 ## Local development
 
@@ -49,6 +55,16 @@ Open the project on a device using the Expo Go app, or press `i` to launch an iO
 npx tsc --noEmit
 npx expo lint
 ```
+
+### 4. Website
+
+```bash
+npm run web                     # dev server in the browser
+npm run build:web               # static site in dist/ (what production serves)
+EXPO_PUBLIC_API_URL=http://localhost:8000 npm run build:web   # against a local backend
+```
+
+The backend must allow the site's origin in `CORS_ORIGINS`. Deploying: [`docs/web-deploy.md`](../docs/web-deploy.md).
 
 ## Connecting to the backend
 
