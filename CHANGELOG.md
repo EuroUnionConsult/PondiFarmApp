@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.12.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.11.0...v0.12.0) (2026-11-24)
+
+
+### Features
+
+* **mobile:** add «Coming next» tab to what's new and fix edge cases ([f0028d9](https://github.com/EuroUnionConsult/PondiFarmApp/commit/f0028d9156d655df1a3205c28a5269954c99b1b9))
+* **mobile:** what's new entries for 0.12.0 ([d5288ad](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d5288ad1ca78c3b96c466fe96cdac9a36abde697))
+* **mobile:** what's new screen grouped by area, with a check for the current version ([73a26fa](https://github.com/EuroUnionConsult/PondiFarmApp/commit/73a26facf69dfa21c77ae5d852cbfba38086070c))
+* what's new grouped by area, with a «Coming next» tab ([f305514](https://github.com/EuroUnionConsult/PondiFarmApp/commit/f3055141121a0757abced8d2a224e37739e98f51))
+
+
+### Bug Fixes
+
+* **mobile:** escape apostrophes flagged by expo lint ([a022393](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a0223932fab8d730b09f44e4146bfc59c4ec5b22))
+
 ## [0.11.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.10.2...v0.11.0) (2026-11-23)
 
 
