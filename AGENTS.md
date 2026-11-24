@@ -49,7 +49,7 @@ This is **PondiFarmApp**, a monorepo by Euro Union Consult (EUC) for livestock b
 - Run: `npx expo start` from inside `mobile/`.
 - **The website lives here too.** The desktop and mobile web (formerly the separate PondiFarmWeb-Desk repository) are built from the same Expo app with react-native-web, so iPhone and web always ship the same features and version (`mobile/src/lib/version.ts`).
   - Web entry: `mobile/App.web.tsx`; web-only code: `mobile/src/web/`; `mobile/public/index.html` is the page template.
-  - Platform differences go in `*.web.ts(x)` files next to the native file (Metro picks them on web; `tsc` type-checks both) or in a short `Platform.OS === 'web'` branch. Never copy a shared file to change it for one platform. Current pairs: `FarmMap`, `Scan3DViewer`, `ThemeScan`, `modules/lidar-scanner/index`.
+  - Platform differences go in `*.web.ts(x)` files next to the native file (Metro picks them on web; `tsc` type-checks both) or in a short `Platform.OS === 'web'` branch. Never copy a shared file to change it for one platform. Current pairs: `FarmMap`, `Scan3DViewer`, `ThemeScan`, `lib/cameraPermissions` (keeps `expo-camera`, whose web QR worker loads a CDN script the CSP blocks, out of the web bundle), `modules/lidar-scanner/index`.
   - Do not import native-only modules (react-native-maps, react-native-view-shot, the LiDAR module, `expo-file-system` downloads) from code that runs on web, unless a `.web` file replaces it.
   - Run the web locally: `npm run web` (dev server) or `npm run build:web` (static site in `mobile/dist/`). `EXPO_PUBLIC_API_URL` picks the backend; the backend must list the site's origin in `CORS_ORIGINS`.
   - CI (`ci-mobile.yml`, job «Web build») runs `npx expo export --platform web` on every mobile PR.
