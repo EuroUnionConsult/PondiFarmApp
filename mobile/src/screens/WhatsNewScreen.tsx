@@ -66,7 +66,7 @@ export default function WhatsNewScreen() {
             <Ionicons name="chevron-back" size={22} color={ios.accent} />
             <Text style={styles.backText}>Settings</Text>
           </TouchableOpacity>
-          <Text style={styles.title} accessibilityRole="header">What's new</Text>
+          <Text style={styles.title} accessibilityRole="header">{"What's new"}</Text>
           <Text style={styles.subtitle}>You have version {APP_VERSION}</Text>
         </View>
 

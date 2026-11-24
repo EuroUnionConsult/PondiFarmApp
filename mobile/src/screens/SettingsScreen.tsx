@@ -248,7 +248,7 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           accessibilityLabel={`What's new in version ${APP_VERSION}${whatsNewUnseen ? ', not opened yet' : ''}`}
         >
-          <Text style={styles.rowLabel}>What's new · {APP_VERSION}</Text>
+          <Text style={styles.rowLabel}>{`What's new · ${APP_VERSION}`}</Text>
           {whatsNewUnseen && <View style={styles.newDot} />}
           <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />
         </TouchableOpacity>
