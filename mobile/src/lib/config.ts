@@ -6,7 +6,8 @@
 // que persiste no dispositivo sem precisar recompilar.
 // Produção: backend no Azure App Service (M5). O app funciona sem o Mac/hotspot.
 // Em dev (__DEV__) dá pra sobrepor pelo override de servidor nas Configurações.
-// Pode ser trocada no arranque com EXPO_PUBLIC_API_URL (servidor local de testes); sem ela, a produção.
+// EXPO_PUBLIC_API_URL troca-a no arranque (servidor local de testes; na web, o servidor
+// do build: demo, local); sem ela, a produção.
 export const DEFAULT_BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'https://pondifarm-api-euc.azurewebsites.net';
 
 // Chaves de armazenamento local (device).

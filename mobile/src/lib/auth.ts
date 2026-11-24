@@ -1,6 +1,14 @@
-import * as SecureStore from 'expo-secure-store';
+import * as NativeSecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import { getBackendUrl } from './api';
 import { trackServerRequest } from './serverWake';
+
+// No browser não há Keychain: o token fica no armazenamento do browser.
+// (O login por cookie da web é um passo seguinte.)
+const SecureStore = Platform.OS === 'web'
+  ? { getItemAsync: (k: string) => AsyncStorage.getItem(k), setItemAsync: (k: string, v: string) => AsyncStorage.setItem(k, v), deleteItemAsync: (k: string) => AsyncStorage.removeItem(k) }
+  : NativeSecureStore;
 
 // Token no iOS Keychain (armazenamento seguro nativo) via expo-secure-store.
 // Chave do SecureStore só aceita [A-Za-z0-9._-].

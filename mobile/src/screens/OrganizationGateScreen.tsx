@@ -22,7 +22,8 @@ import {
 
 const POLL_MS = 30_000;
 
-export default function OrganizationGateScreen() {
+/** `bare`: sem o fundo decorativo — no computador (web) o painel do login já tem o seu. */
+export default function OrganizationGateScreen({ bare = false }: { bare?: boolean }) {
   const { colors: ios } = useTheme();
   const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
@@ -80,7 +81,7 @@ export default function OrganizationGateScreen() {
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenBackground />
+      {bare ? null : <ScreenBackground />}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           contentContainerStyle={[styles.content, { paddingTop: insets.top + 40, paddingBottom: insets.bottom + 32 }]}

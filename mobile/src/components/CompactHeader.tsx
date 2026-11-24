@@ -1,5 +1,5 @@
 import React, { useRef, useMemo } from 'react';
-import { Animated, StyleSheet, View } from 'react-native';
+import { Animated, Platform, StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type Palette } from '../lib/theme';
@@ -48,7 +48,11 @@ export default function CompactHeader({
 
 const makeStyles = (ios: Palette) => StyleSheet.create({
   bar: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', justifyContent: 'center' },
-  tint: { backgroundColor: ios.isDark ? 'rgba(11,22,34,0.62)' : 'rgba(242,242,247,0.55)' },
+  // Na web o BlurView não desfoca: com o tom semitransparente o título grande via-se por
+  // baixo da barra (títulos sobrepostos). Lá usa-se o desfoque do CSS e um fundo quase opaco.
+  tint: Platform.OS === 'web'
+    ? ({ backgroundColor: ios.isDark ? 'rgba(11,22,34,0.92)' : 'rgba(242,242,247,0.92)', backdropFilter: 'saturate(180%) blur(20px)', WebkitBackdropFilter: 'saturate(180%) blur(20px)' } as any)
+    : { backgroundColor: ios.isDark ? 'rgba(11,22,34,0.62)' : 'rgba(242,242,247,0.55)' },
   hairline: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     height: StyleSheet.hairlineWidth, backgroundColor: ios.separator,

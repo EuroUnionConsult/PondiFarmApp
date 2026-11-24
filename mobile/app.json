@@ -36,7 +36,13 @@
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "PondiFarm",
+      "shortName": "PondiFarm",
+      "themeColor": "#2D7D46",
+      "backgroundColor": "#F2F4F6"
     },
     "plugins": [
       [

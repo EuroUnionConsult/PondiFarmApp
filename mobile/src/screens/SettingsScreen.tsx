@@ -200,6 +200,8 @@ export default function SettingsScreen() {
       )}
 
       {/* SCAN ============================================================= */}
+      {/* No browser não há scan nem vibração: a raça por omissão e o «haptic» ficam só no iPhone. */}
+      {Platform.OS !== 'web' && (<>
       <Text style={styles.sectionHeader}>Scan</Text>
       <View style={styles.card}>
         <View style={[styles.row, { paddingBottom: 4 }]}>
@@ -237,6 +239,7 @@ export default function SettingsScreen() {
           />
         </View>
       </View>
+      </>)}
 
       {/* ABOUT ============================================================ */}
       <Text style={styles.sectionHeader}>About</Text>
@@ -254,7 +257,7 @@ export default function SettingsScreen() {
         </TouchableOpacity>
         <View style={styles.rowDivider} />
         {[
-          { k: 'Application', v: 'PondiFarm Mobile' },
+          { k: 'Application', v: Platform.OS === 'web' ? 'PondiFarm on the web' : 'PondiFarm Mobile' },
           { k: 'Version',     v: APP_VERSION },
           { k: 'AI engine',   v: `Linear regression, ${WEIGHT_MODEL_FEATURE_COUNT} morphometrics, on-device` },
           { k: 'Weight model', v: `${WEIGHT_MODEL_VERSION} · Hereford base` },
