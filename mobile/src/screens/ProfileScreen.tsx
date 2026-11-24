@@ -25,6 +25,8 @@ import type { RootStackParamList } from '../navigation/types';
 import SyncRing from '../components/SyncRing';
 import { trackCloud } from '../lib/activity';
 import { useWeather } from '../lib/weather';
+import { useWhatsNewUnseen } from '../lib/whatsNew';
+import { APP_VERSION } from '../lib/version';
 import { BulkActionBar, SelectBox, canBulkSelectPerson, useMembersBulk } from '../components/MembersBulk';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -66,6 +68,8 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
   const [events, setEvents] = useState<OrgEvent[]>([]);
   const [allEvents, setAllEvents] = useState(false);
   const { weather } = useWeather();
+  // Ponto verde enquanto houver uma versão nova por abrir (o mesmo estado das Settings e da web).
+  const whatsNewUnseen = useWhatsNewUnseen();
   const farm = weather?.location ?? null;
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -430,6 +434,19 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         <FadeInView index={4}>
         <Text style={styles.sectionHeader}>App</Text>
         <View style={styles.card}>
+          <PressableScale
+            style={styles.row}
+            onPress={() => nav.navigate('WhatsNew')}
+            scaleTo={0.985}
+            accessibilityRole="button"
+            accessibilityLabel={`What's new in version ${APP_VERSION}${whatsNewUnseen ? ', not opened yet' : ''}`}
+          >
+            <Ionicons name="sparkles-outline" size={20} color={ios.secondaryLabel} />
+            <Text style={[styles.rowKey, { flex: 1 }]}>{`What's new · ${APP_VERSION}`}</Text>
+            {whatsNewUnseen && <View style={styles.newDot} />}
+            <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />
+          </PressableScale>
+          <View style={styles.divider} />
           <PressableScale style={styles.row} onPress={() => nav.navigate('Settings')} scaleTo={0.985} accessibilityRole="button">
             <Ionicons name="settings-outline" size={20} color={ios.secondaryLabel} />
             <Text style={[styles.rowKey, { flex: 1 }]}>Settings</Text>
@@ -525,6 +542,7 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   sectionLinkText: { fontSize: 15, color: ios.accent, fontWeight: '600' },
   boxSpacer: { width: 30 },
   rowBusy: { opacity: 0.5 },
+  newDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#2D7D46' },
   footer: { paddingHorizontal: 32, paddingTop: 8, fontSize: 13, color: ios.secondaryLabel },
   error: { color: ios.danger, fontSize: 14, textAlign: 'center', marginTop: 16, paddingHorizontal: 24 },
 });
