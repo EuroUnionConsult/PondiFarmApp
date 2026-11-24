@@ -5,7 +5,7 @@
 // mesmo erro em 5 minutos e não envia mais de 30 por sessão. Sem emails, tokens nem
 // coordenadas: o endpoint vai sem query string e as mensagens são curtas.
 //
-// FICHEIRO PARTILHADO: igual em PondiFarmApp/mobile/src/lib e PondiFarmWeb-Desk/src/lib.
+// Partilhado pelo iPhone (App.tsx) e pelo site (App.web.tsx).
 import { Platform } from 'react-native';
 import { getBackendUrl } from './api';
 import { authHeaders } from './auth';

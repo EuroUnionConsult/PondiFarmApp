@@ -17,13 +17,17 @@ This repository hosts the **PondiFarmApp** monorepo: a React Native / Expo clien
 ```
 PondiFarmApp/
 ├── backend/        FastAPI + scikit-learn weight prediction (Random Forest)
-├── mobile/         Expo SDK 54 + React Native 0.81.5 (TypeScript)
+├── mobile/         Expo SDK 54 + React Native 0.81.5 (TypeScript): iPhone app AND website
+├── deploy/web/     Dockerfile + nginx for the website (desktop + mobile web)
 ├── .github/        CI workflows, release-please, code scanning, templates
 └── …               Docs, LICENSE, governance files
 ```
 
 - See [`backend/README.md`](./backend/README.md) to run the API locally.
-- See [`mobile/README.md`](./mobile/README.md) to run the app locally.
+- See [`mobile/README.md`](./mobile/README.md) to run the app (iPhone or web) locally.
+- See [`docs/web-deploy.md`](./docs/web-deploy.md) to deploy the website.
+
+The website (desktop layout plus the phone layout in the browser) is built from the same code as the iPhone app (`mobile/`, via react-native-web), so both always ship the same features and the same version.
 
 ## Project status
 

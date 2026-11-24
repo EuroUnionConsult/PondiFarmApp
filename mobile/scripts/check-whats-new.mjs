@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Fails (exit 1) when the installed version has no «What's new» entry.
 // Every release must add its entries to src/lib/whatsNew.ts (release-please does NOT do it).
-// Same file in PondiFarmApp/mobile/scripts and PondiFarmWeb-Desk/scripts.
+// The website is built from this same app (App.web.tsx), so one check covers iPhone and web.
 //
 // Usage: npm run whatsnew:check
 //        CHECK_VERSION=0.12.0 npm run whatsnew:check   # check another version (e.g. the next release)

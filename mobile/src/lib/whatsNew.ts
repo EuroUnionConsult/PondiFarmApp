@@ -1,6 +1,6 @@
 // «What's new» — FONTE ÚNICA das novidades mostradas ao utilizador (iPhone, web de
-// telemóvel e web de computador). Ficheiro partilhado: tem de ser IGUAL em
-// PondiFarmApp/mobile/src/lib e em PondiFarmWeb-Desk/src/lib.
+// telemóvel e web de computador). O site é compilado deste mesmo app (App.web.tsx),
+// por isso há um só ficheiro para as três.
 //
 // Cada release acrescenta aqui as suas entradas, em linguagem simples (não as mensagens
 // dos commits). O release-please NÃO o faz sozinho: `npm run whatsnew:check` falha se a
