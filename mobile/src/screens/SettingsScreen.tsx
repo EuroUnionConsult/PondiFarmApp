@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
-  View, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, Animated,
+  View, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, Animated, useWindowDimensions,
 } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
@@ -45,6 +45,8 @@ export default function SettingsScreen() {
   const styles = useMemo(() => makeStyles(ios), [ios]);
   const insets = useSafeAreaInsets();
   const { scrollY, onScroll } = useScrollY();
+  // Texto grande: as raças ficam uma por linha (lado a lado partiam a palavra).
+  const big = useWindowDimensions().fontScale >= 1.3;
   const [cfg, setCfg] = useState<Config>(DEFAULT);
   const [cloudSync, setCloudSync] = useState(true);
   const [status, setStatus] = useState<'checking' | 'online' | 'offline'>('checking');
@@ -208,13 +210,13 @@ export default function SettingsScreen() {
         <View style={[styles.row, { paddingBottom: 4 }]}>
           <Text style={styles.rowLabel}>Default breed</Text>
         </View>
-        <View style={styles.segmented}>
+        <View style={[styles.segmented, big && { flexDirection: 'column' }]}>
           {BREEDS.map(b => {
             const active = cfg.defaultBreed === b.key;
             return (
               <TouchableOpacity
                 key={b.key}
-                style={[styles.segment, active && styles.segmentActive]}
+                style={[styles.segment, big && { flex: 0, paddingVertical: 10 }, active && styles.segmentActive]}
                 onPress={() => save({ defaultBreed: b.key })}
                 activeOpacity={0.7}
               >
@@ -265,9 +267,10 @@ export default function SettingsScreen() {
           { k: 'Protocol',    v: 'LiDAR (ARKit scene reconstruction)' },
         ].map(({ k, v }, i, arr) => (
           <View key={k}>
-            <View style={styles.row}>
+            {/* Texto grande: etiqueta por cima do valor (lado a lado partia as palavras). */}
+            <View style={[styles.row, big && { flexDirection: 'column', alignItems: 'flex-start', gap: 2 }]}>
               <Text style={styles.aboutLabel}>{k}</Text>
-              <Text style={styles.aboutValue}>{v}</Text>
+              <Text style={[styles.aboutValue, big && { textAlign: 'left', flex: 0 }]}>{v}</Text>
             </View>
             {i < arr.length - 1 && <View style={styles.rowDivider} />}
           </View>

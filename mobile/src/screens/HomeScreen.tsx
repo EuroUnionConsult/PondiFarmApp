@@ -1,6 +1,6 @@
 import React, { useCallback, useState, useMemo } from 'react';
 import {
-  View, Animated, StyleSheet, RefreshControl, Platform,
+  View, Animated, StyleSheet, RefreshControl, Platform, useWindowDimensions,
 } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
@@ -64,6 +64,9 @@ export default function HomeScreen() {
   const wxNow = weather?.location ? weather.current : undefined;
   const topAlert = weather?.alerts?.[0];
   const { scrollY, onScroll } = useScrollY();
+  // Texto grande (Dynamic Type de acessibilidade): os cartões passam a uma coluna e as
+  // linhas crescem em vez de cortar o texto.
+  const big = useWindowDimensions().fontScale >= 1.3;
 
   const load = useCallback(async () => {
     // Cache primeiro (instantâneo), depois atualiza em 2º plano.
@@ -165,7 +168,7 @@ export default function HomeScreen() {
             accessibilityLabel="Open your profile"
           >
             {avatarInitials ? (
-              <Text style={styles.avatarText}>{avatarInitials}</Text>
+              <Text style={styles.avatarText} maxFontSizeMultiplier={1.15}>{avatarInitials}</Text>
             ) : (
               <Ionicons name="person" size={18} color="#FFFFFF" />
             )}
@@ -194,14 +197,14 @@ export default function HomeScreen() {
         {/* Cartão SÓLIDO (como o «Today»): o vidro nativo do iOS 26 aqui ficava quase
             transparente e os círculos do fundo passavam por trás dos números. */}
         <View style={[styles.card, styles.heroGlass]}>
-          <View style={styles.hero}>
+          <View style={[styles.hero, big && styles.heroBig]}>
             <View style={styles.heroLeft}>
               <View style={styles.eyebrow}>
                 <Ionicons name="layers-outline" size={14} color={ios.accent} />
                 <Text style={styles.eyebrowText}>{heroLabel}</Text>
               </View>
               <View style={styles.valueRow}>
-                <Text style={styles.value}>{heroValue}</Text>
+                <Text style={styles.value} maxFontSizeMultiplier={1.4}>{heroValue}</Text>
                 <Text style={styles.valueUnit}>{heroUnit}</Text>
               </View>
               <Text style={styles.delta}>
@@ -227,22 +230,22 @@ export default function HomeScreen() {
                 />
               </Svg>
               <View style={styles.ringLabel} pointerEvents="none">
-                <Text style={styles.ringPct}>{ringPct}%</Text>
-                <Text style={styles.ringCaption}>synced</Text>
+                <Text style={styles.ringPct} maxFontSizeMultiplier={1}>{ringPct}%</Text>
+                <Text style={styles.ringCaption} maxFontSizeMultiplier={1}>synced</Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.tiles}>
-            <View style={styles.tile}>
+          <View style={[styles.tiles, big && styles.tilesBig]}>
+            <View style={[styles.tile, big && styles.tileBig]}>
               <Text style={styles.tileValue}>{totalAnimalsUnified}</Text>
               <Text style={styles.tileLabel}>animals</Text>
             </View>
-            <View style={[styles.tile, styles.tileDivider]}>
+            <View style={[styles.tile, big ? [styles.tileBig, styles.tileDividerBig] : styles.tileDivider]}>
               <Text style={[styles.tileValue, pendingSync > 0 && { color: ios.orange }]}>{pendingSync}</Text>
               <Text style={styles.tileLabel}>pending sync</Text>
             </View>
-            <View style={styles.tile}>
+            <View style={[styles.tile, big && [styles.tileBig, styles.tileDividerBig]]}>
               <Text style={styles.tileValue}>{records.length}</Text>
               <Text style={styles.tileLabel}>local scans</Text>
             </View>
@@ -315,8 +318,8 @@ export default function HomeScreen() {
               >
                 <View style={styles.rowIcon}><CattleIcon size={18} color={ios.accent} /></View>
                 <View style={styles.rowInfo}>
-                  <Text style={styles.rowId} numberOfLines={1}>{c.name}</Text>
-                  <Text style={styles.rowMeta} numberOfLines={1}>{[c.breed, c.tagCode].filter(Boolean).join(' · ')}</Text>
+                  <Text style={styles.rowId} numberOfLines={big ? undefined : 1}>{c.name}</Text>
+                  <Text style={styles.rowMeta} numberOfLines={big ? undefined : 1}>{[c.breed, c.tagCode].filter(Boolean).join(' · ')}</Text>
                 </View>
                 <View style={styles.rowMetric}>
                   <Text style={styles.rowMetricValue}>{c.weightKg != null ? Math.round(c.weightKg) : '—'}</Text>
@@ -427,6 +430,10 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 18,
   },
   heroLeft: { flex: 1 },
+  heroBig: { flexDirection: 'column', alignItems: 'flex-start' },
+  tilesBig: { flexDirection: 'column' },
+  tileBig: { flex: 0, flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'baseline', gap: 10, paddingHorizontal: 22 },
+  tileDividerBig: { borderTopWidth: StyleSheet.hairlineWidth, borderColor: ios.separator },
   eyebrow: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     marginBottom: 6,

@@ -38,6 +38,8 @@ export default function WhatsNewScreen() {
   // Letra grande (Dynamic Type): o selo cresce com o texto, senão as frases desalinham.
   const { fontScale } = useWindowDimensions();
   const badgeWidth = { minWidth: Math.round(52 * Math.max(1, fontScale)) };
+  // Muito grande: o selo fica numa linha e a frase por baixo, com a largura toda.
+  const big = fontScale >= 1.3;
   const [filter, setFilter] = useState<Filter>('all');
   // «Released» (o que já saiu) | «Coming next» (em curso / planeado).
   const [tab, setTab] = useState<Tab>('released');
@@ -83,7 +85,7 @@ export default function WhatsNewScreen() {
                 accessibilityState={{ selected: on }}
                 aria-selected={on}
               >
-                <Text style={[styles.segLabel, on && styles.segLabelOn]} numberOfLines={1}>{t.label}</Text>
+                <Text style={[styles.segLabel, on && styles.segLabelOn]} numberOfLines={big ? undefined : 1}>{t.label}</Text>
               </TouchableOpacity>
             );
           })}
@@ -118,13 +120,20 @@ export default function WhatsNewScreen() {
             <View style={styles.branch}>
               {byArea(items, a.key).map((it, i) => {
                 const isNew = it.version === APP_VERSION;
+                const badge = (
+                  <View style={[styles.badge, badgeWidth, isNew ? styles.badgeNew : styles.badgeOld]}>
+                    <Text style={[styles.badgeText, isNew ? styles.badgeTextNew : styles.badgeTextOld]}>{it.version}</Text>
+                  </View>
+                );
                 return (
-                  <View key={`${it.version}-${i}`} style={styles.item}>
-                    <View style={styles.twig} />
-                    <View style={[styles.badge, badgeWidth, isNew ? styles.badgeNew : styles.badgeOld]}>
-                      <Text style={[styles.badgeText, isNew ? styles.badgeTextNew : styles.badgeTextOld]}>{it.version}</Text>
-                    </View>
-                    <Text style={styles.itemText}>{it.text}</Text>
+                  <View key={`${it.version}-${i}`} style={big ? undefined : styles.item}>
+                    {big ? (
+                      <View style={styles.item}>
+                        <View style={styles.twig} />
+                        {badge}
+                      </View>
+                    ) : (<><View style={styles.twig} />{badge}</>)}
+                    <Text style={[styles.itemText, big && styles.itemTextBig]}>{it.text}</Text>
                   </View>
                 );
               })}
@@ -235,6 +244,7 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   badgeText: { fontSize: 12, fontWeight: '700', letterSpacing: 0.1 },
   badgeTextNew: { color: '#FFFFFF' },
   badgeTextOld: { color: ios.isDark ? '#8DB3D8' : '#1B3A57' },
+  itemTextBig: { flex: 0, marginLeft: 16, marginTop: 4 },
   itemText: { flex: 1, marginLeft: 8, fontSize: 15, lineHeight: 20, color: ios.label, letterSpacing: -0.2 },
 
   legend: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 32, marginTop: 16 },
