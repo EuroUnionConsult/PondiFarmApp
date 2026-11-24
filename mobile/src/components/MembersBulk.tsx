@@ -41,6 +41,8 @@ export function useMembersBulk({ orgId, requests, people, myId, reload }: {
   const [reqSel, setReqSel] = useState<Set<string>>(() => new Set());
   const [memSel, setMemSel] = useState<Set<string>>(() => new Set());
   const [running, setRunning] = useState<BulkKind | null>(null);
+  // Quantos itens a ação em curso trata (a seleção esvazia antes de a lista recarregar).
+  const [runCount, setRunCount] = useState(0);
 
   const requestIds = useMemo(() => requests.map((r) => r.id), [requests]);
   const memberIds = useMemo(() => (people ?? []).filter((p) => canBulkSelectPerson(p, myId)).map((p) => p.userId), [people, myId]);
@@ -67,6 +69,7 @@ export function useMembersBulk({ orgId, requests, people, myId, reload }: {
     const ids = Array.from(kind === 'remove' ? memSel : reqSel);
     if (ids.length === 0) return;
     setRunning(kind);
+    setRunCount(ids.length);
     try {
       const r = await trackCloud(kind === 'remove' ? bulkRemovePeople(orgId, ids) : bulkDecideRequests(orgId, ids, kind));
       showToast({ ...summarizeBulkParts(r, VERB[kind]), tone: r.failed === 0 ? 'success' : r.succeeded > 0 ? 'warning' : 'error' });
@@ -86,7 +89,7 @@ export function useMembersBulk({ orgId, requests, people, myId, reload }: {
   };
 
   return {
-    selecting, start, stop, running, run,
+    selecting, start, stop, running, runCount, run,
     reqSel, memSel,
     isRequestSelected: (id: string) => reqSel.has(id),
     isMemberSelected: (id: string) => memSel.has(id),
@@ -182,7 +185,7 @@ export function BulkActionBar({ bulk, orgName, style }: { bulk: MembersBulk; org
         {bulk.running ? (
           <View style={st.runRow} accessibilityLiveRegion="polite">
             <PondiLoader size="sm" label="Working" />
-            <Text style={st.count}>{ING[bulk.running]} {bulk.running === 'remove' ? nMem : nReq}…</Text>
+            <Text style={st.count}>{ING[bulk.running]} {bulk.runCount}…</Text>
           </View>
         ) : ask ? (() => {
           const t = confirmText(ask);
