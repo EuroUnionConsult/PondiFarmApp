@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.13.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.12.0...v0.13.0) (2026-11-24)
+
+
+### Features
+
+* build the website from the mobile app (monorepo) ([8850889](https://github.com/EuroUnionConsult/PondiFarmApp/commit/88508893140dbec16a90d9bcc2f7a7199079af4b))
+* **web:** build the website from the mobile app ([439bb54](https://github.com/EuroUnionConsult/PondiFarmApp/commit/439bb5448aafbf4b938d3e6707350d913ab0bbb5))
+* **web:** hide «Scan again» on the website and add 0.13.0 what's new entries ([9e00d05](https://github.com/EuroUnionConsult/PondiFarmApp/commit/9e00d0598b0dc1fbd1c6bfe8afd4e42c8911aaba))
+
+
+### Bug Fixes
+
+* **web:** load only embedded resources from uploaded GLB models ([e2820de](https://github.com/EuroUnionConsult/PondiFarmApp/commit/e2820de7898bc6114471c59b630b30355e96eb55))
+
+
+### Code Refactoring
+
+* **mobile:** move the native 3D viewer out of Scan3DCard ([8ea8ec9](https://github.com/EuroUnionConsult/PondiFarmApp/commit/8ea8ec9e37dd711d5638105527b9f25421e47101))
+
+
+### Documentation
+
+* the website now lives in the monorepo ([d1dd2a6](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d1dd2a6665defb55cf24928f0b70ac6e22daa7fc))
+
+
+### Build System
+
+* **web:** add the website Docker image to the monorepo ([a7ac710](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a7ac710d740f69540bdc27184ccadd871b513234))
+
+
+### Continuous Integration
+
+* **mobile:** build the website on every mobile change ([04f09c2](https://github.com/EuroUnionConsult/PondiFarmApp/commit/04f09c250fd8a6744aa18f3cec4efbabb4dd32ba))
+
+
+### Miscellaneous Chores
+
+* **deps:** ignore Expo-managed packages in Dependabot ([5b635ef](https://github.com/EuroUnionConsult/PondiFarmApp/commit/5b635ef765c27a4bad94375d0090228cb7a4bf8c))
+* **deps:** let the Expo SDK manage expo and react-native packages in Dependabot ([419ba9b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/419ba9b68268a6e0fec5d5d60ebe6de4d37e107c))
+
 ## [0.12.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.11.0...v0.12.0) (2026-11-24)
 
 
