@@ -4,6 +4,7 @@ import * as auth from './auth';
 import { clearCloudCache } from './api';
 import { startAutoSync, stopAutoSync } from './sync';
 import { trackCloud } from './activity';
+import { resetEntryIntro } from './entryIntro';
 
 interface AuthState {
   token: string | null;
@@ -121,6 +122,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Sai SEMPRE do ecrã da app, mesmo que limpar o armazenamento falhe.
       setToken(null);
       setUser(null);
+      // O próximo login volta a mostrar a animação de entrada.
+      resetEntryIntro();
     }
   }, []);
 

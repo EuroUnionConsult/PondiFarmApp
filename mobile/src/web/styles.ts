@@ -91,6 +91,11 @@ html, body { background: var(--ground); }
 /* ---------- transições entre páginas ---------- */
 .pf-pagein { animation: pfIn .38s cubic-bezier(.2,.8,.2,1); }
 @keyframes pfIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.pf-afterintro { animation: none; }
+/* Depois da animação de entrada (EntryIntro): a Home entra bloco a bloco, a seguir ao overlay. */
+.pf-afterintro > .pf-page > * { animation: pfIn .38s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--intro-d, 0ms) + var(--i, 0) * 70ms); }
+.pf-afterintro > .pf-page > :nth-child(2) { --i: 1; } .pf-afterintro > .pf-page > :nth-child(3) { --i: 2; }
+.pf-afterintro > .pf-page > :nth-child(4) { --i: 3; } .pf-afterintro > .pf-page > :nth-child(n+5) { --i: 4; }
 @keyframes pfGrowY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes pfGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes pfDot { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }

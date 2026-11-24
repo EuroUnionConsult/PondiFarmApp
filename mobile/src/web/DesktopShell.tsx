@@ -14,6 +14,8 @@ import { useHerd } from './herd';
 import { setCurrentScreen } from '../lib/errorReport';
 import { ChartIcon, DesktopIcon, HerdIcon, HomeIcon } from './icons';
 import { BRAND_ICON } from './brandIcon';
+import EntryIntro from '../components/EntryIntro';
+import { entryIntro, entryIntroContentDelay } from '../lib/entryIntro';
 
 const ICON = BRAND_ICON;
 export type Page = 'home' | 'herd' | 'analytics' | 'weather' | 'profile' | 'whatsnew';
@@ -21,6 +23,10 @@ export type Page = 'home' | 'herd' | 'analytics' | 'weather' | 'profile' | 'what
 export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestMobile: () => void; shellRef?: React.Ref<HTMLDivElement> }) {
   const { user } = useAuth();
   const [page, setPage] = useState<Page>('home');
+  // Animação de entrada (uma vez por sessão): a Home espera pelo fim do overlay.
+  // Valor fixo desde a montagem (o animation-delay conta a partir daí); trocar de página anula-o.
+  const [introLeft, setIntroLeft] = useState(() => { entryIntro(); return entryIntroContentDelay(); });
+  useEffect(() => { if (page !== 'home') setIntroLeft(0); }, [page]);
   // Os relatórios de erro dizem em que página do painel aconteceram (ex.: 'desktop:weather').
   useEffect(() => { setCurrentScreen(`desktop:${page}`); }, [page]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -67,7 +73,8 @@ export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestM
       </aside>
       <main className="pf-main">
         {/* key={page}: cada troca de página reinicia a animação de entrada (pf-pagein). */}
-        <div className="pf-pagein" key={page}>
+        <div className={introLeft ? 'pf-pagein pf-afterintro' : 'pf-pagein'} key={page}
+          style={introLeft ? ({ '--intro-d': `${introLeft}ms` } as React.CSSProperties) : undefined}>
           {page === 'home' && <HomePage herd={herd} members={members} openAnimal={openAnimal} goHerd={() => setPage('herd')} goAnalytics={() => setPage('analytics')} goProfile={() => setPage('profile')} goWeather={() => setPage('weather')} />}
           {page === 'herd' && <HerdPage herd={herd} selected={selected} setSelected={setSelected} />}
           {page === 'analytics' && <AnalyticsPage herd={herd} openAnimal={openAnimal} />}
@@ -75,6 +82,8 @@ export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestM
           {page === 'profile' && <ProfilePage goWhatsNew={() => setPage('whatsnew')} />}
           {page === 'whatsnew' && <WhatsNewPage onBack={() => setPage('profile')} />}
         </div>
+        {/* Logótipo em pontos sobre a área principal, uma vez por sessão (não bloqueia cliques). */}
+        <EntryIntro />
       </main>
     </div>
   );
