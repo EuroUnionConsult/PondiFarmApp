@@ -1,0 +1,15 @@
+# Only the web image (deploy/web/Dockerfile) is built from the repository root.
+# The backend image uses backend/ as its context and its own backend/.dockerignore.
+*
+!mobile
+!deploy/web
+mobile/node_modules
+mobile/dist
+mobile/.expo
+mobile/ios
+mobile/android
+mobile/.env
+mobile/.env.*
+!mobile/.env.example
+**/.DS_Store
+**/*.log
