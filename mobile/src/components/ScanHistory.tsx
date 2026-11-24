@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import { View, StyleSheet, ActivityIndicator, Pressable, Platform } from 'react-native';
 import Text from './Text';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
@@ -93,7 +93,8 @@ export default function ScanHistory({ animalId, onScanAgain, name }: { animalId:
           </View>))}
       </View>
       {shrunk(shown, prev) && <Text style={s.warn}>Check this scan. It may have been taken in a different pose.</Text>}
-      {onScanAgain && !isOld && (
+      {/* LiDAR scanning only exists on iPhone: the website shows the history but no «Scan again». */}
+      {onScanAgain && !isOld && Platform.OS !== 'web' && (
         <Pressable onPress={onScanAgain} style={s.btn} accessibilityRole="button">
           <Text style={s.btnText}>Scan {name} again</Text>
         </Pressable>
