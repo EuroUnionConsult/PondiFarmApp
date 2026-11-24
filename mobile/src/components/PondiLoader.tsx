@@ -8,7 +8,7 @@ import { COW_POINTS } from '../lib/cowPoints';
 // Animação de carregamento oficial: a cabeça de bovino do ícone em pontos (estáticos,
 // sempre visíveis) e um arco verde a rodar à volta (uma volta por 1,1 s; com «Reduzir
 // movimento», 2,4 s). Substitui o ActivityIndicator em toda a app (iPhone e web).
-// Os pontos vêm de scripts/sample-logo-points.py (lib/cowPoints.ts).
+// Os pontos vêm de scripts/sample-cow-points.py (lib/cowPoints.ts).
 
 export type LoaderSize = 'sm' | 'md' | 'lg' | number;
 /** `auto` segue o tema; `onColor` = sobre um botão verde ou uma superfície escura (câmara). */

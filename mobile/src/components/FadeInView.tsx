@@ -5,7 +5,7 @@ import { INTRO, entryIntroContentDelay } from '../lib/entryIntro';
 
 // Entrada de uma secção: aparece com fade e sobe 12 px, em cascata pelo `index`.
 // Só na montagem — não repete a cada render. «Reduzir movimento»: só o fade.
-// Durante a animação de entrada (EntryIntro) espera pelo desvanecer do overlay e entra
+// Durante a animação de abertura (EntryAnimation) espera pela passagem para a app e entra
 // cartão a cartão, com um intervalo maior (INTRO.cardStagger).
 export default function FadeInView({
   index = 0, style, children,

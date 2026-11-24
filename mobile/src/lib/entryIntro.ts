@@ -1,80 +1,65 @@
-import { AccessibilityInfo, Platform } from 'react-native';
+import { Platform } from 'react-native';
 
-// Animação de entrada (logótipo em pontos): UMA vez por sessão, logo depois do login
-// ou ao abrir a app já com sessão. A decisão fica em memória (e no sessionStorage na
-// web, para um reload no mesmo separador não a repetir). «Reduzir movimento»: nunca.
+// Animação de abertura («Scan que revela»): em cada arranque a frio da app (e, na web,
+// no primeiro carregamento de cada separador). A decisão fica em memória e, na web, no
+// sessionStorage — um reload no mesmo separador não a repete. A componente é
+// components/EntryAnimation.tsx; este módulo só guarda o estado e a linha do tempo,
+// para a Home saber quando entrar.
 
 /** Linha do tempo (ms desde o início). */
 export const INTRO = {
-  /** Fim da chegada dos pontos (o último ponto parte aos ~280 ms e viaja 700 ms). */
-  pointsLand: 980,
-  /** Pontos → ícone real (cross-fade). */
-  crossFrom: 960,
-  crossTo: 1240,
-  /** Wordmark «PondiFarm» por baixo do ícone. */
-  wordFrom: 1060,
-  wordTo: 1360,
-  /** O overlay desvanece e o conteúdo da Home entra cartão a cartão. */
-  fadeFrom: 1460,
-  total: 1880,
-  /** Intervalo entre cartões da Home depois da animação. */
+  cornersIn: 300,
+  scanFrom: 300,
+  scanTo: 1300,
+  /** Pontos → ícone real; os cantos saem. */
+  revealFrom: 1350,
+  revealTo: 1800,
+  wordFrom: 1750,
+  wordTo: 2050,
+  bylineFrom: 1950,
+  bylineTo: 2200,
+  /** Passagem para a app (a Home entra cartão a cartão a partir daqui). */
+  fadeFrom: 2850,
+  total: 3150,
+  /** «Reduzir movimento»: ícone + wordmark parados ~0,6 s e sai. */
+  reducedHold: 600,
+  reducedTotal: 850,
   cardStagger: 70,
 } as const;
 
+export const INTRO_BG = '#0F2234';
 const KEY = 'pf-entry-intro';
 
-let reduceMotion: boolean | null = null;
-// Lido já no arranque: quando a sessão chega (token do armazenamento ou login) o valor
-// já está em cache e a decisão pode ser síncrona (sem piscar o overlay).
-if (Platform.OS === 'web') {
-  reduceMotion = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-} else {
-  AccessibilityInfo.isReduceMotionEnabled().then((v) => { reduceMotion = v; }).catch(() => { reduceMotion = true; });
-  AccessibilityInfo.addEventListener('reduceMotionChanged', (v) => { reduceMotion = v; });
-}
-
-let decision: { play: boolean; startedAt: number } | null = null;
+let state: { play: boolean; startedAt: number; length: number } | null = null;
 
 function playedInThisTab(): boolean {
   if (Platform.OS !== 'web') return false;
   try { return window.sessionStorage.getItem(KEY) === '1'; } catch { return false; }
 }
-function markTab(v: boolean) {
-  if (Platform.OS !== 'web') return;
-  try { if (v) window.sessionStorage.setItem(KEY, '1'); else window.sessionStorage.removeItem(KEY); } catch { /* sem storage: só memória */ }
-}
 
 /**
- * Decide (uma vez por sessão) se a animação corre agora. Chamadas seguintes devolvem a
- * mesma decisão — por isso um re-render ou o StrictMode não a cancelam nem repetem.
+ * Decide uma vez por arranque (iPhone) ou por separador (web). Chamadas seguintes
+ * devolvem a mesma decisão, por isso re-renders e o StrictMode não a repetem.
  */
-export function entryIntro(): { play: boolean; startedAt: number } {
-  if (decision) return decision;
-  const reduced = Platform.OS === 'web'
-    ? !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-    : reduceMotion !== false; // ainda por saber → não arrisca
-  const play = !reduced && !playedInThisTab();
-  decision = { play, startedAt: Date.now() };
-  markTab(true);
-  return decision;
+export function entryIntro(): { play: boolean; startedAt: number; length: number } {
+  if (state) return state;
+  const play = !playedInThisTab();
+  state = { play, startedAt: Date.now(), length: INTRO.total };
+  if (Platform.OS === 'web') { try { window.sessionStorage.setItem(KEY, '1'); } catch { /* só memória */ } }
+  return state;
 }
 
-/** Está a decorrer agora? (o overlay só monta enquanto for verdade). */
-export function entryIntroActive(): boolean {
-  return !!decision?.play && Date.now() - decision.startedAt < INTRO.total;
+/** «Reduzir movimento»: a versão curta (o conteúdo entra mais cedo). */
+export function shortenEntryIntro() {
+  if (state) state.length = INTRO.reducedTotal;
 }
 
 /**
  * Atraso extra para as entradas da Home (FadeInView, página do desktop): enquanto a
- * animação corre, o conteúdo espera pelo desvanecer do overlay. 0 fora da animação.
+ * animação corre, o conteúdo espera pela passagem para a app. 0 fora da animação.
  */
 export function entryIntroContentDelay(): number {
-  if (!decision?.play) return 0;
-  return Math.max(0, decision.startedAt + INTRO.fadeFrom - Date.now());
-}
-
-/** Ao terminar a sessão (logout) o próximo login volta a mostrar a animação. */
-export function resetEntryIntro() {
-  decision = null;
-  markTab(false);
+  if (!state?.play) return 0;
+  const fadeAt = state.length === INTRO.total ? INTRO.fadeFrom : INTRO.reducedHold;
+  return Math.max(0, state.startedAt + fadeAt - Date.now());
 }

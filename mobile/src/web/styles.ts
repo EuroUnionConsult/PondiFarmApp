@@ -92,7 +92,7 @@ html, body { background: var(--ground); }
 .pf-pagein { animation: pfIn .38s cubic-bezier(.2,.8,.2,1); }
 @keyframes pfIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .pf-afterintro { animation: none; }
-/* Depois da animação de entrada (EntryIntro): a Home entra bloco a bloco, a seguir ao overlay. */
+/* Depois da animação de abertura (EntryAnimation): a Home entra bloco a bloco. */
 .pf-afterintro > .pf-page > * { animation: pfIn .38s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--intro-d, 0ms) + var(--i, 0) * 70ms); }
 .pf-afterintro > .pf-page > :nth-child(2) { --i: 1; } .pf-afterintro > .pf-page > :nth-child(3) { --i: 2; }
 .pf-afterintro > .pf-page > :nth-child(4) { --i: 3; } .pf-afterintro > .pf-page > :nth-child(n+5) { --i: 4; }

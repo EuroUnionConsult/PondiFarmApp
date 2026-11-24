@@ -1,4 +1,4 @@
-// GERADO por scripts/sample-logo-points.py a partir de assets/icon.png — não editar à mão.
+// GERADO por scripts/sample-cow-points.py a partir de assets/icon.png — não editar à mão.
 // Cabeça de bovino do ícone (só o azul-noite), em grelha regular, para o PondiLoader.
 // Coordenadas 0–1 dentro da caixa da cabeça (x 19%–81%, y 10%–71% do ícone).
 // prettier-ignore

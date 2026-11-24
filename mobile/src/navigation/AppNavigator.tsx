@@ -6,7 +6,6 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View } from 'react-native';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 import GlassTabBar from '../components/GlassTabBar';
-import EntryIntro from '../components/EntryIntro';
 
 import HomeScreen from '../screens/HomeScreen';
 import HerdScreen from '../screens/HerdScreen';
@@ -83,62 +82,58 @@ export function RootNavigator() {
   }
 
   return (
-    <View style={{ flex: 1 }}>
-      <NavigationContainer ref={navRef} theme={navTheme} onReady={() => setCurrentScreen(navRef.getCurrentRoute()?.name)} onStateChange={(st) => setCurrentScreen(activeRouteName(st))} documentTitle={{ formatter: () => 'PondiFarm' }}>
-        {/* Voltar atrás deslizando de qualquer ponto do ecrã (não só da borda),
-            como nas apps nativas do iOS. */}
-        <Stack.Navigator screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>
-          <Stack.Screen name="Main" component={TabNavigator} />
-          <Stack.Screen
-            name="Scan"
-            component={ScanScreen}
-            options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
-          />
-          <Stack.Screen
-            name="ObjectCapture"
-            component={ObjectCaptureScreen}
-            options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
-          />
-          <Stack.Screen
-            name="Result"
-            component={ResultScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="Profile"
-            component={ProfileScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="Settings"
-            component={SettingsScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="WhatsNew"
-            component={WhatsNewScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="AnimalDetail"
-            component={AnimalDetailScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="Weather"
-            component={WeatherScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-          <Stack.Screen
-            name="FarmLocation"
-            component={FarmLocationScreen}
-            options={{ animation: 'slide_from_right' }}
-          />
-        </Stack.Navigator>
-      </NavigationContainer>
-      {/* Logótipo em pontos, uma vez por sessão, por cima da Home (não bloqueia toques). */}
-      <EntryIntro />
-    </View>
+    <NavigationContainer ref={navRef} theme={navTheme} onReady={() => setCurrentScreen(navRef.getCurrentRoute()?.name)} onStateChange={(st) => setCurrentScreen(activeRouteName(st))} documentTitle={{ formatter: () => 'PondiFarm' }}>
+      {/* Voltar atrás deslizando de qualquer ponto do ecrã (não só da borda),
+          como nas apps nativas do iOS. */}
+      <Stack.Navigator screenOptions={{ headerShown: false, fullScreenGestureEnabled: true }}>
+        <Stack.Screen name="Main" component={TabNavigator} />
+        <Stack.Screen
+          name="Scan"
+          component={ScanScreen}
+          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
+        />
+        <Stack.Screen
+          name="ObjectCapture"
+          component={ObjectCaptureScreen}
+          options={{ animation: 'slide_from_bottom', presentation: 'fullScreenModal' }}
+        />
+        <Stack.Screen
+          name="Result"
+          component={ResultScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="WhatsNew"
+          component={WhatsNewScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="AnimalDetail"
+          component={AnimalDetailScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="Weather"
+          component={WeatherScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="FarmLocation"
+          component={FarmLocationScreen}
+          options={{ animation: 'slide_from_right' }}
+        />
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
