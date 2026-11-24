@@ -222,13 +222,16 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
                 accessibilityLabel="Edit your name"
               >
                 {avatar
-                  ? <Text style={styles.avatarText}>{avatar}</Text>
+                  ? <Text style={styles.avatarText} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{avatar}</Text>
                   : <Ionicons name="person" size={30} color="#FFFFFF" />}
               </TouchableOpacity>
             </SyncRing>
           </View>
           <Text style={styles.name}>{displayName || 'Your name'}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
+          {/* Com texto grande o email parte em «@» e «.», não a meio de uma palavra. */}
+          {user?.email ? (
+            <Text style={styles.email} accessibilityLabel={user.email}>{breakableEmail(user.email)}</Text>
+          ) : null}
           <TouchableOpacity onPress={() => setEditing(true)} hitSlop={8} accessibilityRole="button">
             <Text style={styles.link}>Edit name</Text>
           </TouchableOpacity>
@@ -492,6 +495,11 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
   );
 }
 
+// Espaço de largura zero antes de «@» e de cada «.»: as quebras de linha caem aí.
+function breakableEmail(email: string) {
+  return email.replace(/([@.])/g, '\u200B$1');
+}
+
 const makeStyles = (ios: Palette) => StyleSheet.create({
   topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingRight: 16 },
   back: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, minHeight: 44 },
@@ -504,7 +512,7 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   avatarWrap: { marginBottom: 10 },
   avatarText: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
   name: { fontSize: 24, fontWeight: '700', color: ios.label, textAlign: 'center' },
-  email: { fontSize: 15, color: ios.secondaryLabel },
+  email: { fontSize: 15, color: ios.secondaryLabel, textAlign: 'center' },
   link: { fontSize: 15, color: ios.accent, marginTop: 6 },
   sectionHeader: {
     paddingHorizontal: 32, paddingTop: 26, paddingBottom: 8,
