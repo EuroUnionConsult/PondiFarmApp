@@ -29,6 +29,9 @@ export const AREAS: { key: WhatsNewArea; label: string }[] = [
 ];
 
 export const WHATS_NEW: WhatsNewItem[] = [
+  { version: '0.12.0', date: '2026-11-24', area: 'team', text: '«What\'s new» in Settings: every change grouped by area, with a green dot when there is something new' },
+  { version: '0.12.0', date: '2026-11-24', area: 'team', text: '«Coming next»: what we are working on now and what comes after' },
+
   { version: '0.11.0', date: '2026-11-23', area: 'scan', text: 'Scan the same animal again' },
   { version: '0.11.0', date: '2026-11-23', area: 'herd', text: 'Scan history with the weather and the ± margin of each weight' },
   { version: '0.11.0', date: '2026-11-23', area: 'herd', text: 'The herd opens up to 2× faster' },
