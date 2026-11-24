@@ -32,6 +32,13 @@ const DOT = '#CFE0EF';
 const COW = { x: 0.19, y: 0.10, w: 0.62, h: 0.61 };
 
 const clamp = 'clamp' as const;
+const WEB = Platform.OS === 'web';
+/** Web: classe no <body> enquanto a animação corre (esconde o ícone do login, que a animação vai ocupar). */
+const BODY_CLASS = 'pf-intro-on';
+/** Web: o ícone para onde o da animação voa na passagem (o ícone grande do login de computador). */
+const TARGET_SELECTOR = '[data-intro-target]';
+
+type Rect = { x: number; y: number; w: number };
 
 export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
   const [alive, setAlive] = useState(() => entryIntro().play);
@@ -48,12 +55,27 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
 
   // Web: o fundo da página fica azul-noite até a animação acabar (index.html).
   const finish = useRef(() => {
-    if (Platform.OS === 'web') document.body.style.backgroundColor = 'transparent';
+    if (WEB) { document.body.style.backgroundColor = 'transparent'; document.body.classList.remove(BODY_CLASS); }
     setAlive(false);
     doneRef.current?.();
   }).current;
 
   useEffect(() => { if (!alive) finish(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Web: passagem sem dois ícones. Pouco antes do fim, procura o ícone do ecrã que está por
+  // baixo (o do login de computador); se existir, o ícone da animação voa até ele e encaixa
+  // (efeito de elemento partilhado). O do login só aparece quando a animação sai.
+  const [target, setTarget] = useState<Rect | null>(null);
+  useEffect(() => {
+    if (!WEB || !alive || reduced !== false) return;
+    document.body.classList.add(BODY_CLASS);
+    const at = setTimeout(() => {
+      const el = document.querySelector(TARGET_SELECTOR);
+      const r = el?.getBoundingClientRect();
+      if (r && r.width > 0) setTarget({ x: r.left, y: r.top, w: r.width });
+    }, Math.max(0, INTRO.fadeFrom - 120));
+    return () => clearTimeout(at);
+  }, [alive, reduced]);
 
   // iPhone: «Reduzir movimento» chega por promessa; até lá fica o 1.º fotograma (= splash).
   useEffect(() => {
@@ -147,11 +169,35 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
   const cowTop = g.top + COW.y * g.s, cowBottom = g.top + (COW.y + COW.h) * g.s;
   const lineY = t.interpolate({ inputRange: [INTRO.scanFrom, INTRO.scanTo], outputRange: [cowTop, cowBottom], extrapolate: clamp });
   const lineOpacity = t.interpolate({ inputRange: [INTRO.scanFrom - 1, INTRO.scanFrom + 60, INTRO.scanTo - 40, INTRO.scanTo + 60], outputRange: [0, 1, 1, 0], extrapolate: clamp });
-  const iconOpacity = t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo], outputRange: [0, 1], extrapolate: clamp });
-  const iconScale = t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo], outputRange: [0.96, 1], extrapolate: clamp });
-  const wordOpacity = t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo], outputRange: [0, 1], extrapolate: clamp });
+  // Web: o conteúdo (ícone, nome, assinatura) sai ANTES do fundo, para o ícone da animação
+  // nunca aparecer ao mesmo tempo que o do ecrã de baixo. Com alvo, o ícone voa até ele.
+  const contentOut = INTRO.fadeFrom + 120;
+  const fly = WEB && target ? {
+    dx: target.x + target.w / 2 - (g.left + g.s / 2),
+    dy: target.y + target.w / 2 - (g.top + g.s / 2),
+    k: target.w / g.s,
+  } : null;
+  const flyEase = Easing.inOut(Easing.cubic);
+  const iconOpacity = WEB && !fly
+    ? t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp })
+    : t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo], outputRange: [0, 1], extrapolate: clamp });
+  const iconScale = fly
+    ? t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo, INTRO.fadeFrom, total], outputRange: [0.96, 1, 1, fly.k], extrapolate: clamp, easing: flyEase })
+    : t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo], outputRange: [0.96, 1], extrapolate: clamp });
+  const iconX = fly ? t.interpolate({ inputRange: [INTRO.fadeFrom, total], outputRange: [0, fly.dx], extrapolate: clamp, easing: flyEase }) : 0;
+  const iconY = fly ? t.interpolate({ inputRange: [INTRO.fadeFrom, total], outputRange: [0, fly.dy], extrapolate: clamp, easing: flyEase }) : 0;
+  const wordOpacity = WEB
+    ? t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp })
+    : t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo], outputRange: [0, 1], extrapolate: clamp });
   const wordY = t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo], outputRange: [12, 0], extrapolate: clamp });
-  const bylineOpacity = t.interpolate({ inputRange: [INTRO.bylineFrom, INTRO.bylineTo], outputRange: [0, 1], extrapolate: clamp });
+  const bylineOpacity = WEB
+    ? t.interpolate({ inputRange: [INTRO.bylineFrom, INTRO.bylineTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp })
+    : t.interpolate({ inputRange: [INTRO.bylineFrom, INTRO.bylineTo], outputRange: [0, 1], extrapolate: clamp });
+  // Web: o fundo só desvanece depois do conteúdo; com alvo, o ícone (que voa) fica opaco
+  // até ao fim e o fundo sai à volta dele.
+  const bgOpacity = WEB
+    ? t.interpolate({ inputRange: [0, fly ? INTRO.fadeFrom + 60 : contentOut, total], outputRange: [1, 1, 0], extrapolate: clamp })
+    : null;
   const lineW = g.s * 0.86;
 
   return (
@@ -160,8 +206,10 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
      
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[root, { opacity: overlayOpacity }]}
+      style={[root, WEB ? { backgroundColor: 'transparent' } : { opacity: overlayOpacity }]}
     >
+      {/* Web: o fundo azul-noite é uma camada própria, para o ícone poder sair por cima dele. */}
+      {WEB && <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: INTRO_BG, opacity: bgOpacity! }]} />}
       {/* Cantos de scan à volta do palco. */}
       <Animated.View style={{ position: 'absolute', left: g.left - g.pad, top: g.top - g.pad, opacity: cornersOpacity, transform: [{ scale: cornersScale }] }}>
         <Svg width={g.s + 2 * g.pad} height={g.s + 2 * g.pad}>
@@ -185,7 +233,7 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
 
       {/* O ícone real aparece onde estavam os pontos. */}
       {!waiting && (
-        <Animated.View style={{ position: 'absolute', left: g.left, top: g.top, opacity: iconOpacity, transform: [{ scale: iconScale }] }}>{icon}</Animated.View>
+        <Animated.View style={{ position: 'absolute', left: g.left, top: g.top, opacity: iconOpacity, transform: [{ translateX: iconX }, { translateY: iconY }, { scale: iconScale }] }}>{icon}</Animated.View>
       )}
 
       {!waiting && (

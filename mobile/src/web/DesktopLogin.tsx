@@ -34,7 +34,8 @@ export default function DesktopLogin() {
   return (
     <div className="pf pf-login">
       <section className="pf-lp" aria-hidden="true">
-        <img className="pf-lp-icon" src={ICON} alt="" />
+        {/* data-intro-target: a animação de abertura voa até este ícone (EntryAnimation). */}
+        <img className="pf-lp-icon" src={ICON} alt="" data-intro-target="" />
       </section>
       <section className="pf-rp">
         <div className="pf-ground" style={{ position: 'absolute' }} />

@@ -349,6 +349,8 @@ html, body { background: var(--ground); }
 .pf-login { position: fixed; inset: 0; display: flex; }
 .pf-lp { flex: 1.1; position: relative; overflow: hidden; background: #122434; display: flex; align-items: center; justify-content: center; padding: 56px; }
 .pf-lp-icon { width: min(46%, 380px); aspect-ratio: 1; border-radius: 24%; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+/* Durante a animação de abertura o ícone dela ocupa este lugar; o do login só aparece quando ela sai. */
+.pf-intro-on .pf-lp-icon { opacity: 0; }
 .pf-rp { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
 .pf-form { width: 400px; position: relative; z-index: 1; }
 .pf-seg { display: flex; background: rgba(118,118,128,.12); border-radius: 12px; padding: 3px; margin: 26px 0 8px; }
