@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
-  View, ScrollView, StyleSheet, TouchableOpacity, Platform, ActivityIndicator, Alert,
+  View, ScrollView, StyleSheet, TouchableOpacity, Platform, Alert,
 } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
@@ -19,6 +19,7 @@ import { estimateWeightKg, getBreedCalibration, WEIGHT_MODEL_VERSION } from '../
 import { updateRecord } from '../lib/storage';
 import type { AnimalCategory } from '../lib/storage';
 import type { RootStackParamList } from '../navigation/types';
+import PondiLoader from '../components/PondiLoader';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'Result'>;
@@ -138,7 +139,7 @@ export default function ResultScreen() {
               >
                 {rendering ? (
                   <>
-                    <ActivityIndicator color="#FFF" />
+                    <PondiLoader size="sm" tone="onColor" />
                     <Text style={styles.renderBtnText}>Rendering texture…</Text>
                   </>
                 ) : (

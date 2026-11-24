@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
-  View, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, ActivityIndicator, Animated,
+  View, StyleSheet, Platform, TextInput, TouchableOpacity, Alert, Switch, Animated,
 } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
@@ -22,6 +22,7 @@ import { WEIGHT_MODEL_FEATURE_COUNT, WEIGHT_MODEL_VERSION } from '../lib/weightM
 import { CFG_KEY, LEGACY_CFG_KEY } from '../lib/config';
 import ScreenBackground from '../components/ScreenBackground';
 import { useWhatsNewUnseen } from '../lib/whatsNew';
+import PondiLoader from '../components/PondiLoader';
 
 interface Config {
   defaultBreed: 'limousine' | 'minhota' | 'alentejana';
@@ -164,7 +165,7 @@ export default function SettingsScreen() {
           <Text style={styles.rowLabel}>Status</Text>
           <View style={styles.rowAccessoryGroup}>
             {cloudSync && status === 'checking'
-              ? <ActivityIndicator size="small" color={ios.secondaryLabel} />
+              ? <PondiLoader size="sm" />
               : <Ionicons name={statusIcon} size={17} color={statusColor} />}
             <Text style={[styles.rowValue, { color: statusColor }]}>{statusLabel}</Text>
           </View>

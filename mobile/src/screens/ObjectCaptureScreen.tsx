@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View, StyleSheet, TouchableOpacity, ActivityIndicator, Platform,
+  View, StyleSheet, TouchableOpacity, Platform,
 } from 'react-native';
 import Text from '../components/Text';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,7 @@ import {
 import { type Palette } from '../lib/theme';
 import { useTheme } from '../lib/ThemeContext';
 import type { RootStackParamList } from '../navigation/types';
+import PondiLoader from '../components/PondiLoader';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Bounds = { width: number; height: number; depth: number };
@@ -100,7 +101,7 @@ export default function ObjectCaptureScreen() {
   if (supported === null) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={ios.accent} />
+        <PondiLoader size="lg" />
       </View>
     );
   }
@@ -179,7 +180,7 @@ export default function ObjectCaptureScreen() {
 
       {phase === 'reconstructing' && (
         <View style={styles.overlay}>
-          <ActivityIndicator color="#FFF" size="large" />
+          <PondiLoader size="lg" tone="onColor" />
           <Text style={styles.overlayText}>{PHASE_LABEL.reconstructing}</Text>
           {progress > 0 && (
             <Text style={styles.overlayPct}>{Math.round(progress * 100)}%</Text>

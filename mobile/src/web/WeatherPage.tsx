@@ -4,6 +4,7 @@ import { useAuth } from '../lib/AuthContext';
 import { BAND_LABEL, KIND_LABEL, forecastNotice, useWeather, type Weather } from '../lib/weather';
 import FarmLocationDialog from './FarmLocationDialog';
 import { Skel, SkelChart, SkelRows } from './charts';
+import PondiLoader from '../components/PondiLoader';
 
 /**
  * Tempo e bem-estar no computador: o tempo agora, o stress térmico (THI) e os avisos
@@ -75,7 +76,7 @@ export default function WeatherPage() {
   // O aviso fica no fluxo normal da página, por baixo do cabeçalho (antes tinha
   // margem negativa e sobrepunha-se ao subtítulo).
   const noticeEl = notice && (
-    <div className="pf-wx-notice" role="status" aria-live="polite">{updating && <span className="pf-locspin" aria-hidden />}{notice}</div>
+    <div className="pf-wx-notice" role="status" aria-live="polite">{updating && <PondiLoader size={18} label="Updating forecast" />}{notice}</div>
   );
 
   // Sítio novo acabado de guardar: a previsão ainda vem a caminho (ou falhou).

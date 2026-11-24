@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import {
-  View, StyleSheet, TouchableOpacity, Platform, Alert, ActivityIndicator, Modal, TextInput, KeyboardAvoidingView, ScrollView,
+  View, StyleSheet, TouchableOpacity, Platform, Alert, Modal, TextInput, KeyboardAvoidingView, ScrollView,
 } from 'react-native';
 import Text from '../components/Text';
 import { useCameraPermissions } from '../lib/cameraPermissions';
@@ -27,6 +27,7 @@ import type { RootStackParamList } from '../navigation/types';
 import GlassSurface from '../components/GlassSurface';
 import CoverageRing from '../components/CoverageRing';
 import { StatusBar } from 'expo-status-bar';
+import PondiLoader from '../components/PondiLoader';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -351,7 +352,7 @@ export default function ScanScreen() {
   if (!permission) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color={ios.accent} />
+        <PondiLoader size="lg" />
       </View>
     );
   }
@@ -450,7 +451,7 @@ export default function ScanScreen() {
             </GlassSurface>
           ) : fit.state === 'fitting' ? (
             <GlassSurface tone="dark" radius={999} style={styles.fitPill}>
-              <ActivityIndicator color="#FFFFFF" size="small" />
+              <PondiLoader size="sm" tone="onColor" />
               <Text style={styles.boxHint}>Fitting the box to the animal…</Text>
             </GlassSurface>
           ) : fit.state === 'manual' ? (
@@ -589,7 +590,7 @@ export default function ScanScreen() {
           activeOpacity={0.85}
         >
           {processing ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
+            <PondiLoader size="sm" tone="onColor" />
           ) : (
             <>
               <Ionicons
@@ -609,7 +610,7 @@ export default function ScanScreen() {
       {processing && (
         <View style={styles.overlay} pointerEvents="none">
           <GlassSurface tone="dark" radius={20} style={styles.processingCard}>
-            <ActivityIndicator color="#FFFFFF" />
+            <PondiLoader size="md" tone="onColor" />
             <Text style={styles.processingLabel}>Building mesh…</Text>
           </GlassSurface>
         </View>

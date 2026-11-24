@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Inter_400Regular, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
 import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
@@ -15,6 +15,7 @@ import DeviceStage from './src/web/DeviceStage';
 import { loadDeviceMode, NARROW, type DeviceMode } from './src/web/deviceMode';
 import { CSS } from './src/web/styles';
 import { installGlobalErrorHandlers, setReportPlatform } from './src/lib/errorReport';
+import PondiLoader from './src/components/PondiLoader';
 
 // Na web, Alert.alert não fazia nada (react-native-web): passa a abrir um diálogo.
 installWebAlert();
@@ -39,7 +40,7 @@ function WebRoot() {
   useEffect(() => { setReportPlatform(narrow || mode === 'mobile' ? 'web-mobile' : 'web-desktop'); }, [narrow, mode]);
 
   if (loading || mode === null) {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--ground)' as any }}><ActivityIndicator color="#2D7D46" /></View>;
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--ground)' as any }}><PondiLoader size="lg" /></View>;
   }
   // Num ecrã estreito (um telemóvel de verdade) a app abre como no iPhone, sem moldura.
   if (narrow) return <View style={{ flex: 1 }}><RootNavigator /></View>;
