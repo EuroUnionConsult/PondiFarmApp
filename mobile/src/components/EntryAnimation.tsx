@@ -169,8 +169,9 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
   const cowTop = g.top + COW.y * g.s, cowBottom = g.top + (COW.y + COW.h) * g.s;
   const lineY = t.interpolate({ inputRange: [INTRO.scanFrom, INTRO.scanTo], outputRange: [cowTop, cowBottom], extrapolate: clamp });
   const lineOpacity = t.interpolate({ inputRange: [INTRO.scanFrom - 1, INTRO.scanFrom + 60, INTRO.scanTo - 40, INTRO.scanTo + 60], outputRange: [0, 1, 1, 0], extrapolate: clamp });
-  // Web: o conteúdo (ícone, nome, assinatura) sai ANTES do fundo, para o ícone da animação
-  // nunca aparecer ao mesmo tempo que o do ecrã de baixo. Com alvo, o ícone voa até ele.
+  // O conteúdo (ícone, nome, assinatura) sai ANTES do fundo, em iPhone e web, para o ícone da
+  // animação nunca aparecer ao mesmo tempo que o do ecrã de baixo nem o nome por cima do
+  // formulário. Web com alvo (login de computador): o ícone voa até ele.
   const contentOut = INTRO.fadeFrom + 120;
   const fly = WEB && target ? {
     dx: target.x + target.w / 2 - (g.left + g.s / 2),
@@ -178,7 +179,7 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
     k: target.w / g.s,
   } : null;
   const flyEase = Easing.inOut(Easing.cubic);
-  const iconOpacity = WEB && !fly
+  const iconOpacity = !fly
     ? t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp })
     : t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo], outputRange: [0, 1], extrapolate: clamp });
   const iconScale = fly
@@ -186,30 +187,23 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
     : t.interpolate({ inputRange: [INTRO.revealFrom, INTRO.revealTo], outputRange: [0.96, 1], extrapolate: clamp });
   const iconX = fly ? t.interpolate({ inputRange: [INTRO.fadeFrom, total], outputRange: [0, fly.dx], extrapolate: clamp, easing: flyEase }) : 0;
   const iconY = fly ? t.interpolate({ inputRange: [INTRO.fadeFrom, total], outputRange: [0, fly.dy], extrapolate: clamp, easing: flyEase }) : 0;
-  const wordOpacity = WEB
-    ? t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp })
-    : t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo], outputRange: [0, 1], extrapolate: clamp });
+  const wordOpacity = t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp });
   const wordY = t.interpolate({ inputRange: [INTRO.wordFrom, INTRO.wordTo], outputRange: [12, 0], extrapolate: clamp });
-  const bylineOpacity = WEB
-    ? t.interpolate({ inputRange: [INTRO.bylineFrom, INTRO.bylineTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp })
-    : t.interpolate({ inputRange: [INTRO.bylineFrom, INTRO.bylineTo], outputRange: [0, 1], extrapolate: clamp });
-  // Web: o fundo só desvanece depois do conteúdo; com alvo, o ícone (que voa) fica opaco
+  const bylineOpacity = t.interpolate({ inputRange: [INTRO.bylineFrom, INTRO.bylineTo, INTRO.fadeFrom, contentOut], outputRange: [0, 1, 1, 0], extrapolate: clamp });
+  // O fundo só desvanece depois do conteúdo; com alvo (web), o ícone (que voa) fica opaco
   // até ao fim e o fundo sai à volta dele.
-  const bgOpacity = WEB
-    ? t.interpolate({ inputRange: [0, fly ? INTRO.fadeFrom + 60 : contentOut, total], outputRange: [1, 1, 0], extrapolate: clamp })
-    : null;
+  const bgOpacity = t.interpolate({ inputRange: [0, fly ? INTRO.fadeFrom + 60 : contentOut, total], outputRange: [1, 1, 0], extrapolate: clamp });
   const lineW = g.s * 0.86;
 
   return (
     <Animated.View
       pointerEvents="none"
-     
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[root, WEB ? { backgroundColor: 'transparent' } : { opacity: overlayOpacity }]}
+      style={[root, { backgroundColor: 'transparent' }]}
     >
-      {/* Web: o fundo azul-noite é uma camada própria, para o ícone poder sair por cima dele. */}
-      {WEB && <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: INTRO_BG, opacity: bgOpacity! }]} />}
+      {/* O fundo azul-noite é uma camada própria, para o conteúdo sair antes dele. */}
+      <Animated.View style={[StyleSheet.absoluteFillObject, { backgroundColor: INTRO_BG, opacity: bgOpacity }]} />
       {/* Cantos de scan à volta do palco. */}
       <Animated.View style={{ position: 'absolute', left: g.left - g.pad, top: g.top - g.pad, opacity: cornersOpacity, transform: [{ scale: cornersScale }] }}>
         <Svg width={g.s + 2 * g.pad} height={g.s + 2 * g.pad}>
