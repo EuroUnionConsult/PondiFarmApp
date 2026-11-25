@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.13.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.13.0...v0.13.1) (2026-11-25)
+
+
+### Features
+
+* **backend:** add bulk join-request decisions and bulk member removal ([9c901b5](https://github.com/EuroUnionConsult/PondiFarmApp/commit/9c901b5484428e1ce175d08a10ac0b1fc878eaed))
+* **mobile:** «scan that reveals» opening animation and matching splash ([83bb6cf](https://github.com/EuroUnionConsult/PondiFarmApp/commit/83bb6cf9ff29ee22b606b1be33ada693e82995c1))
+* **mobile:** add branded toast notifications for iPhone and web ([6144eb1](https://github.com/EuroUnionConsult/PondiFarmApp/commit/6144eb16fd8a0734d4c1d90086d23dee2491b40c))
+* **mobile:** animate the PondiFarm logo on sign-in ([a6496fd](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a6496fd08ccedced5995deef1df71e948a7b8be0))
+* **mobile:** empty states with the icon cow and a branded pull-to-refresh ([de5e81a](https://github.com/EuroUnionConsult/PondiFarmApp/commit/de5e81a22bddc8e4b4a2c4950964ae247849a581))
+* **mobile:** official PondiFarm loading animation ([3d9da88](https://github.com/EuroUnionConsult/PondiFarmApp/commit/3d9da881beabc3c09cbf9a749954a0fad0837ec1))
+* **mobile:** select several join requests or members and act at once ([ba57e91](https://github.com/EuroUnionConsult/PondiFarmApp/commit/ba57e91b2c97adad91226342d3cdc66ec8940033))
+* **mobile:** show the What's new dot on the Home avatar and in Profile ([21e5ec2](https://github.com/EuroUnionConsult/PondiFarmApp/commit/21e5ec25fac1a6e2da5485c1c1fdc7d92a4f04fc))
+* opening animation, PondiFarm loader, bulk member actions and visual polish ([955289c](https://github.com/EuroUnionConsult/PondiFarmApp/commit/955289ce9ff0e9f164d427876a3fbae8b1868697))
+
+
+### Bug Fixes
+
+* **mobile:** hand the opening animation over on iPhone without two icons ([d8a9566](https://github.com/EuroUnionConsult/PondiFarmApp/commit/d8a95667e139aeefc78449664920fb9cdbd474c6))
+* **mobile:** keep Home, Settings and What's new readable with large text ([8cab99c](https://github.com/EuroUnionConsult/PondiFarmApp/commit/8cab99ca7fec2ef3ea287a0b264c6fc8f2f699e0))
+* **mobile:** keep the bulk progress count while the list reloads ([e17f704](https://github.com/EuroUnionConsult/PondiFarmApp/commit/e17f704b4a7d2ea837da8849ffff985599cf9318))
+* **mobile:** keep the Profile header readable with large text ([fbe173c](https://github.com/EuroUnionConsult/PondiFarmApp/commit/fbe173c17e39d18caad078ba3658804b30dfcad5))
+* **web:** hand the opening animation over without two icons on screen ([9dbfc85](https://github.com/EuroUnionConsult/PondiFarmApp/commit/9dbfc8563c25baf27d5a1ce63bf1682dd3178c06))
+* **web:** keep expo-camera out of the web bundle ([89e9549](https://github.com/EuroUnionConsult/PondiFarmApp/commit/89e9549e81276fd7c4efd3fe0c7192f9919fc851))
+
+
+### Code Refactoring
+
+* **mobile:** use PondiLoader in Profile and bulk actions ([a1d7e79](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a1d7e796f54de831412376b0f8b2ef8d0937626d))
+
+
+### Documentation
+
+* list the cameraPermissions web pair in AGENTS.md ([7c00427](https://github.com/EuroUnionConsult/PondiFarmApp/commit/7c0042776b900a39d8cb5bbc80f289e8cf02304a))
+
+
+### Miscellaneous Chores
+
+* release 0.13.1 ([0cf17fc](https://github.com/EuroUnionConsult/PondiFarmApp/commit/0cf17fc920290945c3a015d4e2c50c5e89b7f04a))
+* release 0.13.1 ([47e38e6](https://github.com/EuroUnionConsult/PondiFarmApp/commit/47e38e61b6aaba54d558ed2da2036089a24111d9))
+
 ## [0.13.0](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.12.0...v0.13.0) (2026-11-24)
 
 
