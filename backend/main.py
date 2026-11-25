@@ -24,8 +24,8 @@ from api.v1.predictions.prediction_routes import predictions_router
 from api.v1.auth.auth_routes import auth_router
 from api.v1.weather.weather_routes import weather_router
 from api.v1.client_errors.client_errors_routes import client_errors_router
-from core.database import get_db, initialize_database
-from core.errors import register_exception_handlers
+from core.database import get_db, initialize_database_on_startup
+from core.errors import ServerErrorResponseMiddleware, register_exception_handlers
 from core.observability import configure_logging, configure_telemetry
 
 _telemetry_on = False
@@ -67,13 +67,17 @@ def create_app() -> FastAPI:
     cors_origins = [
         o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()
     ]
+    # Adicionado ANTES do CORS = fica por dentro dele: os 500/503 (base a acordar)
+    # saem com Access-Control-Allow-Origin e o site lê a resposta.
+    app.add_middleware(ServerErrorResponseMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
         allow_methods=["*"],
         allow_headers=["*"],
         # O site lê o formato do modelo 3D neste cabeçalho (GET /scans/{id}/mesh).
-        expose_headers=["X-Mesh-Format"],
+        # Retry-After: o 503 «database_waking» diz ao site quando voltar a tentar.
+        expose_headers=["X-Mesh-Format", "Retry-After"],
     )
     # Respostas grandes vão comprimidas (o rebanho em JSON tem ~100 KB e cai para
     # ~10 KB; os modelos PLY/OBJ também encolhem). Abaixo de 1 KB não compensa.
@@ -107,7 +111,8 @@ def create_app() -> FastAPI:
 
     @app.on_event("startup")
     def startup_event():
-        initialize_database()
+        # Com a base adormecida, espera (com limite) em vez de o arranque falhar.
+        initialize_database_on_startup()
 
     @app.get("/")
     def health():

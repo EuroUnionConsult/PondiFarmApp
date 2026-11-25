@@ -6,7 +6,8 @@ from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.orm import Session, declarative_base, sessionmaker
 
-from core.config import get_settings
+from core.config import DB_LOGIN_TIMEOUT_S, get_settings
+from core.db_resilience import install_connect_retry, initialize_database_with_retry
 
 Base = declarative_base()
 _engine: Engine | None = None
@@ -21,12 +22,13 @@ def _create_engine() -> Engine:
     if settings.database_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
     else:
-        # Resiliência p/ Azure SQL free-tier (auto-pausa quando ocioso):
-        # pre-ping descarta conexões mortas e reconecta; timeout de login maior
-        # dá tempo do DB acordar (~30-60s) na primeira query após a pausa.
+        # Resiliência p/ Azure SQL serverless (auto-pausa quando ocioso):
+        # pre-ping descarta conexões mortas e reconecta; cada login tem o prazo
+        # único DB_LOGIN_TIMEOUT_S e as ligações novas repetem enquanto a base
+        # acorda (install_connect_retry, abaixo).
         engine_kwargs["pool_pre_ping"] = True
         engine_kwargs["pool_recycle"] = 1800
-        connect_args["timeout"] = 60
+        connect_args["timeout"] = DB_LOGIN_TIMEOUT_S
 
     engine = create_engine(
         settings.database_url,
@@ -36,6 +38,8 @@ def _create_engine() -> Engine:
 
     if settings.database_url.startswith("sqlite"):
         event.listen(engine, "connect", _enable_sqlite_foreign_keys)
+    # Base a acordar (40613 e afins): repete a ligação nova com espera crescente.
+    install_connect_retry(engine)
 
     return engine
 
@@ -202,6 +206,11 @@ def get_db() -> Generator[Session, None, None]:
 
 
 def initialize_database() -> None:
+    """Cria as tabelas em falta e aplica as migrações aditivas.
+
+    No arranque usar `initialize_database_on_startup()`, que espera pela base
+    adormecida em vez de sair à primeira falha.
+    """
     import models.models  # noqa: F401
 
     engine = get_engine()
@@ -212,3 +221,8 @@ def initialize_database() -> None:
     ]
     Base.metadata.create_all(bind=engine, tables=bootstrap_tables)
     ensure_schema_compatibility(engine)
+
+
+def initialize_database_on_startup() -> None:
+    """Arranque da API: espera pela base serverless a acordar (só erros transitórios)."""
+    initialize_database_with_retry(initialize_database)
