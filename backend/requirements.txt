@@ -14,6 +14,6 @@ scikit-learn==1.9.1
 joblib==1.6.0
 numpy==1.26.4
 Pillow==13.0.0
-trimesh==4.5.3
+trimesh==5.2.1
 # Logs/traces para o Azure Application Insights (só liga com APPLICATIONINSIGHTS_CONNECTION_STRING).
 azure-monitor-opentelemetry==1.8.12
