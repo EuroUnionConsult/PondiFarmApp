@@ -25,8 +25,27 @@ export function trackServerRequest<T>(p: Promise<T>): Promise<T> {
   return p;
 }
 
+/**
+ * A base respondeu 503 «database_waking» (ou o servidor não respondeu) e ainda
+ * nenhum pedido seguinte correu bem: o aviso fica aceso mesmo sem pedidos
+ * pendentes, até um pedido ao servidor voltar a dar certo.
+ */
+let unavailable = false;
+export function setServerUnavailable(v: boolean): void {
+  if (unavailable === v) return;
+  unavailable = v;
+  emit();
+}
+
+/** O ecrã de arranque já diz «Connecting to the server…» em grande: o aviso pequeno esconde-se. */
+let suppressed = 0;
+export function suppressWakeNotice(): () => void {
+  suppressed += 1; emit();
+  return () => { suppressed -= 1; emit(); };
+}
+
 export function isServerWaking(): boolean {
-  return slow > 0;
+  return suppressed === 0 && (slow > 0 || unavailable);
 }
 
 function subscribe(l: () => void): () => void {
@@ -34,7 +53,7 @@ function subscribe(l: () => void): () => void {
   return () => { listeners.delete(l); };
 }
 
-/** true enquanto houver um pedido ao servidor pendente há mais de SLOW_MS. */
+/** true enquanto houver um pedido pendente há mais de SLOW_MS ou um 503 por resolver. */
 export function useServerWaking(): boolean {
   return useSyncExternalStore(subscribe, isServerWaking, isServerWaking);
 }
