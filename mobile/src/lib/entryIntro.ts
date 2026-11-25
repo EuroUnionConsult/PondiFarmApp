@@ -63,3 +63,20 @@ export function entryIntroContentDelay(): number {
   const fadeAt = state.length === INTRO.total ? INTRO.fadeFrom : INTRO.reducedHold;
   return Math.max(0, state.startedAt + fadeAt - Date.now());
 }
+
+// Web: a página já pintou a app (ou o ecrã de arranque com o fundo do tema)? Até lá o
+// <body> fica azul-noite: tirar-lhe a cor antes deixava a página em branco enquanto as
+// fontes carregavam (abertura já vista neste separador → sem animação por cima).
+let painted = false;
+const paintWaiters: (() => void)[] = [];
+
+export function markAppPainted(): void {
+  if (painted) return;
+  painted = true;
+  paintWaiters.splice(0).forEach((f) => f());
+}
+
+export function onAppPainted(f: () => void): void {
+  if (painted) f();
+  else paintWaiters.push(f);
+}

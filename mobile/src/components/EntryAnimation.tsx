@@ -10,7 +10,7 @@ import * as Haptics from 'expo-haptics';
 import { COW_POINTS } from '../lib/cowPoints';
 import { CFG_KEY } from '../lib/config';
 import { fonts } from '../lib/theme';
-import { INTRO, INTRO_BG, entryIntro, shortenEntryIntro } from '../lib/entryIntro';
+import { INTRO, INTRO_BG, entryIntro, onAppPainted, shortenEntryIntro } from '../lib/entryIntro';
 import { stageGeometry } from '../lib/entryStage';
 
 // Animação de abertura «Scan que revela» (aprovada pelo Talys, 24/11/2026). Sobre o
@@ -53,9 +53,14 @@ export default function EntryAnimation({ onDone }: { onDone?: () => void }) {
   const doneRef = useRef(onDone);
   doneRef.current = onDone;
 
-  // Web: o fundo da página fica azul-noite até a animação acabar (index.html).
+  // Web: o fundo da página fica azul-noite até a animação acabar (index.html) E a app ter
+  // pintado por baixo — sem isto, sem animação e com as fontes ainda a carregar, a página
+  // ficava em branco vários segundos.
   const finish = useRef(() => {
-    if (WEB) { document.body.style.backgroundColor = 'transparent'; document.body.classList.remove(BODY_CLASS); }
+    if (WEB) {
+      document.body.classList.remove(BODY_CLASS);
+      onAppPainted(() => { document.body.style.backgroundColor = 'transparent'; });
+    }
     setAlive(false);
     doneRef.current?.();
   }).current;
