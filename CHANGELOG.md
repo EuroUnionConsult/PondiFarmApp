@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.13.2](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.13.1...v0.13.2) (2026-11-25)
+
+
+### Features
+
+* **web:** wait for a waking server and sign out after inactivity ([a0d8fb6](https://github.com/EuroUnionConsult/PondiFarmApp/commit/a0d8fb6f80f78deb44d0bf5c0aebf4d5ed44bc35))
+
+
+### Bug Fixes
+
+* **backend:** retry and answer 503 while the serverless database wakes up ([459eb80](https://github.com/EuroUnionConsult/PondiFarmApp/commit/459eb80df4b106205902ce79cf3fca489ce28f9a))
+* **ios:** stop Profile jumping on refresh and wrap rows at large text sizes ([55d9585](https://github.com/EuroUnionConsult/PondiFarmApp/commit/55d9585aa8624b165c15832e5a54f7c8e0e4abb5))
+* wait for a waking database, never a blank page, and web session timeout ([66f8d54](https://github.com/EuroUnionConsult/PondiFarmApp/commit/66f8d54fa60e18a37e7b251188486ad3e2e7dfab))
+* **web:** never show a blank page while loading or after a render error ([4481c7a](https://github.com/EuroUnionConsult/PondiFarmApp/commit/4481c7acc7758f1fd7b7da3aad04f3587027dfbd))
+
+
+### Documentation
+
+* add What's new entries for 0.13.2 and web session notes ([09edf9b](https://github.com/EuroUnionConsult/PondiFarmApp/commit/09edf9b769e19d6b8af3fd8ae2a1468df5b5c4cf))
+
+
+### Miscellaneous Chores
+
+* release 0.13.2 ([503a682](https://github.com/EuroUnionConsult/PondiFarmApp/commit/503a682db7fd35ff7416a3e013d986b9ef5b0e98))
+
 ## [0.13.1](https://github.com/EuroUnionConsult/PondiFarmApp/compare/v0.13.0...v0.13.1) (2026-11-25)
 
 
