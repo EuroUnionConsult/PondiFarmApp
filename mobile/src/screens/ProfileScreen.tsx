@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
-  View, Animated, StyleSheet, TouchableOpacity, Alert, RefreshControl,
+  View, Animated, StyleSheet, TouchableOpacity, Alert, RefreshControl, useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -73,7 +73,12 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
   // Ponto verde enquanto houver uma versão nova por abrir (o mesmo estado das Settings e da web).
   const whatsNewUnseen = useWhatsNewUnseen();
   const farm = weather?.location ?? null;
-  const [loading, setLoading] = useState(false);
+  // `refreshing` só para o puxar para atualizar. Antes o RefreshControl usava o estado de
+  // QUALQUER carga (ao abrir, ao ganhar foco), e cada uma empurrava o Perfil ~45 pt para
+  // baixo e de volta.
+  const [refreshing, setRefreshing] = useState(false);
+  // Texto grande (Dynamic Type de acessibilidade): as linhas crescem em vez de cortar.
+  const big = useWindowDimensions().fontScale >= 1.3;
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -81,7 +86,6 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
 
   const load = useCallback(async () => {
     if (!orgId) return;
-    setLoading(true);
     setError(null);
     try {
       const [p, r, ev] = await trackCloud(Promise.all([
@@ -95,12 +99,14 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
       setEvents(ev);
     } catch (e: any) {
       setError(String(e?.message ?? e));
-    } finally {
-      setLoading(false);
     }
   }, [orgId, isLeader]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await load(); } finally { setRefreshing(false); }
+  }, [load]);
 
   // Seleção em massa (só o Líder): «Select» no cabeçalho ou toque longo numa linha.
   const bulk = useMembersBulk({ orgId, requests, people, myId: user?.id, reload: load });
@@ -201,7 +207,7 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + (selecting ? 220 : 40) }}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={REFRESH_TINT} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={REFRESH_TINT} />}
       >
         <View style={styles.topRow}>
           <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} hitSlop={8} accessibilityRole="button">
@@ -241,9 +247,9 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         <FadeInView index={1}>
         <Text style={styles.sectionHeader}>Organization</Text>
         <View style={styles.card}>
-          <View style={styles.row}>
-            <Text style={styles.rowKey}>Name</Text>
-            <Text style={styles.rowVal} numberOfLines={1}>
+          <View style={[styles.row, big && styles.rowBig]}>
+            <Text style={[styles.rowKey, big && styles.rowKeyBig]}>Name</Text>
+            <Text style={styles.rowVal} numberOfLines={big ? undefined : 1}>
               {(isPending ? user?.pendingOrganizationName : user?.organizationName) || '—'}
             </Text>
           </View>
@@ -268,10 +274,10 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
             <>
               <View style={styles.divider} />
               {/* Onde fica a quinta (previsão do tempo). Só o Líder muda. */}
-              <PressableScale style={styles.row} disabled={!isLeader} onPress={() => nav.navigate('FarmLocation')} scaleTo={0.985}
+              <PressableScale style={[styles.row, big && styles.rowBig]} disabled={!isLeader} onPress={() => nav.navigate('FarmLocation')} scaleTo={0.985}
                 accessibilityRole={isLeader ? 'button' : 'text'} accessibilityLabel="Farm location">
-                <Text style={styles.rowKey}>Farm location</Text>
-                <Text style={[styles.rowVal, !farm && isLeader && { color: ios.accent }]} numberOfLines={1}>
+                <Text style={[styles.rowKey, big && styles.rowKeyBig]}>Farm location</Text>
+                <Text style={[styles.rowVal, !farm && isLeader && { color: ios.accent }]} numberOfLines={big ? undefined : 1}>
                   {farm?.label ?? (farm ? `${farm.lat.toFixed(2)}, ${farm.lon.toFixed(2)}` : isLeader ? 'Set' : 'Not set')}
                 </Text>
                 {isLeader && <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />}
@@ -473,7 +479,7 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         </FadeInView>
       </Animated.ScrollView>
       {/* Puxar para atualizar: o PondiLoader no lugar do spinner do sistema. */}
-      <RefreshLoader scrollY={scrollY} refreshing={loading} top={insets.top} />
+      <RefreshLoader scrollY={scrollY} refreshing={refreshing} top={insets.top} />
       <CompactHeader title={displayName || 'Profile'} scrollY={scrollY} threshold={150} />
 
       {/* Barra fixa das ações em massa: «N selected», confirmar, progresso e resumo. */}
@@ -525,6 +531,9 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   row: { minHeight: 50, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
   rowKey: { fontSize: 17, color: ios.label },
   rowVal: { flex: 1, textAlign: 'right', fontSize: 17, color: ios.secondaryLabel },
+  // Texto grande: o rótulo e o valor partem em várias linhas (nada cortado).
+  rowBig: { alignItems: 'flex-start', paddingVertical: 12 },
+  rowKeyBig: { flexShrink: 1, maxWidth: '45%' },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: ios.separator, marginLeft: 16 },
   roleBadge: { marginLeft: 'auto', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4 },
   roleLeader: { backgroundColor: ios.accentLight },
