@@ -24,7 +24,7 @@ import PendingApprovalBanner from '../components/PendingApprovalBanner';
 import WeatherIcon from '../components/WeatherIcon';
 import { useWeather } from '../lib/weather';
 import CompactHeader, { useScrollY } from '../components/CompactHeader';
-import { checkHealth, fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
+import { checkHealth, fetchCloudAnimals, getCachedCloudSnapshot, staleDataLabel, type CloudAnimal } from '../lib/api';
 import type { RootStackParamList } from '../navigation/types';
 import SyncRing from '../components/SyncRing';
 import EmptyState, { EMPTY_HINT_NATIVE, EMPTY_HINT_WEB } from '../components/EmptyState';
@@ -44,6 +44,8 @@ export default function HomeScreen() {
   const [records, setRecords] = useState<ScanRecord[]>([]);
   const [cloud, setCloud] = useState<CloudAnimal[]>([]);
   const [cloudLoaded, setCloudLoaded] = useState(false);
+  // Rebanho em cache e o servidor não respondeu: hora da cópia (não se diz «all synced»).
+  const [staleAt, setStaleAt] = useState<number | null>(null);
   const [backendOk, setBackendOk] = useState<boolean | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const { user } = useAuth();
@@ -73,12 +75,13 @@ export default function HomeScreen() {
 
   const load = useCallback(async () => {
     // Cache primeiro (instantâneo), depois atualiza em 2º plano.
-    const cached = await getCachedCloudAnimals();
-    if (cached.length) { setCloud(cached); setCloudLoaded(true); }
+    const cached = await getCachedCloudSnapshot();
+    if (cached?.animals.length) { setCloud(cached.animals); setCloudLoaded(true); }
     const [recs, health] = await Promise.all([listRecords(), checkHealth()]);
     setRecords(recs);
     setBackendOk(health);
-    try { setCloud(await fetchCloudAnimals()); } catch { /* mantém o cache em falha de rede */ }
+    try { setCloud(await fetchCloudAnimals()); setStaleAt(null); }
+    catch { setStaleAt(cached?.animals.length ? cached.at : null); /* mantém o cache em falha de rede */ }
     finally { setCloudLoaded(true); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [access]);
@@ -214,6 +217,8 @@ export default function HomeScreen() {
               <Text style={styles.delta}>
                 {pendingSync > 0
                   ? `${pendingSync} scan${pendingSync !== 1 ? 's' : ''} pending sync`
+                  : staleAt !== null
+                    ? staleDataLabel(staleAt)
                   : hasCloud
                     ? `${totalAnimalsUnified} animal${totalAnimalsUnified !== 1 ? 's' : ''} in herd · all synced`
                     : records.length > 0

@@ -9,6 +9,7 @@ import { ThemeScanProvider } from './src/components/ThemeScan';
 import ServerWakeNotice from './src/components/ServerWakeNotice';
 import EntryAnimation from './src/components/EntryAnimation';
 import { ToastHost } from './src/components/Toast';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 // Erros JavaScript não apanhados vão para o log do servidor (POST /api/v1/client-errors).
 installGlobalErrorHandlers();
@@ -28,6 +29,8 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      {/* Erro de renderização → «Something went wrong» + «Reload» em vez de um ecrã vazio. */}
+      <ErrorBoundary>
       {ready && (
         <ThemeProvider>
           <ThemedStatusBar />
@@ -41,6 +44,7 @@ export default function App() {
           <ToastHost />
         </ThemeProvider>
       )}
+      </ErrorBoundary>
       {/* Abertura «Scan que revela», por cima de tudo em cada arranque (continua o splash). */}
       <EntryAnimation />
     </SafeAreaProvider>

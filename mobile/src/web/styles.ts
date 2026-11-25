@@ -418,6 +418,14 @@ html, body { background: var(--ground); }
 
 /* ---------- diálogo ---------- */
 .pf-scrim { position: fixed; inset: 0; background: rgba(18,36,52,.34); z-index: 50; display: flex; align-items: center; justify-content: center; animation: pfFade .18s ease-out; }
+.pf-idle { z-index: 1500; padding: 16px; } .pf-idle .pf-dlg { max-width: calc(100vw - 32px); box-sizing: border-box; }
+.pf-idle-n { font-variant-numeric: tabular-nums; color: var(--orange); }
+.pf-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pf-keep { display: flex; align-items: center; gap: 10px; margin: 4px 0 2px; font-size: 14.5px; color: var(--ink2); cursor: pointer; user-select: none; }
+.pf-keep input { width: 18px; height: 18px; margin: 0; accent-color: var(--green); flex: none; }
+.pf-stale { position: relative; z-index: 2; margin: 22px 40px -12px; max-width: 1200px; display: flex; align-items: center; gap: 10px; padding: 11px 16px; font-size: 13.5px; color: var(--warnInk); border-radius: 14px; overflow-wrap: anywhere; }
+.pf-stale::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--orange); flex: none; }
+@media (max-width: 900px) { .pf-stale { margin: 16px 28px -10px; } }
 .pf-dlg { width: 420px; background: var(--card); border-radius: 22px; padding: 26px 26px 20px; box-shadow: 0 30px 70px rgba(18,36,52,.3); text-align: center; animation: pfPop .26s cubic-bezier(.2,.9,.3,1.2); }
 .pf-dlg .di { width: 66px; height: 66px; margin: 0 auto 14px; border-radius: 18px; background: var(--greenL); color: var(--green); display: flex; align-items: center; justify-content: center; } .pf-dlg .di svg { width: 34px; height: 34px; }
 .pf-dlg h3 { font-size: 21px; letter-spacing: -.3px; margin: 0; } .pf-dlg p { font-size: 14.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.45; }

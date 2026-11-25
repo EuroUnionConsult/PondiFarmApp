@@ -15,6 +15,7 @@ COPY mobile/ ./
 ARG EXPO_PUBLIC_API_URL=https://pondifarm-api-euc.azurewebsites.net
 ENV EXPO_PUBLIC_API_URL=$EXPO_PUBLIC_API_URL
 RUN npx expo export --platform web --output-dir dist --clear \
+ && node scripts/preload-fonts.mjs dist \
  && ! grep -rq "localhost:8000" dist/_expo
 
 FROM nginx:1.27-alpine

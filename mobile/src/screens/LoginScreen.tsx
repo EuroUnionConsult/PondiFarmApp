@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
-  View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Animated, Easing, Image,
+  View, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Animated, Easing, Image, Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../lib/ThemeContext';
 import Text from '../components/Text';
 import Wordmark from '../components/Wordmark';
@@ -23,6 +24,8 @@ export default function LoginScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Só na web: «Keep me signed in» (desligado = a sessão acaba quando o browser fecha).
+  const [remember, setRemember] = useState(false);
   const [serverUrl, setServerUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -60,8 +63,8 @@ export default function LoginScreen() {
     }
     setBusy(true);
     try {
-      if (mode === 'login') await login(email, password);
-      else await register(name, email, password);
+      if (mode === 'login') await login(email, password, remember);
+      else await register(name, email, password, remember);
     } catch (e: any) {
       setError(String(e?.message ?? e));
     } finally {
@@ -105,6 +108,20 @@ export default function LoginScreen() {
               )}
               <Field label="Email" value={email} onChangeText={setEmail} placeholder="you@example.com" keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
               <Field label="Password" value={password} onChangeText={setPassword} placeholder="at least 8 characters" secureTextEntry autoCapitalize="none" />
+
+              {Platform.OS === 'web' && (
+                <Pressable
+                  onPress={() => setRemember((v) => !v)}
+                  style={styles.keepRow}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: remember }}
+                >
+                  <View style={[styles.keepBox, remember && styles.keepBoxOn]}>
+                    {remember && <Ionicons name="checkmark" size={15} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.keepText}>Keep me signed in on this device</Text>
+                </Pressable>
+              )}
 
               {error && <Text style={styles.error}>{error}</Text>}
 
@@ -185,6 +202,13 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth, borderColor: ios.separator,
     paddingHorizontal: 14, paddingVertical: 13, fontSize: 16, color: ios.label,
   },
+  keepRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, marginBottom: 4 },
+  keepBox: {
+    width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, borderColor: ios.separator,
+    backgroundColor: ios.segmentFill, alignItems: 'center', justifyContent: 'center',
+  },
+  keepBoxOn: { backgroundColor: ios.accentFill, borderColor: ios.accentFill },
+  keepText: { flex: 1, fontSize: 14.5, color: ios.secondaryLabel },
   error: { color: ios.danger, fontSize: 13.5, marginTop: 2, marginBottom: 4, textAlign: 'center' },
 
   // Primary button — SOLID green, white text (contrast AA). Never glass.

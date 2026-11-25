@@ -11,6 +11,7 @@ import WhatsNewPage from './WhatsNewPage';
 import WeatherIcon from '../components/WeatherIcon';
 import { useWeather } from '../lib/weather';
 import { useHerd } from './herd';
+import { staleDataLabel } from '../lib/api';
 import { setCurrentScreen } from '../lib/errorReport';
 import { ChartIcon, DesktopIcon, HerdIcon, HomeIcon } from './icons';
 import { BRAND_ICON } from './brandIcon';
@@ -72,6 +73,10 @@ export default function DesktopShell({ onRequestMobile, shellRef }: { onRequestM
       </aside>
       <main className="pf-main">
         {/* key={page}: cada troca de página reinicia a animação de entrada (pf-pagein). */}
+        {/* O servidor não respondeu: o rebanho mostrado é a cópia guardada, com a hora. */}
+        {herd.staleAt !== null && page !== 'weather' && page !== 'whatsnew' && (
+          <div className="pf-card pf-stale w6" role="status">{staleDataLabel(herd.staleAt)}</div>
+        )}
         <div className={introLeft ? 'pf-pagein pf-afterintro' : 'pf-pagein'} key={page}
           style={introLeft ? ({ '--intro-d': `${introLeft}ms` } as React.CSSProperties) : undefined}>
           {page === 'home' && <HomePage herd={herd} members={members} openAnimal={openAnimal} goHerd={() => setPage('herd')} goAnalytics={() => setPage('analytics')} goProfile={() => setPage('profile')} goWeather={() => setPage('weather')} />}

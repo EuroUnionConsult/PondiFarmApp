@@ -7,6 +7,11 @@ from pathlib import Path
 
 from sqlalchemy.engine import URL
 
+# Prazo de UM login na base (s). Fonte única: vai na connection string ODBC e no
+# `timeout` do pyodbc (antes eram 10 s num e 60 s no outro). Cada tentativa
+# falha depressa e core/db_resilience.py repete enquanto a base acorda.
+DB_LOGIN_TIMEOUT_S = int(os.getenv("DB_LOGIN_TIMEOUT_S", "15"))
+
 
 @dataclass(frozen=True)
 class Settings:
@@ -68,7 +73,7 @@ def _build_database_url() -> str:
         f"PWD={password};"
         f"Encrypt={encrypt};"
         f"TrustServerCertificate={trust_certificate};"
-        "Connection Timeout=10;"
+        f"Connection Timeout={DB_LOGIN_TIMEOUT_S};"
     )
     # Sem quote_plus: URL.create já codifica ao renderizar. O SQLAlchemy 2.0 voltava
     # a descodificar o odbc_connect e escondia a dupla codificação; o 2.1 entrega-o ao

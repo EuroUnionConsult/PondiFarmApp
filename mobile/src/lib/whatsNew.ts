@@ -29,6 +29,13 @@ export const AREAS: { key: WhatsNewArea; label: string }[] = [
 ];
 
 export const WHATS_NEW: WhatsNewItem[] = [
+  { version: '0.13.2', date: '2026-11-25', area: 'team', text: 'The website no longer shows a blank page while it loads or after an unexpected error: you see the PondiFarm loader, or «Something went wrong» with a Reload button' },
+  { version: '0.13.2', date: '2026-11-25', area: 'team', text: 'When the server is waking up, the app waits on «Connecting to the server…» and opens by itself when it answers, instead of an empty profile' },
+  { version: '0.13.2', date: '2026-11-25', area: 'herd', text: 'If the server can\'t be reached, the herd says when its data was saved instead of «Everything is synced»' },
+  { version: '0.13.2', date: '2026-11-25', area: 'team', text: 'On the website, «Keep me signed in on this computer» is now a choice; without it you are signed out when the browser closes' },
+  { version: '0.13.2', date: '2026-11-25', area: 'team', text: 'On the website you are signed out after 30 minutes without activity, with a 60-second warning to stay signed in; it applies to every open tab' },
+  { version: '0.13.2', date: '2026-11-25', area: 'team', text: 'Profile no longer jumps when it refreshes, and its rows stay readable with very large text sizes' },
+
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'A new opening animation: the cow from our icon is scanned and becomes the PondiFarm logo' },
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'The launch screen uses the PondiFarm colours instead of a placeholder' },
   { version: '0.13.1', date: '2026-11-24', area: 'team', text: 'A new PondiFarm loading animation with the cow from our icon' },

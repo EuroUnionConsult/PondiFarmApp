@@ -12,6 +12,8 @@ export default function DesktopLogin() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // Desligado por defeito: a sessão acaba quando o browser fecha (lib/session.ts).
+  const [remember, setRemember] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,8 +24,8 @@ export default function DesktopLogin() {
     if (password.length < 8) return setError('The password needs at least 8 characters.');
     setBusy(true);
     try {
-      if (mode === 'in') await login(email.trim(), password);
-      else await register(name.trim(), email.trim(), password);
+      if (mode === 'in') await login(email.trim(), password, remember);
+      else await register(name.trim(), email.trim(), password, remember);
     } catch (err: any) {
       setError(String(err?.message ?? err));
     } finally {
@@ -55,6 +57,10 @@ export default function DesktopLogin() {
             <input id="pf-pass" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
               autoComplete={mode === 'in' ? 'current-password' : 'new-password'} placeholder="at least 8 characters" required />
           </div>
+          <label className="pf-keep" htmlFor="pf-keep">
+            <input id="pf-keep" type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+            Keep me signed in on this computer
+          </label>
           {error && <div className="pf-err" role="alert">{error}</div>}
           <button className="pf-btn g w7" type="submit" disabled={busy}>{busy ? <><PondiLoader size="sm" tone="onColor" label="Please wait" />Please wait…</> : mode === 'in' ? 'Sign in' : 'Create account'}</button>
           <div className="pf-small">

@@ -17,7 +17,7 @@ import { fonts, type Palette } from '../lib/theme';
 import { estimateWeightKg } from '../lib/weightModel';
 import { listRecords, deleteRecord, effectiveSyncState, type ScanRecord } from '../lib/storage';
 import { useAuth } from '../lib/AuthContext';
-import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
+import { fetchCloudAnimals, getCachedCloudSnapshot, staleDataLabel, type CloudAnimal } from '../lib/api';
 import { syncPending } from '../lib/sync';
 import ScreenBackground from '../components/ScreenBackground';
 import CattleIcon from '../components/CattleIcon';
@@ -75,13 +75,15 @@ export default function HerdScreen() {
   // um servidor inacessível e um rebanho vazio são o mesmo ecrã em branco, e o
   // utilizador conclui que perdeu os animais.
   const [cloudOffline, setCloudOffline] = useState(false);
+  // Hora da cópia guardada que está a ser mostrada.
+  const [cachedAt, setCachedAt] = useState<number | null>(null);
 
   // Recarrega o ecrã aberto quando muda o acesso (aprovado, removido, outra organização).
   const { user } = useAuth();
   const access = `${user?.membershipStatus ?? ''}|${user?.organizationId ?? ''}`;
   const load = useCallback(async () => {
-    const cached = await getCachedCloudAnimals();
-    if (cached.length) { setCloud(cached); setCloudLoaded(true); }   // instantâneo
+    const cached = await getCachedCloudSnapshot();
+    if (cached?.animals.length) { setCloud(cached.animals); setCloudLoaded(true); setCachedAt(cached.at); }   // instantâneo
     setRecords(await listRecords());
     try {
       setCloud(await fetchCloudAnimals());  // atualiza em 2º plano
@@ -288,7 +290,7 @@ export default function HerdScreen() {
         <View style={styles.offlineBanner}>
           <Ionicons name="cloud-offline-outline" size={15} color={ios.secondaryLabel} />
           <Text style={styles.offlineText}>
-            Showing what was last downloaded. The server could not be reached.
+            {cachedAt !== null ? staleDataLabel(cachedAt) : 'The server could not be reached.'}
           </Text>
         </View>
       )}

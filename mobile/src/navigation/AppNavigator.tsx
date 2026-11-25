@@ -3,7 +3,6 @@ import { DarkTheme, DefaultTheme, NavigationContainer, createNavigationContainer
 import { useTheme } from '../lib/ThemeContext';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View } from 'react-native';
 import { AuthProvider, useAuth } from '../lib/AuthContext';
 import GlassTabBar from '../components/GlassTabBar';
 
@@ -25,7 +24,7 @@ import { WeatherProvider } from '../lib/weather';
 
 import type { RootStackParamList, TabParamList } from './types';
 import { activeRouteName, setCurrentScreen } from '../lib/errorReport';
-import PondiLoader from '../components/PondiLoader';
+import BootScreen from '../components/BootScreen';
 
 // O ecrã inicial também conta para os relatórios de erro (onStateChange só corre na 1.ª navegação).
 const navRef = createNavigationContainerRef<Record<string, object | undefined>>();
@@ -48,7 +47,7 @@ function TabNavigator() {
 
 // Exportado para a versão web (App.web.tsx), que o põe dentro da moldura do telemóvel.
 export function RootNavigator() {
-  const { token, user, loading } = useAuth();
+  const { token, user, loading, connection, retryConnect, continueOffline } = useAuth();
   const { mode, colors: palette } = useTheme();
   // Fundo da navegação = fundo do tema: sem isto, cada transição pisca a branco no escuro.
   const navTheme = {
@@ -61,12 +60,10 @@ export function RootNavigator() {
     },
   };
 
+  // A ler a conta: espera aqui («Connecting to the server…») em vez de abrir a app
+  // com um utilizador vazio e o rebanho em cache como se fosse atual.
   if (loading) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.systemGroupedBackground }}>
-        <PondiLoader size="lg" />
-      </View>
-    );
+    return <BootScreen connection={connection} onRetry={retryConnect} onOffline={token ? continueOffline : undefined} quiet={!token} />;
   }
 
   if (!token) {

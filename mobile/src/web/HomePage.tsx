@@ -3,6 +3,7 @@ import { useAuth } from '../lib/AuthContext';
 import WeatherIcon from '../components/WeatherIcon';
 import { KIND_LABEL, useWeather } from '../lib/weather';
 import { fmtW, type Herd } from './herd';
+import { staleDataLabel } from '../lib/api';
 import { Breeds, Histogram, Kpi, Ring, SkelChart, SkelKpis, SkelRows, mean, weights } from './charts';
 import { ChartIcon, Chevron, CloudIcon, HourglassIcon, PhoneIcon } from './icons';
 import EmptyState, { EMPTY_HINT_WEB } from '../components/EmptyState';
@@ -83,11 +84,23 @@ export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytic
         <div style={{ flex: 1.45, minWidth: 0 }}><div className="pf-sect w6">Breeds</div>
           <div className="pf-card pf-pad">{loading ? <SkelRows n={3} right={false} /> : <Breeds animals={all} limit={4} />}</div></div>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}><div className="pf-sect w6">Sync</div>
+          {/* «Everything is synced» só depois de o servidor responder; com o rebanho em cache
+              diz de quando são os dados; ainda sem resposta, esqueleto. */}
+          {herd.staleAt !== null || herd.failed ? (
+            <div className="pf-card pf-sync" role="status">
+              <Ring pct={0} size={72} label="Server unavailable" />
+              <div><div className="w7" style={{ fontSize: 15.5 }}>{herd.staleAt !== null ? staleDataLabel(herd.staleAt) : 'Can’t reach the server'}</div>
+                <div className="pf-sub" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><span className="pf-i"><CloudIcon /></span>It updates by itself when the server answers</div></div>
+            </div>
+          ) : !herd.fresh ? (
+            <div className="pf-card pf-sync" aria-busy="true"><SkelRows n={1} right={false} /></div>
+          ) : (
           <div className="pf-card pf-sync">
             <Ring pct={synced ? 100 : 0} size={72} label={synced ? 'All records synced' : 'Records waiting to sync'} />
             <div><div className="w7" style={{ fontSize: 15.5 }}>{synced ? 'Everything is synced' : `${herd.pending} records waiting to sync`}</div>
               <div className="pf-sub" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><span className="pf-i"><CloudIcon /></span>Data from your organization&apos;s account</div></div>
           </div>
+          )}
           <div className="pf-card pf-note" style={{ marginTop: 14 }}><PhoneIcon />New scans are captured with the iPhone app. They appear here as soon as they sync.</div>
         </div>
       </div>

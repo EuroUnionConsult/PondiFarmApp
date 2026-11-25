@@ -192,7 +192,7 @@ export default function OrganizationGateScreen({ bare = false }: { bare?: boolea
 
           {error && <Text style={styles.error} accessibilityLiveRegion="polite">{error}</Text>}
 
-          <TouchableOpacity style={styles.signOut} onPress={logout} activeOpacity={0.6}>
+          <TouchableOpacity style={styles.signOut} onPress={() => { void logout(); }} activeOpacity={0.6}>
             <Text style={styles.signOutText}>Sign out ({user?.email})</Text>
           </TouchableOpacity>
         </ScrollView>
