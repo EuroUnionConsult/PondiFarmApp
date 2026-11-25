@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { BRAND_ICON } from './brandIcon';
+import PondiLoader from '../components/PondiLoader';
 
 const ICON = BRAND_ICON;
 
@@ -33,7 +34,8 @@ export default function DesktopLogin() {
   return (
     <div className="pf pf-login">
       <section className="pf-lp" aria-hidden="true">
-        <img className="pf-lp-icon" src={ICON} alt="" />
+        {/* data-intro-target: a animação de abertura voa até este ícone (EntryAnimation). */}
+        <img className="pf-lp-icon" src={ICON} alt="" data-intro-target="" />
       </section>
       <section className="pf-rp">
         <div className="pf-ground" style={{ position: 'absolute' }} />
@@ -54,7 +56,7 @@ export default function DesktopLogin() {
               autoComplete={mode === 'in' ? 'current-password' : 'new-password'} placeholder="at least 8 characters" required />
           </div>
           {error && <div className="pf-err" role="alert">{error}</div>}
-          <button className="pf-btn g w7" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'in' ? 'Sign in' : 'Create account'}</button>
+          <button className="pf-btn g w7" type="submit" disabled={busy}>{busy ? <><PondiLoader size="sm" tone="onColor" label="Please wait" />Please wait…</> : mode === 'in' ? 'Sign in' : 'Create account'}</button>
           <div className="pf-small">
             {mode === 'in' ? 'New to PondiFarm? Create an account, then ask your organization leader to approve you.' : 'After creating the account, join your organization or create a new one.'}
           </div>

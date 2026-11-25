@@ -14,6 +14,7 @@ import { type Palette } from '../lib/theme';
 import { listRecords, type ScanRecord } from '../lib/storage';
 import { fetchCloudAnimals, getCachedCloudAnimals, type CloudAnimal } from '../lib/api';
 import ScreenBackground from '../components/ScreenBackground';
+import EmptyState, { EMPTY_HINT_NATIVE, EMPTY_HINT_WEB } from '../components/EmptyState';
 
 const CHART_H = 140;
 const CHART_PAD_X = 16;
@@ -112,12 +113,11 @@ export default function AnalyticsScreen() {
       </View>
 
       {totalScans === 0 && cloudCount === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>No data to show</Text>
-          <Text style={styles.emptySub}>
-            Record a few scans to see chest girth trends, breed distribution and activity here.
-          </Text>
-        </View>
+        <EmptyState
+          style={{ marginTop: 24 }}
+          title="No animals yet"
+          text={`${Platform.OS === 'web' ? EMPTY_HINT_WEB : EMPTY_HINT_NATIVE} Weight trends, breeds and activity appear here.`}
+        />
       ) : (
         <>
           {/* Hero — Mean weight */}

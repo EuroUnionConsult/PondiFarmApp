@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, type TextStyle, type ViewStyle } from 'react-native';
+import { View, useWindowDimensions, type TextStyle, type ViewStyle } from 'react-native';
 import Text from './Text';
 import { useTheme } from '../lib/ThemeContext';
 
@@ -16,8 +16,10 @@ type Props = {
 
 export const BRAND_TAGLINE = 'Non-invasive cattle weighing · LiDAR 3D';
 
-export default function Wordmark({ size = 34, tagline = false, align = 'left', style }: Props) {
+export default function Wordmark({ size: base = 34, tagline = false, align = 'left', style }: Props) {
   const { colors: ios } = useTheme();
+  // É o logótipo: com texto grande cresce só até 1,3× e nunca parte a palavra.
+  const size = base * Math.min(useWindowDimensions().fontScale, 1.3);
   const word: TextStyle = {
     fontSize: size,
     lineHeight: Math.round(size * 1.08),
@@ -27,14 +29,14 @@ export default function Wordmark({ size = 34, tagline = false, align = 'left', s
   };
   return (
     <View style={style} accessible accessibilityRole="header" accessibilityLabel="PondiFarm">
-      <Text style={word}>
-        <Text style={[word, { color: ios.navy }]}>Pondi</Text>
-        <Text style={[word, { color: ios.accent }]}>Farm</Text>
+      <Text style={word} allowFontScaling={false} numberOfLines={1}>
+        <Text style={[word, { color: ios.navy }]} allowFontScaling={false}>Pondi</Text>
+        <Text style={[word, { color: ios.accent }]} allowFontScaling={false}>Farm</Text>
       </Text>
       {tagline && (
         <Text
           style={{
-            fontSize: Math.max(12, Math.round(size * 0.3)),
+            fontSize: Math.max(12, Math.round(base * 0.3)),
             color: ios.secondaryLabel,
             letterSpacing: 0.1,
             marginTop: 4,

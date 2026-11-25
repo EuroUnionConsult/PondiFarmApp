@@ -7,6 +7,8 @@ import { ThemeProvider, useTheme } from './src/lib/ThemeContext';
 import { installGlobalErrorHandlers } from './src/lib/errorReport';
 import { ThemeScanProvider } from './src/components/ThemeScan';
 import ServerWakeNotice from './src/components/ServerWakeNotice';
+import EntryAnimation from './src/components/EntryAnimation';
+import { ToastHost } from './src/components/Toast';
 
 // Erros JavaScript não apanhados vão para o log do servidor (POST /api/v1/client-errors).
 installGlobalErrorHandlers();
@@ -22,19 +24,25 @@ export default function App() {
   // app — funcionam offline. Se o carregamento falhar, segue com a fonte do
   // sistema em vez de ficar num ecrã vazio.
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_700Bold });
-  if (!fontsLoaded && !fontError) return null;
+  const ready = fontsLoaded || !!fontError;
 
   return (
-    <ThemeProvider>
-      <SafeAreaProvider>
-        <ThemedStatusBar />
-        {/* Troca de tema com a passagem de scan (fotografa o ecrã e revela o tema novo). */}
-        <ThemeScanProvider>
-          <AppNavigator />
-        </ThemeScanProvider>
-        {/* «Connecting to the server…» enquanto a base serverless acorda. */}
-        <ServerWakeNotice />
-      </SafeAreaProvider>
-    </ThemeProvider>
+    <SafeAreaProvider>
+      {ready && (
+        <ThemeProvider>
+          <ThemedStatusBar />
+          {/* Troca de tema com a passagem de scan (fotografa o ecrã e revela o tema novo). */}
+          <ThemeScanProvider>
+            <AppNavigator />
+          </ThemeScanProvider>
+          {/* «Connecting to the server…» enquanto a base serverless acorda. */}
+          <ServerWakeNotice />
+          {/* Avisos rápidos (sucesso/aviso/erro) de qualquer ecrã. */}
+          <ToastHost />
+        </ThemeProvider>
+      )}
+      {/* Abertura «Scan que revela», por cima de tudo em cada arranque (continua o splash). */}
+      <EntryAnimation />
+    </SafeAreaProvider>
   );
 }

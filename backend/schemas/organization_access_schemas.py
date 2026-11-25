@@ -61,3 +61,35 @@ class OrganizationEventResponse(APIModel):
     actor_name: str | None
     subject_name: str | None
     created_at: datetime
+
+
+# --- Ações em massa (só o Líder) --------------------------------------------
+
+BULK_MAX_IDS = 100
+
+
+class BulkJoinRequestsBody(APIModel):
+    """Aprovar ou recusar vários pedidos de entrada de uma vez."""
+
+    ids: list[UUID] = Field(min_length=1, max_length=BULK_MAX_IDS)
+    action: Literal["approve", "deny"]
+
+
+class BulkRemoveMembersBody(APIModel):
+    """Remover várias pessoas da organização de uma vez."""
+
+    user_ids: list[UUID] = Field(min_length=1, max_length=BULK_MAX_IDS)
+
+
+class BulkItemResult(APIModel):
+    id: UUID
+    ok: bool
+    # Código estável quando falha: already_handled, in_other_organization,
+    # not_a_member, is_self, is_leader, error.
+    reason: str | None = None
+
+
+class BulkActionResponse(APIModel):
+    succeeded: int
+    failed: int
+    results: list[BulkItemResult]

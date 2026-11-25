@@ -7,6 +7,7 @@ import { CloudIcon, FemaleIcon, MaleIcon, PhoneIcon, SearchIcon } from './icons'
 import { useTheme } from '../lib/ThemeContext';
 import type { MeshSource } from './ScanViewer';
 import { fmtScanDate, fmtScanTime, growthSummary, measureDeltas, shrunk, weatherDiffers, weatherLine, weightDelta, weightMargin } from '../lib/scanHistory';
+import EmptyState, { EMPTY_HINT_WEB } from '../components/EmptyState';
 
 // three.js só se descarrega ao abrir uma ficha com modelo 3D (pedaço próprio do bundle).
 const ScanViewer = lazy(() => import('./ScanViewer'));
@@ -324,7 +325,9 @@ export default function HerdPage({ herd, selected, setSelected }: { herd: Herd; 
                   <i style={{ width: `${w !== null ? (w / maxW) * 100 : 0}%` }} /></span>
               </button>); })}
           </div>
-          {herd.animals === null ? <SkelRows n={9} /> : !list.length && <div className="pf-empty">No animals match this search.</div>}
+          {herd.animals === null ? <SkelRows n={9} /> : !list.length && (all.length
+            ? <EmptyState compact title="No results" text="Try a different name, tag or breed." />
+            : <EmptyState title="No animals yet" text={EMPTY_HINT_WEB} />)}
         </div>
         {a ? <Sheet key={a.id} a={a} herd={all} /> : herd.animals === null && (
           <aside className="pf-card pf-sheet" aria-hidden="true"><Skel w={160} h={26} /><Skel w={220} h={22} style={{ marginTop: 12 }} />

@@ -5,6 +5,7 @@ import { KIND_LABEL, useWeather } from '../lib/weather';
 import { fmtW, type Herd } from './herd';
 import { Breeds, Histogram, Kpi, Ring, SkelChart, SkelKpis, SkelRows, mean, weights } from './charts';
 import { ChartIcon, Chevron, CloudIcon, HourglassIcon, PhoneIcon } from './icons';
+import EmptyState, { EMPTY_HINT_WEB } from '../components/EmptyState';
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 19 ? 'Good afternoon' : 'Good evening'; };
 
@@ -73,7 +74,7 @@ export default function HomePage({ herd, members, openAnimal, goHerd, goAnalytic
                 <div className="t"><span className="w6 nm">{a.name}</span><span>{[a.breed, a.tagCode].filter(Boolean).join(' · ')}</span></div>
                 <div className="w w8">{w ?? '—'}{w !== null && <span className="w6">kg</span>}</div>
               </button>); })}
-            {herd.animals !== null && !all.length && <div className="pf-empty">No animals yet. Records from your team appear here as they sync.</div>}
+            {herd.animals !== null && !all.length && <EmptyState compact title="No scans yet" text={`${EMPTY_HINT_WEB} Records from your team appear here as they sync.`} />}
             {loading && <SkelRows n={5} />}
           </div></div>
       </div>

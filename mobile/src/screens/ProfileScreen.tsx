@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import {
-  View, Animated, StyleSheet, TouchableOpacity, Alert, ActivityIndicator, RefreshControl,
+  View, Animated, StyleSheet, TouchableOpacity, Alert, RefreshControl,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -25,6 +25,11 @@ import type { RootStackParamList } from '../navigation/types';
 import SyncRing from '../components/SyncRing';
 import { trackCloud } from '../lib/activity';
 import { useWeather } from '../lib/weather';
+import { useWhatsNewUnseen } from '../lib/whatsNew';
+import { APP_VERSION } from '../lib/version';
+import { BulkActionBar, SelectBox, canBulkSelectPerson, useMembersBulk } from '../components/MembersBulk';
+import PondiLoader from '../components/PondiLoader';
+import RefreshLoader, { REFRESH_TINT } from '../components/RefreshLoader';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -65,6 +70,8 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
   const [events, setEvents] = useState<OrgEvent[]>([]);
   const [allEvents, setAllEvents] = useState(false);
   const { weather } = useWeather();
+  // Ponto verde enquanto houver uma versão nova por abrir (o mesmo estado das Settings e da web).
+  const whatsNewUnseen = useWhatsNewUnseen();
   const farm = weather?.location ?? null;
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -94,6 +101,32 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
   }, [orgId, isLeader]);
 
   useFocusEffect(useCallback(() => { void load(); }, [load]));
+
+  // Seleção em massa (só o Líder): «Select» no cabeçalho ou toque longo numa linha.
+  const bulk = useMembersBulk({ orgId, requests, people, myId: user?.id, reload: load });
+  const selecting = isLeader && bulk.selecting;
+  const sectionHead = (title: string, kind: 'request' | 'member') => {
+    const has = kind === 'request' ? bulk.hasRequests : bulk.hasMembers;
+    const all = kind === 'request' ? bulk.allRequests : bulk.allMembers;
+    const label = !isLeader || !has ? null : !selecting ? 'Select' : all ? 'Deselect all' : 'Select all';
+    const what = kind === 'request' ? 'requests' : 'members';
+    return (
+      <View style={styles.sectionRow}>
+        <Text style={[styles.sectionHeader, { flex: 1, paddingRight: 8 }]}>{title}</Text>
+        {label && (
+          <TouchableOpacity
+            style={styles.sectionLink}
+            disabled={bulk.running !== null}
+            onPress={() => (!selecting ? bulk.start() : kind === 'request' ? bulk.toggleAllRequests() : bulk.toggleAllMembers())}
+            accessibilityRole="button"
+            accessibilityLabel={label === 'Select' ? `Select ${what}` : `${label} ${what}`}
+          >
+            <Text style={styles.sectionLinkText}>{label}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   // `roleMayChange`: passar a liderança ou sair mudam o papel e o token; aprovar,
   // recusar e remover não, e o /me extra só atrasava a resposta.
@@ -165,10 +198,10 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
     <View style={{ flex: 1 }}>
       <ScreenBackground />
       <Animated.ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + (selecting ? 220 : 40) }}
         onScroll={onScroll}
         scrollEventThrottle={16}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={ios.accent} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={REFRESH_TINT} />}
       >
         <View style={styles.topRow}>
           <TouchableOpacity style={styles.back} onPress={() => nav.goBack()} hitSlop={8} accessibilityRole="button">
@@ -189,13 +222,16 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
                 accessibilityLabel="Edit your name"
               >
                 {avatar
-                  ? <Text style={styles.avatarText}>{avatar}</Text>
+                  ? <Text style={styles.avatarText} maxFontSizeMultiplier={1.3} numberOfLines={1} adjustsFontSizeToFit>{avatar}</Text>
                   : <Ionicons name="person" size={30} color="#FFFFFF" />}
               </TouchableOpacity>
             </SyncRing>
           </View>
           <Text style={styles.name}>{displayName || 'Your name'}</Text>
-          <Text style={styles.email}>{user?.email}</Text>
+          {/* Com texto grande o email parte em «@» e «.», não a meio de uma palavra. */}
+          {user?.email ? (
+            <Text style={styles.email} accessibilityLabel={user.email}>{breakableEmail(user.email)}</Text>
+          ) : null}
           <TouchableOpacity onPress={() => setEditing(true)} hitSlop={8} accessibilityRole="button">
             <Text style={styles.link}>Edit name</Text>
           </TouchableOpacity>
@@ -268,19 +304,30 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         {/* Pedidos (só Líder) */}
         {isLeader && (
           <FadeInView index={2}>
-            <Text style={styles.sectionHeader}>Requests to join · {requests.length}</Text>
+            {sectionHead(`Requests to join · ${requests.length}`, 'request')}
             <View style={styles.card}>
               {requests.length === 0 ? (
                 <Text style={styles.empty}>No pending requests.</Text>
               ) : requests.map((r, i) => (
                 <View key={r.id}>
                   {i > 0 && <View style={styles.divider} />}
-                  <View style={styles.personRow}>
+                  <PressableScale
+                    style={[styles.personRow, bulk.running && bulk.isRequestSelected(r.id) && styles.rowBusy]}
+                    scaleTo={0.985}
+                    disabled={busyId !== null || bulk.running !== null}
+                    onPress={selecting ? () => bulk.toggleRequest(r.id) : undefined}
+                    onLongPress={!selecting ? () => bulk.start({ kind: 'request', id: r.id }) : undefined}
+                    accessibilityRole={selecting ? 'checkbox' : undefined}
+                    accessibilityState={selecting ? { checked: bulk.isRequestSelected(r.id) } : undefined}
+                    accessibilityLabel={selecting ? `${r.userName}, request to join` : undefined}
+                    accessibilityHint={!selecting ? 'Long press to select several' : undefined}
+                  >
+                    {selecting && <SelectBox checked={bulk.isRequestSelected(r.id)} />}
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.personName} numberOfLines={1}>{r.userName}</Text>
                       <Text style={styles.personEmail} numberOfLines={1}>{r.userEmail}</Text>
                     </View>
-                    {busyId === r.id ? <ActivityIndicator color={ios.accent} /> : (
+                    {selecting ? null : busyId === r.id ? <PondiLoader size="sm" label="Working" /> : (
                       <View style={styles.actions}>
                         <TouchableOpacity
                           style={styles.reject}
@@ -300,7 +347,7 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
                         </TouchableOpacity>
                       </View>
                     )}
-                  </View>
+                  </PressableScale>
                 </View>
               ))}
             </View>
@@ -310,30 +357,36 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         {/* Membros */}
         {orgId && (
           <FadeInView index={3}>
-            <Text style={styles.sectionHeader}>Members · {people.length}</Text>
+            {sectionHead(`Members · ${people.length}`, 'member')}
             <View style={styles.card}>
               {people.map((p, i) => {
                 const me = p.userId === user?.id;
                 const canManage = isLeader && !me;
+                const canPick = isLeader && canBulkSelectPerson(p, user?.id);
+                const picked = bulk.isMemberSelected(p.userId);
                 return (
                   <View key={p.userId}>
                     {i > 0 && <View style={styles.divider} />}
                     <PressableScale
-                      style={styles.personRow}
-                      disabled={!canManage || busyId !== null}
-                      onPress={() => manage(p)}
+                      style={[styles.personRow, bulk.running === 'remove' && picked && styles.rowBusy]}
+                      disabled={(selecting ? !canPick : !canManage) || busyId !== null || bulk.running !== null}
+                      onPress={selecting ? () => bulk.toggleMember(p.userId) : () => manage(p)}
+                      onLongPress={!selecting && canPick ? () => bulk.start({ kind: 'member', id: p.userId }) : undefined}
                       scaleTo={0.985}
-                      accessibilityRole={canManage ? 'button' : undefined}
-                      accessibilityLabel={canManage ? `Manage ${p.name}` : undefined}
+                      accessibilityRole={selecting ? (canPick ? 'checkbox' : undefined) : canManage ? 'button' : undefined}
+                      accessibilityState={selecting && canPick ? { checked: picked } : undefined}
+                      accessibilityLabel={selecting ? (canPick ? p.name : undefined) : canManage ? `Manage ${p.name}` : undefined}
+                      accessibilityHint={!selecting && canPick ? 'Long press to select several' : undefined}
                     >
+                      {selecting && (canPick ? <SelectBox checked={picked} /> : <View style={styles.boxSpacer} />)}
                       <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.personName} numberOfLines={1}>{p.name}{me ? ' (you)' : ''}</Text>
                         <Text style={styles.personEmail} numberOfLines={1}>{p.email}</Text>
                       </View>
-                      {busyId === p.userId ? <ActivityIndicator color={ios.accent} /> : (
+                      {busyId === p.userId ? <PondiLoader size="sm" label="Working" /> : (
                         <>
                           <Text style={styles.personRole}>{p.role === 'leader' ? 'Leader' : 'Member'}</Text>
-                          {canManage && <Ionicons name="ellipsis-horizontal" size={18} color={ios.tertiaryLabel} />}
+                          {canManage && !selecting && <Ionicons name="ellipsis-horizontal" size={18} color={ios.tertiaryLabel} />}
                         </>
                       )}
                     </PressableScale>
@@ -341,7 +394,11 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
                 );
               })}
             </View>
-            {isLeader && <Text style={styles.footer}>Tap a member to make them leader or remove them.</Text>}
+            {isLeader && (
+              <Text style={styles.footer}>
+                {selecting ? 'Tap people to select them.' : 'Tap a member to make them leader or remove them. Press and hold to select several.'}
+              </Text>
+            )}
           </FadeInView>
         )}
 
@@ -382,6 +439,19 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         <FadeInView index={4}>
         <Text style={styles.sectionHeader}>App</Text>
         <View style={styles.card}>
+          <PressableScale
+            style={styles.row}
+            onPress={() => nav.navigate('WhatsNew')}
+            scaleTo={0.985}
+            accessibilityRole="button"
+            accessibilityLabel={`What's new in version ${APP_VERSION}${whatsNewUnseen ? ', not opened yet' : ''}`}
+          >
+            <Ionicons name="sparkles-outline" size={20} color={ios.secondaryLabel} />
+            <Text style={[styles.rowKey, { flex: 1 }]}>{`What's new · ${APP_VERSION}`}</Text>
+            {whatsNewUnseen && <View style={styles.newDot} />}
+            <Ionicons name="chevron-forward" size={18} color={ios.tertiaryLabel} />
+          </PressableScale>
+          <View style={styles.divider} />
           <PressableScale style={styles.row} onPress={() => nav.navigate('Settings')} scaleTo={0.985} accessibilityRole="button">
             <Ionicons name="settings-outline" size={20} color={ios.secondaryLabel} />
             <Text style={[styles.rowKey, { flex: 1 }]}>Settings</Text>
@@ -402,7 +472,18 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
         </View>
         </FadeInView>
       </Animated.ScrollView>
+      {/* Puxar para atualizar: o PondiLoader no lugar do spinner do sistema. */}
+      <RefreshLoader scrollY={scrollY} refreshing={loading} top={insets.top} />
       <CompactHeader title={displayName || 'Profile'} scrollY={scrollY} threshold={150} />
+
+      {/* Barra fixa das ações em massa: «N selected», confirmar, progresso e resumo. */}
+      {isLeader && (
+        <BulkActionBar
+          bulk={bulk}
+          orgName={user?.organizationName ?? undefined}
+          style={{ position: 'absolute', left: 12, right: 12, bottom: insets.bottom + 12 }}
+        />
+      )}
 
       <ProfileSheet
         visible={editing}
@@ -412,6 +493,11 @@ const styles = useMemo(() => makeStyles(ios), [ios]);
       />
     </View>
   );
+}
+
+// Espaço de largura zero antes de «@» e de cada «.»: as quebras de linha caem aí.
+function breakableEmail(email: string) {
+  return email.replace(/([@.])/g, '\u200B$1');
 }
 
 const makeStyles = (ios: Palette) => StyleSheet.create({
@@ -426,7 +512,7 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   avatarWrap: { marginBottom: 10 },
   avatarText: { color: '#FFFFFF', fontSize: 30, fontWeight: '700' },
   name: { fontSize: 24, fontWeight: '700', color: ios.label, textAlign: 'center' },
-  email: { fontSize: 15, color: ios.secondaryLabel },
+  email: { fontSize: 15, color: ios.secondaryLabel, textAlign: 'center' },
   link: { fontSize: 15, color: ios.accent, marginTop: 6 },
   sectionHeader: {
     paddingHorizontal: 32, paddingTop: 26, paddingBottom: 8,
@@ -463,6 +549,12 @@ const makeStyles = (ios: Palette) => StyleSheet.create({
   eventIcon: { width: 30, height: 30, borderRadius: 15, backgroundColor: ios.systemGroupedBackground, alignItems: 'center', justifyContent: 'center' },
   eventText: { fontSize: 15, color: ios.label },
   eventWhen: { fontSize: 13, color: ios.secondaryLabel, marginTop: 2 },
+  sectionRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  sectionLink: { minHeight: 44, paddingLeft: 12, paddingRight: 32, justifyContent: 'flex-end', paddingBottom: 6 },
+  sectionLinkText: { fontSize: 15, color: ios.accent, fontWeight: '600' },
+  boxSpacer: { width: 30 },
+  rowBusy: { opacity: 0.5 },
+  newDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#2D7D46' },
   footer: { paddingHorizontal: 32, paddingTop: 8, fontSize: 13, color: ios.secondaryLabel },
   error: { color: ios.danger, fontSize: 14, textAlign: 'center', marginTop: 16, paddingHorizontal: 24 },
 });

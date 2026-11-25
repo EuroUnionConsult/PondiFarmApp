@@ -1,5 +1,6 @@
 import React, { Suspense, lazy } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
+import PondiLoader from './PondiLoader';
 
 /**
  * Mapa da quinta na web. O Leaflet (~150 KB) só se descarrega quando o mapa
@@ -16,7 +17,7 @@ export default function FarmMap(props: Props) {
     <Suspense
       fallback={
         <View style={{ height, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(127,127,127,0.12)' }}>
-          <ActivityIndicator color="#2D7D46" />
+          <PondiLoader size="md" />
         </View>
       }
     >

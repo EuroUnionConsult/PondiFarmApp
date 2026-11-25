@@ -91,6 +91,11 @@ html, body { background: var(--ground); }
 /* ---------- transições entre páginas ---------- */
 .pf-pagein { animation: pfIn .38s cubic-bezier(.2,.8,.2,1); }
 @keyframes pfIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.pf-afterintro { animation: none; }
+/* Depois da animação de abertura (EntryAnimation): a Home entra bloco a bloco. */
+.pf-afterintro > .pf-page > * { animation: pfIn .38s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--intro-d, 0ms) + var(--i, 0) * 70ms); }
+.pf-afterintro > .pf-page > :nth-child(2) { --i: 1; } .pf-afterintro > .pf-page > :nth-child(3) { --i: 2; }
+.pf-afterintro > .pf-page > :nth-child(4) { --i: 3; } .pf-afterintro > .pf-page > :nth-child(n+5) { --i: 4; }
 @keyframes pfGrowY { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes pfGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes pfDot { from { opacity: 0; transform: scale(0); } to { opacity: 1; transform: scale(1); } }
@@ -260,7 +265,6 @@ html, body { background: var(--ground); }
 .pf-menu { position: absolute; right: 0; top: 42px; z-index: 20; min-width: 230px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px; box-shadow: 0 18px 40px rgba(18,36,52,.18); transform-origin: top right; animation: pfPop .18s cubic-bezier(.2,.9,.3,1.2); }
 .pf-menu button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 10px 12px; border-radius: 9px; font-size: 14px; color: var(--label); }
 .pf-menu button:hover { background: var(--hover); } .pf-menu button.dang { color: var(--danger); } .pf-menu button.dang:hover { background: var(--dangerBg); }
-.pf-spin { width: 20px; height: 20px; border-radius: 50%; border: 2.5px solid var(--greenL); border-top-color: var(--green); animation: pfSpin .8s linear infinite; margin: 0 8px; }
 .pf-acct .row { width: 100%; display: flex; align-items: center; gap: 12px; padding: 16px 20px; border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; font-size: 15px; color: var(--label); transition: background .15s; }
 .pf-acct .row:last-child { border-bottom: 0; } .pf-acct .row:hover { background: var(--hover); } .pf-acct .row span:nth-child(2) { flex: 1; }
 .pf-acct .row.dang { color: var(--danger); } .pf-acct .ic { width: 32px; height: 32px; border-radius: 9px; background: var(--soft2); display: flex; align-items: center; justify-content: center; color: var(--ink2); } .pf-acct .ic svg { width: 18px; }
@@ -345,6 +349,8 @@ html, body { background: var(--ground); }
 .pf-login { position: fixed; inset: 0; display: flex; }
 .pf-lp { flex: 1.1; position: relative; overflow: hidden; background: #122434; display: flex; align-items: center; justify-content: center; padding: 56px; }
 .pf-lp-icon { width: min(46%, 380px); aspect-ratio: 1; border-radius: 24%; box-shadow: 0 30px 80px rgba(0,0,0,.35); }
+/* Durante a animação de abertura o ícone dela ocupa este lugar; o do login só aparece quando ela sai. */
+.pf-intro-on .pf-lp-icon { opacity: 0; }
 .pf-rp { flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
 .pf-form { width: 400px; position: relative; z-index: 1; }
 .pf-seg { display: flex; background: rgba(118,118,128,.12); border-radius: 12px; padding: 3px; margin: 26px 0 8px; }
@@ -398,11 +404,10 @@ html, body { background: var(--ground); }
 .pf-locsearch { position: relative; flex: 1; } .pf-locsearch input { width: 100%; padding: 11px 14px; border-radius: 12px; border: 1px solid var(--ctl); background: var(--card); font: inherit; font-size: 14.5px; color: var(--label); }
 .pf-locres { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 1000; background: var(--card); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.12); overflow: hidden; }
 .pf-locres button { display: block; width: 100%; text-align: left; padding: 10px 14px; border: 0; background: none; font: inherit; font-size: 14px; color: var(--label); cursor: pointer; } .pf-locres button:hover { background: var(--hover); }
-.pf-locsearch input { padding-right: 40px; } .pf-locspin { position: absolute; right: 13px; top: 50%; width: 16px; height: 16px; margin-top: -8px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--green); animation: pfSpin .8s linear infinite; }
+.pf-locsearch input { padding-right: 40px; }
 .pf-locmsg { padding: 11px 14px; font-size: 13.5px; color: var(--ink2); line-height: 1.45; } .pf-locmsg.err { color: var(--danger); }
 .pf-loccredit { margin-top: 10px; font-size: 11.5px; color: var(--muted); }
-.pf-wx-notice { display: flex; align-items: center; gap: 8px; margin: 14px 4px 16px; font-size: 13.5px; color: var(--warnInk); line-height: 1.4; } .pf-wx-notice .pf-locspin { position: static; margin: 0; flex: none; border-top-color: var(--warnInk); }
-.pf-wx-wait { padding: 34px; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14.5px; } .pf-wx-wait .pf-locspin { position: static; margin: 0; }
+.pf-wx-notice { display: flex; align-items: center; gap: 8px; margin: 14px 4px 16px; font-size: 13.5px; color: var(--warnInk); line-height: 1.4; } .pf-wx-wait { padding: 34px; display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 14.5px; }
 .pf-locpick { margin-top: 12px; } .pf-locpick b { display: block; font-size: 15.5px; } .pf-locpick span { font-size: 12.5px; color: var(--muted); }
 .pf-pin { background: none; border: 0; }
 .pf-farmloc { display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); } .pf-farmloc .ic { width: 30px; height: 30px; border-radius: 9px; background: var(--greenL); color: var(--green); display: grid; place-items: center; flex: none; } .pf-farmloc .ic svg { width: 17px; height: 17px; }
@@ -458,4 +463,15 @@ html, body { background: var(--ground); }
 .pf-wn-status.in-progress { background: #FBEBDD; color: #9C4C16; }
 .pf-wn-status.planned { background: #E3EBF3; color: #1B3A57; }
 .pf-newdot { width: 9px; height: 9px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+/* Seleção em massa na lista de membros (Perfil). */
+.pf-people .pr.pick { cursor: pointer; } .pf-people .pr.pick:hover { background: var(--greenL); }
+.pf-people .pr.sel { background: var(--greenL); } .pf-people .pr.busy { opacity: .5; }
+.pf-boxgap { width: 30px; flex: none; }
+.pf-check { width: 30px; height: 30px; flex: none; border-radius: 50%; border: 2px solid var(--muted); background: var(--card); color: #fff; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; transition: background .15s, border-color .15s, transform .1s; }
+.pf-check svg { width: 17px; height: 17px; opacity: 0; transition: opacity .12s; }
+.pf-check.on { background: var(--green); border-color: var(--green); } .pf-check.on svg { opacity: 1; }
+.pf-check:hover:not(:disabled) { border-color: var(--green); } .pf-check:active:not(:disabled) { transform: scale(.92); }
+.pf-check:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; } .pf-check:disabled { opacity: .5; cursor: default; }
+.pf-bulkdock { position: sticky; bottom: 16px; z-index: 30; max-width: 640px; margin: 18px auto 0; }
 `;

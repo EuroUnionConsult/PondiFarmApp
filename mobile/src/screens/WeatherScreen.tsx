@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path, Rect, Line, Circle, Text as SvgText } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,6 +14,7 @@ import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { BAND_LABEL, KIND_LABEL, forecastNotice, useWeather, type Weather, type WeatherAlert } from '../lib/weather';
 import type { RootStackParamList } from '../navigation/types';
+import PondiLoader from '../components/PondiLoader';
 
 /**
  * Tempo e bem-estar da quinta: avisos primeiro (stress térmico, chuva, noite fria,
@@ -56,7 +57,7 @@ export default function WeatherScreen() {
           )}
           {notice && (
             <View style={styles.noticeRow} accessibilityLiveRegion="polite">
-              {updating && <ActivityIndicator size="small" color={ios.orangeText} />}
+              {updating && <PondiLoader size="sm" label="Updating forecast" />}
               <Text style={styles.stale}>{notice}</Text>
             </View>
           )}

@@ -11,6 +11,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
+from core import rate_limit
 from core.database import get_db
 from core.deps import (
     CurrentAccount,
@@ -21,6 +22,10 @@ from core.deps import (
 )
 from models.models import ROLE_LEADER
 from schemas.organization_access_schemas import (
+    BulkActionResponse,
+    BulkItemResult,
+    BulkJoinRequestsBody,
+    BulkRemoveMembersBody,
     JoinRequestCreate,
     JoinRequestResponse,
     MemberResponse,
@@ -200,6 +205,58 @@ def remove(
     _own_org(leader, organization_id)
     svc.remove_member(db, leader.user, organization_id, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+# Ações em massa: as mesmas regras das individuais, item a item. Limite por
+# Líder para um script não martelar a base de dados com centenas de pedidos.
+BULK_RATE_LIMIT = 30
+BULK_RATE_WINDOW = 300
+
+
+def _bulk_response(results: list[tuple[UUID, str | None]]) -> BulkActionResponse:
+    items = [BulkItemResult(id=i, ok=r is None, reason=r) for i, r in results]
+    done = sum(1 for it in items if it.ok)
+    return BulkActionResponse(succeeded=done, failed=len(items) - done, results=items)
+
+
+@organization_access_router.post(
+    "/{organization_id}/join-requests/bulk", response_model=BulkActionResponse
+)
+def bulk_decide(
+    organization_id: UUID,
+    payload: BulkJoinRequestsBody,
+    leader: CurrentUser = Depends(require_leader),
+    db: Session = Depends(get_db),
+):
+    """Aprova ou recusa vários pedidos (até 100). Resposta item a item."""
+    _own_org(leader, organization_id)
+    rate_limit.hit(f"org-bulk:{leader.user.id}", BULK_RATE_LIMIT, BULK_RATE_WINDOW)
+    return _bulk_response(
+        svc.bulk_decide_requests(
+            db,
+            leader.user,
+            organization_id,
+            payload.ids,
+            approve=payload.action == "approve",
+        )
+    )
+
+
+@organization_access_router.post(
+    "/{organization_id}/members/bulk-remove", response_model=BulkActionResponse
+)
+def bulk_remove(
+    organization_id: UUID,
+    payload: BulkRemoveMembersBody,
+    leader: CurrentUser = Depends(require_leader),
+    db: Session = Depends(get_db),
+):
+    """Remove várias pessoas (até 100). Nunca o Líder nem a própria conta."""
+    _own_org(leader, organization_id)
+    rate_limit.hit(f"org-bulk:{leader.user.id}", BULK_RATE_LIMIT, BULK_RATE_WINDOW)
+    return _bulk_response(
+        svc.bulk_remove_members(db, leader.user, organization_id, payload.user_ids)
+    )
 
 
 @organization_access_router.post(

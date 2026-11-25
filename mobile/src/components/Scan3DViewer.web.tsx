@@ -1,8 +1,9 @@
 import React, { Suspense, lazy, useMemo } from 'react';
-import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { fetchScanMesh } from '../lib/api';
+import PondiLoader from './PondiLoader';
 
 // O three.js (~600 KB) só se descarrega quando há um modelo 3D para mostrar:
 // pedaço próprio do bundle (import dinâmico), fora do arranque da app.
@@ -17,7 +18,7 @@ export default function Scan3DViewer({ scanId }: { scanId: string }) {
   const styles = useMemo(() => makeStyles(ios), [ios]);
   const load = useMemo(() => () => fetchScanMesh(scanId), [scanId]);
   return (
-    <Suspense fallback={<View style={styles.loading}><ActivityIndicator color={ios.accent} /></View>}>
+    <Suspense fallback={<View style={styles.loading}><PondiLoader size="md" /></View>}>
       <ScanViewer load={load} dark={mode === 'dark'} />
     </Suspense>
   );

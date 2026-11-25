@@ -85,6 +85,65 @@ export const transferLeadership = (orgId: string, userId: string) =>
 export const leaveOrganization = (orgId: string) =>
   call<void>('POST', `/api/v1/organizations/${orgId}/leave`);
 
+// --- Ações em massa (só o Líder) ---------------------------------------------
+// O backend aceita até 100 ids por pedido e responde item a item; aqui divide-se
+// em lotes de 100 e juntam-se os resultados, para a interface não ter limite.
+
+/** Códigos estáveis do backend quando um item falha. */
+export type BulkReason =
+  | 'already_handled' | 'in_other_organization' | 'not_a_member'
+  | 'is_self' | 'is_leader' | 'error';
+
+export interface BulkItemResult { id: string; ok: boolean; reason: BulkReason | string | null }
+export interface BulkResult { succeeded: number; failed: number; results: BulkItemResult[] }
+
+export const BULK_MAX = 100;
+export type BulkRequestAction = 'approve' | 'deny';
+
+async function inBatches(ids: string[], send: (batch: string[]) => Promise<BulkResult>): Promise<BulkResult> {
+  const unique = Array.from(new Set(ids));
+  const out: BulkResult = { succeeded: 0, failed: 0, results: [] };
+  for (let i = 0; i < unique.length; i += BULK_MAX) {
+    const r = await send(unique.slice(i, i + BULK_MAX));
+    out.succeeded += r.succeeded; out.failed += r.failed; out.results.push(...r.results);
+  }
+  return out;
+}
+
+export const bulkDecideRequests = (orgId: string, ids: string[], action: BulkRequestAction) =>
+  inBatches(ids, (batch) => call<BulkResult>('POST', `/api/v1/organizations/${orgId}/join-requests/bulk`, { ids: batch, action }));
+
+export const bulkRemovePeople = (orgId: string, userIds: string[]) =>
+  inBatches(userIds, (batch) => call<BulkResult>('POST', `/api/v1/organizations/${orgId}/members/bulk-remove`, { userIds: batch }));
+
+const REASON_TEXT: Record<string, string> = {
+  already_handled: 'already handled',
+  in_other_organization: 'already in another organization',
+  not_a_member: 'no longer a member',
+  is_self: 'you can’t remove yourself',
+  is_leader: 'the leader can’t be removed',
+  error: 'server error',
+};
+export const bulkReasonText = (reason: string | null | undefined) => REASON_TEXT[reason ?? ''] ?? 'not done';
+
+/** Título e detalhe do aviso: «5 approved, 1 failed» + «Already handled.» */
+export function summarizeBulkParts(r: BulkResult, verb: string): { title: string; detail?: string } {
+  const title = r.failed === 0 ? `${r.succeeded} ${verb}` : `${r.succeeded} ${verb}, ${r.failed} failed`;
+  if (r.failed === 0) return { title };
+  const counts = new Map<string, number>();
+  for (const it of r.results) if (!it.ok) { const t = bulkReasonText(it.reason); counts.set(t, (counts.get(t) ?? 0) + 1); }
+  const why = counts.size === 1
+    ? Array.from(counts.keys())[0]
+    : Array.from(counts.entries()).map(([t, n]) => `${n} ${t}`).join(', ');
+  return { title, detail: `${why.charAt(0).toUpperCase()}${why.slice(1)}.` };
+}
+
+/** «5 approved, 1 failed: already handled» — igual na app e na web. */
+export function summarizeBulk(r: BulkResult, verb: string): string {
+  const { title, detail } = summarizeBulkParts(r, verb);
+  return detail ? `${title}: ${detail.charAt(0).toLowerCase()}${detail.slice(1, -1)}` : title;
+}
+
 // --- Histórico da organização (só o Líder) ---------------------------------
 
 export type OrgEventType =

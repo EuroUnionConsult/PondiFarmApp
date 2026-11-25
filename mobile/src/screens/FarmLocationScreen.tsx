@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, TouchableOpacity, TextInput, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
@@ -11,6 +11,7 @@ import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { useAuth } from '../lib/AuthContext';
 import { POSTCODE_CREDIT, saveFarmLocation, searchMessage, usePinLabel, usePlaceSearch, useWeather } from '../lib/weather';
+import PondiLoader from '../components/PondiLoader';
 
 /**
  * Onde fica a quinta (só o Líder). Três formas no mesmo ecrã: o GPS do telemóvel,
@@ -88,7 +89,7 @@ export default function FarmLocationScreen() {
         </View>
 
         <TouchableOpacity style={styles.gps} onPress={useMine} disabled={locating} activeOpacity={0.8} accessibilityRole="button">
-          {locating ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="navigate" size={18} color="#FFFFFF" />}
+          {locating ? <PondiLoader size="sm" tone="onColor" /> : <Ionicons name="navigate" size={18} color="#FFFFFF" />}
           <Text style={styles.gpsText}>Use my location</Text>
         </TouchableOpacity>
 
@@ -105,7 +106,7 @@ export default function FarmLocationScreen() {
             autoCorrect={false}
             returnKeyType="search"
           />
-          {search.status === 'searching' && <ActivityIndicator size="small" color={ios.accent} accessibilityLabel="Searching" />}
+          {search.status === 'searching' && <PondiLoader size="sm" label="Searching" />}
         </View>
         {searchMsg && (
           <Text style={search.status === 'error' ? styles.err : styles.searchMsg} accessibilityLiveRegion="polite">{searchMsg}</Text>
@@ -142,7 +143,7 @@ export default function FarmLocationScreen() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
         <TouchableOpacity style={[styles.save, !(touched || start) && { opacity: 0.5 }]} disabled={saving || !(touched || start)} onPress={save} activeOpacity={0.85}>
-          {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveText}>Save farm location</Text>}
+          {saving ? <PondiLoader size="sm" tone="onColor" label="Saving" /> : <Text style={styles.saveText}>Save farm location</Text>}
         </TouchableOpacity>
       </View>
     </View>

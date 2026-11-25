@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, StyleSheet, Animated, Easing, ActivityIndicator, Pressable } from 'react-native';
+import { View, StyleSheet, Animated, Easing, Pressable } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import Text from './Text';
 import { useTheme } from '../lib/ThemeContext';
 import { type Palette } from '../lib/theme';
 import { fetchAnimalScans, type ScanPoint } from '../lib/api';
+import PondiLoader from './PondiLoader';
 
 // Histórico já pedido nesta sessão: voltar ao mesmo animal não repete o pedido.
 const cache = new Map<string, ScanPoint[]>();
@@ -36,7 +37,7 @@ export default function WeightHistory({ animalId }: { animalId: string }) {
   }, [ws.length, w]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (failed) return <Text style={styles.note}>The scan history could not be loaded.</Text>;
-  if (pts === null) return <View style={styles.loading}><ActivityIndicator color={ios.accent} /></View>;
+  if (pts === null) return <View style={styles.loading}><PondiLoader size="md" /></View>;
   if (ws.length < 2) {
     return <Text style={styles.note}>{ws.length === 1 ? `One scan so far (${fmtDate(ws[0].at)}). The trend appears after the next scan.` : 'No scans with a weight yet.'}</Text>;
   }

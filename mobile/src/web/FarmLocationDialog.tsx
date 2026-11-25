@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import FarmMap from '../components/FarmMap';
 import { useAuth } from '../lib/AuthContext';
 import { POSTCODE_CREDIT, saveFarmLocation, searchMessage, usePinLabel, usePlaceSearch, useWeather } from '../lib/weather';
+import PondiLoader from '../components/PondiLoader';
 
 /**
  * Marcar a quinta no computador (só o Líder): a localização deste browser, pesquisa
@@ -64,7 +65,7 @@ export default function FarmLocationDialog({ onClose }: { onClose: () => void })
           <div className="pf-locsearch">
             <input value={q} onChange={(e) => search.setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); search.submit(); } }}
               placeholder="Search a place or postcode, e.g. 6000-458" aria-label="Search a place or postcode" aria-busy={search.status === 'searching'} enterKeyHint="search" />
-            {search.status === 'searching' && <span className="pf-locspin" role="status" aria-label="Searching" />}
+            {search.status === 'searching' && <PondiLoader size={18} label="Searching" style={{ position: 'absolute', right: 12, top: '50%', marginTop: -9 }} />}
             {results.length > 0 && (
               <div className="pf-locres" role="listbox">
                 {results.map((r, i) => <button key={`${r.lat},${r.lon},${i}`} role="option" aria-selected={false} onClick={() => { move(r.lat, r.lon, r.label); search.clear(); }}>{r.label}</button>)}
@@ -80,7 +81,7 @@ export default function FarmLocationDialog({ onClose }: { onClose: () => void })
         <div className="pf-loccredit">{POSTCODE_CREDIT}</div>
         <div className="acts">
           <button className="pf-btn l w7" onClick={onClose}>Cancel</button>
-          <button className="pf-btn g w7" onClick={save} disabled={busy === 'save' || !(touched || start)}>{busy === 'save' ? 'Saving…' : 'Save farm location'}</button>
+          <button className="pf-btn g w7" onClick={save} disabled={busy === 'save' || !(touched || start)}>{busy === 'save' ? <><PondiLoader size="sm" tone="onColor" label="Saving" />Saving…</> : 'Save farm location'}</button>
         </div>
       </div>
     </div>
